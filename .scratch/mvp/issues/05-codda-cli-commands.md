@@ -12,6 +12,6 @@ Blocked by: 03, 08
 
 - Окончательный список команд и что каждая проверяет или создаёт. `codda test`: собираются ли starter и solution, проходит ли solution тесты, падает ли на них starter, валиден ли manifest, собираются ли зависимости.
 - Чем `codda ci` отличается от `codda test` (и нужен ли он).
-- Где выполняются Lesson Tests при `codda test`: в headless-браузере (Playwright) с тем же Runtime или иначе.
+- Где выполняются Lesson Tests при `codda test`: в headless-браузере (Playwright) с тем же Runtime или иначе. ADR-0007 требует Chromium: только в нём `codda test` блокирует внешние запросы пакетов.
 - Формат вывода и коды выхода для CI.
 - Как CLI ставится и запускается в MVP (из этого репозитория: `npx codda`, `npm run codda`?).

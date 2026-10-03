@@ -23,11 +23,16 @@ Blocked by: None
 
 Вопросы и ответы по раундам — в [lesson-manifest-questions.md](../lesson-manifest-questions.md).
 
+Зависимости пересмотрены тикетом [08](08-dependency-artifacts-adr.md) (ADR-0007): они объявляются только в `package.json` Course, а не в `course.yaml` и `lesson.md`. Ниже уже исправлено.
+
 **Файловая структура:**
 
 ```
 courses/react-hooks/
   course.yaml
+  package.json             # dependencies Course, точные версии; ведёт npm
+  package-lock.json
+  .npmrc                   # save-exact=true
   use-state/               # id Lesson = имя папки, kebab-case, без числового префикса
     lesson.md              # frontmatter + Instructions
     main.tsx               # Starter (main.ts или main.tsx); студент видит вкладку «main.tsx»
@@ -40,22 +45,19 @@ courses/react-hooks/
 ```yaml
 id: react-hooks            # обязательно, kebab-case; ключ прогресса в браузере
 title: React Hooks         # обязательно
-dependencies:              # необязательно, по умолчанию {}
-  react: 19.3.0
-  react-dom: 19.3.0
 modules:                   # обязательно, ≥1
   - title: Хуки            # обязательно
     lessons: [use-state, use-effect, use-ref, use-reducer, use-context]  # ≥1
 ```
 
-**Frontmatter `lesson.md`:** `title` (обязательно), `dependencies` (необязательно). Тело — Instructions. Заголовок UI берёт из `title`.
+**Frontmatter `lesson.md`:** `title` (обязательно). Тело — Instructions. Заголовок UI берёт из `title`.
 
 **Правила:**
 
 - Порядок Lesson — явный список в `course.yaml`. У Module нет папки, он существует только в `course.yaml`. Если Lesson из списка нет на диске, папка Lesson не указана в списке или id повторяется, это ошибка.
 - Идентичность: ключ прогресса и Workspace в браузере — `<course id>/<lesson id>`. Перенос Lesson между Module и смена порядка ключ не меняют. Переименование папки — это новый Lesson, прогресс по старому id теряется.
 - Если Starter или тесты поменялись, сохранённый Workspace студента и отметка «пройден» остаются. Новый Starter студент получает через Reset.
-- Зависимости: map `имя: X.Y.Z`, допускается prerelease, диапазоны — ошибка. Набор Lesson = Course ∪ Lesson. Повтор в Lesson пакета из Course (с любой версией) — ошибка. Subpath-импорты (`react-dom/client`) не объявляются, `codda` выводит их из импортов. `@codda/test` встроен в Runtime. Нужно ли объявлять `@types/*` — решает тикет 08; если нужно, они пишутся в тот же map.
+- Зависимости — только `dependencies` в `package.json` Course, версии `X.Y.Z` (допускается prerelease), диапазоны — ошибка. Своих зависимостей у Lesson нет. Subpath-импорты (`react-dom/client`) не объявляются, `codda` выводит их из импортов. `@codda/test` встроен в Runtime. `@types/*` объявляются явно там же. Подробности — ADR-0007.
 - Instructions: CommonMark + GFM, raw HTML выводится как текст, картинки (`![…](…)`) — ошибка, внешние ссылки разрешены.
 - Валидация — Zod-схема в коде, из неё выводятся TS-типы. Кросс-файловые правила живут там же. Неизвестные поля в YAML — ошибка. Лишние файлы в папке Lesson пока не проверяем.
 - Ошибки манифеста в `codda test`: собираются все ошибки по всему Course, одна строка на ошибку — `<файл от корня Course>: <путь к полю>: <сообщение>`, по-русски, код выхода ненулевой. Lesson с невалидным манифестом не собирается и не тестируется, остальные проверяются. Общий формат вывода CLI решает тикет 05.

@@ -17,7 +17,7 @@ Label: wayfinder:map
   - В MVP у Lesson **один файл** Workspace; multi-file — во «второй части MVP».
   - Instructions — обычный Markdown, MDX не делаем.
   - Инструмент `codda` отделён от контента, курсы передаются путём, сборка статическая, registry — из `.npmrc` или по умолчанию: [ADR-0006](../../docs/adr/0006-tool-separate-from-content.md).
-  - Зависимости задаются на уровне Course, Lesson добавляет свои; версии точные; «произвольный пакет» = любой, прошедший `codda test`.
+  - Зависимости задаются только на уровне Course, в `package.json` (пересмотрено тикетом 08, ADR-0007); версии точные; «произвольный пакет» = любой, прошедший `codda test`.
   - Весь UI на русском, у действий нет подтверждений.
   - Пилотный курс — существующий React Hooks, переведённый на новый формат; старый формат удаляется.
   - Security baseline отложен, но обязателен до серверного хранения (7.4) и до любых внешних пользователей. Пилот проводится только в Chrome: без защиты от бесконечных циклов Safari вешает вкладку. Холодный старт (R1) принимаем; поднять, если всплывёт в пилоте.
@@ -28,11 +28,13 @@ Label: wayfinder:map
 
 - [Как собирать и доставлять Dependency Artifacts](issues/01-dependency-artifacts.md): research рекомендует артефакт на набор Course ∪ Lesson, CJS-обёртки с default-экспортом, доставку import map'ом отдельно от кода студента, только dev-сборку, типы отдельным JSON-артефактом; транспорт — после замера, решение — ADR.
 - [TypeScript language service в Web Worker для CodeMirror 6 без сети](issues/02-ts-language-service.md): TS 7 в браузере не работает — отдельный Worker «Type Checker» на TS 6 + `@typescript/vfs`, lib и `.d.ts` с нашего origin, своя обвязка CM6; продуктовые вопросы — отдельным тикетом.
-- [Схема Lesson Manifest и файловая структура Course](issues/03-lesson-manifest-schema.md): `course.yaml` (`id`, `title`, `dependencies`, `modules` с явным порядком Lesson); Lesson — папка-id с `lesson.md` (frontmatter `title`, `dependencies`), `main.ts(x)`, `solution.*`, `lesson.test.*`; версии точные, повтор пакета из Course — ошибка; Zod, strict; ошибки `codda test` — все сразу, по строке; Instructions без raw HTML и картинок.
+- [Схема Lesson Manifest и файловая структура Course](issues/03-lesson-manifest-schema.md): `course.yaml` (`id`, `title`, `modules` с явным порядком Lesson); Lesson — папка-id с `lesson.md` (frontmatter `title`), `main.ts(x)`, `solution.*`, `lesson.test.*`; зависимости — в `package.json` Course (пересмотрено тикетом 08); Zod, strict; ошибки `codda test` — все сразу, по строке; Instructions без raw HTML и картинок.
+- [Эксперимент: транспорт Dependency Artifacts в Sandbox](issues/07-artifact-transport-experiment.md): отложен в «MVP, часть 2» решением тикета 08.
+- [ADR: сборка и доставка Dependency Artifacts](issues/08-dependency-artifacts-adr.md): ADR-0007 — один Dependency Artifact на Course из `package.json` + `package-lock.json` (npm ведёт lock, у Lesson своих зависимостей нет); `importmap.json` + `types.json` по hash; CJS через `require` + `export default`; только dev-сборка; в MVP вшивается в бандл как в PoC, эксперимент 07 отложен в «MVP, часть 2».
 
 ## Not yet specified
 
-- **Test Harness: асинхронные ошибки, отмена Run и source maps в Sandbox (3.3–3.7).** Пока похоже на работу внутри фичи `runtime-hardening`, но решение о доставке артефактов («ADR: сборка и доставка Dependency Artifacts»: вшивать или грузить import map'ом) может поменять то, как ошибки сопоставляются со строками студента.
+- **Test Harness: асинхронные ошибки, отмена Run и source maps в Sandbox (3.3–3.7).** Пока похоже на работу внутри фичи `runtime-hardening`. Решение о доставке принято (ADR-0007): в MVP артефакты по-прежнему вшиваются в бандл, так что сопоставление ошибок со строками студента остаётся как в PoC.
 - **`codda dev`.** Как локальный просмотр подхватывает изменения в папке курса. Прояснится после «Команд CLI `codda`».
 
 ## Out of scope

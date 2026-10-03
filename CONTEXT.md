@@ -7,7 +7,7 @@
 ### Учебный контент
 
 **Course**:
-Упорядоченный набор Module по одной теме. Это папка с `course.yaml`: `id`, название, Dependencies Course, Module и порядок Lesson в них.
+Упорядоченный набор Module по одной теме. Это папка с `course.yaml` (`id`, название, Module и порядок Lesson в них) и `package.json` + `package-lock.json` с зависимостями, общими для всех Lesson.
 _Avoid_: программа, трек
 
 **Module**:
@@ -15,7 +15,7 @@ _Avoid_: программа, трек
 _Avoid_: раздел, глава
 
 **Lesson**:
-Одно задание: Instructions + Starter + Lesson Tests + Solution + описание Dependencies. Папка внутри Course. Имя папки — id Lesson, по нему хранятся прогресс и Workspace.
+Одно задание: Instructions + Starter + Lesson Tests + Solution. Своих зависимостей у Lesson нет, он пользуется зависимостями Course. Папка внутри Course. Имя папки — id Lesson, по нему хранятся прогресс и Workspace.
 _Avoid_: exercise, задача, challenge, урок-страница
 
 **Instructions**:
@@ -39,7 +39,7 @@ Lesson Tests, которые не отдаются в браузер и выпо
 _Avoid_: секретные тесты
 
 **Lesson Manifest**:
-Машиночитаемое описание Lesson — контракт между авторингом, CI и Runtime. Это не отдельный файл. Lesson Manifest складывается из frontmatter `lesson.md` (`title`, `dependencies`), записи Lesson в `course.yaml` и файлов Lesson, найденных по соглашению об именах (`main.*`, `solution.*`, `lesson.test.*`).
+Машиночитаемое описание Lesson — контракт между авторингом, CI и Runtime. Это не отдельный файл. Lesson Manifest складывается из frontmatter `lesson.md` (`title`), записи Lesson в `course.yaml` и файлов Lesson, найденных по соглашению об именах (`main.*`, `solution.*`, `lesson.test.*`).
 _Avoid_: config, lesson.json (как название понятия)
 
 ### Работа студента
@@ -79,7 +79,7 @@ _Avoid_: preview, frame, песочница
 _Avoid_: test runner, jest
 
 **Dependency Artifact**:
-Заранее подготовленная в CI, неизменяемая browser-ready сборка npm-пакета нужной версии.
+Неизменяемая browser-ready сборка `dependencies` Course по его `package-lock.json`, подготовленная в CI: ESM-модули, `importmap.json` и типы. Один на Course, адрес — по hash сборки. См. ADR-0007.
 _Avoid_: vendor, CDN-пакет, node_modules
 
 **Server Grader**:

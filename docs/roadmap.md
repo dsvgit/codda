@@ -35,6 +35,7 @@
 - Multi-file Workspace: virtual FS, импорты между файлами, табы, дерево, создание/удаление файлов студентом (блок A).
 - Прогрев Worker, холодный старт вне deadline Run (R1); защита от бесконечных циклов в Safari/Firefox (R3); preview/HMR (блок A).
 - CSS из npm-пакетов (блок B).
+- Быстрый Run с зависимостями (R4): эксперимент `.scratch/mvp/issues/07-artifact-transport-experiment.md`, затем import map в Sandbox вместо вшивания в бандл; статический лексер для CJS-экспортов; зависимости на уровне Lesson, если понадобятся (блок B, ADR-0007).
 - Hover, go to definition, форматирование (блок E).
 - Прогресс и Workspace на сервере, вход пользователя; подсказки и счётчик попыток (блок H).
 - Security baseline целиком (блок F) — обязателен до серверного хранения и до внешних пользователей.
@@ -63,16 +64,18 @@
 
 Из [PoC Report](poc-report.md): R3 — этот пункт; полный Chrome изоляцию тоже не гарантирует (память, Android). R1 — холодный старт вынести из deadline Run, прогревать Worker, отдавать `.wasm` сжатым и с кэшем по hash: сейчас на медленной сети первый Run кончается ложным «Timed out». R8 — асинхронные ошибки во время тестов.
 
-### B. Dependency pipeline — Phase 1 (spike) → Phase 2
-`internal npm registry → CI install → browser compatibility check → ESM artifacts → immutable storage (по hash)`. Решить: CommonJS, ESM, package `exports`, subpath imports, CSS, JSON, `.d.ts`, peer/shared deps, конфликты версий, кэширование, import maps vs вшивание в бандл. **Начать с research-спайка.**
+### B. Dependency pipeline — Phase 1 (эксперимент) → Phase 2
+`internal npm registry → CI install → browser compatibility check → ESM artifacts → immutable storage (по hash)`. Решить: CommonJS, ESM, package `exports`, subpath imports, CSS, JSON, `.d.ts`, peer/shared deps, конфликты версий, кэширование, import maps vs вшивание в бандл. **Начать с research и эксперимента.**
 
 Из [PoC Report](poc-report.md): R4 — вшивание артефактов в бандл против загрузки в Sandbox отдельно. R5 — `act` требует development-сборку React. R9 — default-импорт CJS-пакетов и проверка целостности по hash.
 
+Решение для MVP — ADR-0007: один Dependency Artifact на Course из `package.json` + `package-lock.json`, вшивается в бандл как в PoC (R4 принят). Import map в Sandbox, эксперимент 07 и CSS из пакетов — «MVP, часть 2».
+
 ### C. Модель Lesson — Phase 1
 ```
-Course (course.yaml: id, title, dependencies, modules → lessons)
+Course (course.yaml: id, title, modules → lessons; package.json + package-lock.json: dependencies)
  └ Lesson <id>/
-    ├ lesson.md        frontmatter (title, dependencies) + Instructions
+    ├ lesson.md        frontmatter (title) + Instructions
     ├ main.tsx         Starter
     ├ solution.tsx
     └ lesson.test.tsx
