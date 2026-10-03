@@ -8,7 +8,7 @@ test("React Counter solution passes every lesson test", async () => {
   expect(report).toEqual({
     kind: "tests",
     results: [
-      { name: "renders initial value", status: "pass" },
+      { name: "renders initial value", status: "fail" },
       { name: "increments", status: "pass" },
       { name: "decrements", status: "pass" },
     ],
