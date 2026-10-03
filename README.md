@@ -20,11 +20,11 @@ npm run dev
 
 Откройте адрес, который напечатает Vite (обычно http://localhost:5173), и пройдите сценарий:
 
-1. Нажмите **Run tests** — увидите `0 / 2 passed` и ошибки вида `expected 5, got -1`.
-2. В редакторе замените `a - b` на `a + b`.
-3. Снова **Run tests** — `2 / 2 passed`.
+1. Нажмите **Run tests** — увидите `0 / 3 passed` и ошибки вида `expected "1", got "?"`.
+2. В редакторе допишите `Counter`: `useState(0)`, число в `<output>`, `onClick` у кнопок `+` и `−` (готовое решение — `lesson.solution` в `src/lesson.ts`).
+3. Снова **Run tests** — `3 / 3 passed`.
 
-Первый Run занимает около секунды, потому что загружается и инициализируется `esbuild.wasm` (~14 МБ). Последующие — около 100–150 мс.
+Первый Run занимает около секунды, потому что загружаются и инициализируются `esbuild.wasm` (~14 МБ) и Dependency Artifacts с React (~1.2 МБ). Последующие — около 0.5 с: React вшивается в бандл заново на каждый Run.
 
 ## Команды
 
@@ -37,6 +37,7 @@ npm run dev
 | `npm run typecheck` | Проверка типов TypeScript |
 | `npm run build` | Typecheck + production-сборка в `dist/` |
 | `npm run preview` | Отдать собранный `dist/` локально, чтобы проверить сборку |
+| `npm run build:deps` | Пересобрать Dependency Artifacts (`react`, `react/jsx-runtime`, `react-dom/client`) в `public/deps/` из `node_modules`; результат коммитится |
 
 ## Тесты
 
@@ -61,17 +62,18 @@ CodeMirror ──source──▶ Runner ──▶ Compiler (Web Worker, esbuild-
 
 | Файл | Роль |
 |---|---|
-| `src/lesson.ts` | Lesson: `instructions`, `starter`, `tests` — строковые константы |
+| `src/lesson.ts` | Lesson «React: Counter»: `instructions`, `starter`, `solution`, `tests` — строковые константы |
 | `src/App.tsx`, `src/Editor.tsx` | Страница: Instructions, CodeMirror, кнопка Run, Test Report |
 | `src/runtime/runner.ts` | Runner: компиляция → новый Sandbox → ожидание отчёта; проверяет `event.source`, `type`, `runId` и форму отчёта |
 | `src/runtime/compiler.ts` | Клиент Compiler в основном потоке: держит Worker «тёплым» между Run |
-| `src/runtime/compiler.worker.ts` | Compiler: esbuild-wasm с виртуальным резолвером, всё собирается из памяти |
+| `src/runtime/compiler.worker.ts` | Compiler: esbuild-wasm с виртуальным резолвером, всё собирается из памяти; JSX — automatic runtime |
+| `scripts/build-deps.mjs`, `public/deps/` | Dependency Artifacts: React, собранный native esbuild в ESM, и `manifest.json` «specifier → файл». Compiler скачивает их со своего origin и вшивает в бандл — Sandbox с opaque origin сам их загрузить не может (ADR-0003) |
 | `src/runtime/harness.ts` | Test Harness: `test`, `expect().toBe/toEqual`, async-тесты; вшивается в бандл как модуль `@codda/test` |
 | `src/runtime/types.ts` | `TestReport`, `CompileResult` и форма сообщения Sandbox → parent |
 
 ### Как поменять задание
 
-Всё задание лежит в `src/lesson.ts`. Lesson Tests импортируют `test`/`expect` из `@codda/test`, а код студента — из `./App`:
+Всё задание лежит в `src/lesson.ts`. Lesson Tests импортируют `test`/`expect` из `@codda/test`, код студента — из `./App`, а React — как обычно, из `react` и `react-dom/client` (резолвится в Dependency Artifacts). Пример задания на чистом TypeScript:
 
 ```ts
 import { test, expect } from "@codda/test";
@@ -92,7 +94,8 @@ test("adds two positive numbers", () => {
 
 - Timeout (5 с) работает, только пока Sandbox живёт в отдельном процессе от страницы. Chrome так делает по умолчанию; Playwright-овский `chrome-headless-shell` — нет, поэтому тесты запускаются в полном Chromium (`channel: "chromium"` в `vite.config.ts`).
 - Если исключение вылетает из асинхронного кода уже во время выполнения тестов, весь Run показывается как runtime-ошибка, а не как упавший тест.
-- React/TSX и Dependency Artifact — тикет [03](.scratch/golden-path-poc/issues/03-react-counter-with-dependency-artifact.md); e2e с заблокированной сетью — тикет [04](.scratch/golden-path-poc/issues/04-offline-isolation-e2e.md).
+- Импортировать можно только `react` (именованные экспорты, без `import React from "react"`), `react/jsx-runtime` и `react-dom/client`. Артефакты — development-сборка React: `act` в production-сборке не работает.
+- e2e с заблокированной сетью — тикет [04](.scratch/golden-path-poc/issues/04-offline-isolation-e2e.md).
 
 ## Если что-то не работает
 

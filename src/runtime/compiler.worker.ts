@@ -1,5 +1,8 @@
-// Compiler: bundles the student's source, the Lesson Tests and the Test Harness
-// into one IIFE with esbuild-wasm. Everything is resolved from memory.
+// Compiler: bundles the student's source, the Lesson Tests, the Test Harness
+// and the Dependency Artifacts they import into one IIFE with esbuild-wasm.
+// Everything is resolved from memory; artifacts are fetched from our own origin
+// (public/deps/, built by scripts/build-deps.mjs) and inlined into the bundle,
+// because the opaque-origin Sandbox could not fetch them itself (ADR-0003).
 import * as esbuild from "esbuild-wasm";
 import wasmURL from "esbuild-wasm/esbuild.wasm?url";
 import harnessSource from "./harness.ts?raw";
@@ -11,6 +14,35 @@ const ENTRY = `import { runAll } from "@codda/test";
 import "./tests";
 runAll();
 `;
+
+const depsURL = new URL(`${import.meta.env.BASE_URL}deps/`, self.location.origin);
+
+let dependencies: Promise<Record<string, string>> | undefined;
+
+/** Import specifier → artifact text. Fetched once, then kept while the Worker lives. */
+function loadDependencies(): Promise<Record<string, string>> {
+  dependencies ??= (async () => {
+    const manifest: Record<string, string> = await fetchOk(new URL("manifest.json", depsURL)).then(
+      (r) => r.json(),
+    );
+    const entries = await Promise.all(
+      Object.entries(manifest).map(async ([specifier, file]) => {
+        const text = await fetchOk(new URL(file, depsURL)).then((r) => r.text());
+        return [specifier, text] as const;
+      }),
+    );
+    return Object.fromEntries(entries);
+  })();
+  // A failed load is retried on the next Run instead of being cached.
+  dependencies.catch(() => (dependencies = undefined));
+  return dependencies;
+}
+
+async function fetchOk(url: URL): Promise<Response> {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`Failed to load ${url.pathname}: HTTP ${response.status}`);
+  return response;
+}
 
 async function compile({ source, tests }: CompileInput): Promise<CompileResult> {
   // Import specifier → virtual file contents.
@@ -28,19 +60,24 @@ async function compile({ source, tests }: CompileInput): Promise<CompileResult> 
       bundle: true,
       write: false,
       format: "iife",
+      jsx: "automatic",
       logLevel: "silent",
       plugins: [
         {
           name: "codda-virtual",
           setup(build) {
-            build.onResolve({ filter: /.*/ }, (args) => {
-              if (!(args.path in files)) {
-                return { errors: [{ text: `Cannot resolve "${args.path}"` }] };
+            build.onResolve({ filter: /.*/ }, async (args) => {
+              if (args.path in files) return { path: args.path, namespace: "codda" };
+              if (args.path in (await loadDependencies())) {
+                return { path: args.path, namespace: "dependency" };
               }
-              return { path: args.path, namespace: "codda" };
+              return { errors: [{ text: `Cannot resolve "${args.path}"` }] };
             });
             build.onLoad({ filter: /.*/, namespace: "codda" }, (args) => {
               return { contents: files[args.path], loader: "tsx" };
+            });
+            build.onLoad({ filter: /.*/, namespace: "dependency" }, async (args) => {
+              return { contents: (await loadDependencies())[args.path], loader: "js" };
             });
           },
         },
