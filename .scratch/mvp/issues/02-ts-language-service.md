@@ -15,3 +15,5 @@ Blocked by: None
 - Совместимость с текущим редактором в `src/Editor.tsx`.
 
 Ответ — сравнение вариантов с рекомендацией и ссылками на первоисточники.
+
+Research: docs/research/ts-language-service.md (ветка research/ts-language-service)
