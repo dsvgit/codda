@@ -21,7 +21,7 @@ Blocked by: None
 
 ## Answer
 
-Вопросы и ответы по раундам — в [lesson-manifest-questions.md](../lesson-manifest-questions.md).
+Вопросы и ответы по раундам — в [questions/03-lesson-manifest-schema.md](../questions/03-lesson-manifest-schema.md).
 
 Зависимости пересмотрены тикетом [08](08-dependency-artifacts-adr.md) (ADR-0007): они объявляются только в `package.json` Course, а не в `course.yaml` и `lesson.md`. Ниже уже исправлено.
 

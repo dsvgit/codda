@@ -1,6 +1,6 @@
 # ADR: сборка и доставка Dependency Artifacts — вопросы
 
-Grilling по тикету [08: ADR: сборка и доставка Dependency Artifacts](issues/08-dependency-artifacts-adr.md). Опирается на [research](../../docs/research/dependency-artifacts.md) и эксперимент [07](issues/07-artifact-transport-experiment.md). Вопросы идут раундами. В каждом раунде собраны вопросы, у которых все предпосылки уже решены. Ответ пишите под строкой «**Ответ:**». Пустой ответ означает, что вы согласны с рекомендацией.
+Grilling по тикету [08: ADR: сборка и доставка Dependency Artifacts](../issues/08-dependency-artifacts-adr.md). Опирается на [research](../../../docs/research/dependency-artifacts.md) и эксперимент [07](../issues/07-artifact-transport-experiment.md). Вопросы идут раундами. В каждом раунде собраны вопросы, у которых все предпосылки уже решены. Ответ пишите под строкой «**Ответ:**». Пустой ответ означает, что вы согласны с рекомендацией.
 
 Тикет 03 уже закрыл часть вопросов, здесь они не повторяются: набор Lesson = Course ∪ Lesson, повтор в Lesson пакета из Course — ошибка, subpath'ы не объявляются, а выводятся из импортов.
 

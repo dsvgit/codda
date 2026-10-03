@@ -30,7 +30,7 @@
 
 ## MVP, часть 2
 
-Отложено при составлении Плана решений MVP (`.scratch/mvp/scope-questions.md`, отметки «после»):
+Отложено при составлении Плана решений MVP (`.scratch/mvp/questions/00-map-round-2-scope.md`, отметки «после»):
 
 - Multi-file Workspace: virtual FS, импорты между файлами, табы, дерево, создание/удаление файлов студентом (блок A).
 - Прогрев Worker, холодный старт вне deadline Run (R1); защита от бесконечных циклов в Safari/Firefox (R3); preview/HMR (блок A).

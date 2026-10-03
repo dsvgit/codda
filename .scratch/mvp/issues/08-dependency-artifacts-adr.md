@@ -14,7 +14,7 @@ Blocked by: None
 - `.d.ts`: если у пакета нет своих типов — `codda` подбирает `@types/<name>` той же major сам или требует объявить явно.
 - Какие из трёх ступеней проверки «работает в браузере» входят в MVP.
 
-Вопросы и ответы: [dependency-artifacts-adr-questions.md](../dependency-artifacts-adr-questions.md)
+Вопросы и ответы: [questions/08-dependency-artifacts-adr.md](../questions/08-dependency-artifacts-adr.md)
 
 ## Answer
 

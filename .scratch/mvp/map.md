@@ -6,14 +6,14 @@ Label: wayfinder:map
 
 ## Destination
 
-По каждой фиче, вошедшей в MVP (скоуп — в [scope-questions.md](scope-questions.md) с уточнениями из [round-3-questions.md](round-3-questions.md)), не осталось вопроса, на который нужен ответ **до** начала работы над ней. Дальше фичи идут обычным циклом по одной (`/grill-with-docs` → `/to-spec` → `/to-tickets` → `/implement`). Спеки фич в План решений не входят.
+По каждой фиче, вошедшей в MVP (скоуп — в [questions/00-map-round-2-scope.md](questions/00-map-round-2-scope.md) с уточнениями из [questions/00-map-round-3.md](questions/00-map-round-3.md)), не осталось вопроса, на который нужен ответ **до** начала работы над ней. Дальше фичи идут обычным циклом по одной (`/grill-with-docs` → `/to-spec` → `/to-tickets` → `/implement`). Спеки фич в План решений не входят.
 
 ## Notes
 
 - Домен: `CONTEXT.md`, ADR в `docs/adr/`, roadmap — `docs/roadmap.md` (скоуп MVP и раздел «MVP, часть 2»).
 - Для grilling-тикетов вызывать скиллы `grilling` и `domain-modeling`; research — субагентом через `research` на ветке `research/<name>`; prototype — через `prototype`.
 - Ветка Плана решений — `mvp`. Решения по мере закрытия тикетов мержатся в `main`.
-- Решения, принятые при составлении Плана (раунды вопросов: [destination-questions.md](destination-questions.md), [scope-questions.md](scope-questions.md), [round-3-questions.md](round-3-questions.md)):
+- Решения, принятые при составлении Плана (раунды вопросов: [questions/00-map-round-1-destination.md](questions/00-map-round-1-destination.md), [questions/00-map-round-2-scope.md](questions/00-map-round-2-scope.md), [questions/00-map-round-3.md](questions/00-map-round-3.md)):
   - В MVP у Lesson **один файл** Workspace; multi-file — во «второй части MVP».
   - Instructions — обычный Markdown, MDX не делаем.
   - Инструмент `codda` отделён от контента, курсы передаются путём, сборка статическая, registry — из `.npmrc` или по умолчанию: [ADR-0006](../../docs/adr/0006-tool-separate-from-content.md).
@@ -39,6 +39,6 @@ Label: wayfinder:map
 
 ## Out of scope
 
-- Всё с отметкой «после» в [scope-questions.md](scope-questions.md) — раздел «MVP, часть 2» в `docs/roadmap.md`: multi-file Workspace, прогрев Worker, защита от бесконечных циклов, preview, CSS из пакетов, hover и форматирование, сервер и вход, подсказки, security baseline.
+- Всё с отметкой «после» в [questions/00-map-round-2-scope.md](questions/00-map-round-2-scope.md) — раздел «MVP, часть 2» в `docs/roadmap.md`: multi-file Workspace, прогрев Worker, защита от бесконечных циклов, preview, CSS из пакетов, hover и форматирование, сервер и вход, подсказки, security baseline.
 - MDX: не делаем.
 - Production-ready v1 и Phase 4 из roadmap.
