@@ -1,7 +1,7 @@
 # 01: Как собирать и доставлять Dependency Artifacts для произвольных npm-пакетов
 
 Type: research
-Status: open
+Status: resolved
 Blocked by: None
 
 ## Question
@@ -22,3 +22,17 @@ Registry берётся из `.npmrc` или используется registry �
 Ответ — сравнение вариантов с рекомендацией и ссылками на первоисточники. Решение принимается на его основе (ADR).
 
 Research: docs/research/dependency-artifacts.md (ветка research/dependency-artifacts)
+
+## Answer
+
+Факты и сравнение вариантов — в [docs/research/dependency-artifacts.md](../../../docs/research/dependency-artifacts.md). Это рекомендация; решение (ADR) — в тикете «ADR: сборка и доставка Dependency Artifacts», после замеров из тикета «Спайк: транспорт Dependency Artifacts в Sandbox».
+
+Рекомендация research (§8):
+
+1. **Артефакт на набор зависимостей** (Course ∪ Lesson), а не на пакет: `npm ci` по lockfile набора + один `esbuild.build` (`esm`, `splitting`, `platform: browser`, `development`). Один экземпляр React без шимов. Конфликт версий Course/Lesson — ошибка `codda test`.
+2. **CJS → ESM (R9):** обёртка с `export default = module.exports` + именованные экспорты из статического лексера (esm.sh), fallback — `require` в Node.
+3. **Доставка (R4):** отдельно от кода студента, через import map в `srcdoc`; Compiler собирает только код студента, тесты и Test Harness с `external` на specifier'ы набора. Транспорт: URL на нашем origin + CORS + `integrity` (вариант 2), если Chrome кэширует модули в opaque-origin Sandbox; иначе blob из Worker через `postMessage` (вариант 3). Нужен замер.
+4. **Только development-сборка** в MVP (R5: `act` есть только в ней); `mode` — в ключе кэша.
+5. **Integrity:** content-hash в имени, `immutable`, sha384 в манифесте.
+6. **«Работает в браузере»:** ошибка сборки на Node built-ins → предупреждение на свободные `process`/`Buffer` → smoke-импорт в Chromium (Playwright) с перехватом внешних запросов.
+7. **`.d.ts`:** отдельный JSON-артефакт типов набора (типы пакета или `@types/*`), его грузит TS Worker.

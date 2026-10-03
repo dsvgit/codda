@@ -26,10 +26,12 @@ Label: wayfinder:map
 
 <!-- одна строка на закрытый тикет: [название](ссылка): суть ответа -->
 
+- [Как собирать и доставлять Dependency Artifacts](issues/01-dependency-artifacts.md): research рекомендует артефакт на набор Course ∪ Lesson, CJS-обёртки с default-экспортом, доставку import map'ом отдельно от кода студента, только dev-сборку, типы отдельным JSON-артефактом; транспорт — после замера, решение — ADR.
+- [TypeScript language service в Web Worker для CodeMirror 6 без сети](issues/02-ts-language-service.md): TS 7 в браузере не работает — отдельный Worker «Type Checker» на TS 6 + `@typescript/vfs`, lib и `.d.ts` с нашего origin, своя обвязка CM6; продуктовые вопросы — отдельным тикетом.
+
 ## Not yet specified
 
-- **TS-подсказки для зависимостей.** Как `.d.ts` из Dependency Artifacts попадают в language service. Станет вопросом после ответов на «Как собирать и доставлять Dependency Artifacts» и «TypeScript language service в Web Worker».
-- **Test Harness: асинхронные ошибки, отмена Run и source maps в Sandbox (3.3–3.7).** Пока похоже на работу внутри фичи `runtime-hardening`, но решение о доставке артефактов (вшивать или грузить отдельно) может поменять то, как ошибки сопоставляются со строками студента.
+- **Test Harness: асинхронные ошибки, отмена Run и source maps в Sandbox (3.3–3.7).** Пока похоже на работу внутри фичи `runtime-hardening`, но решение о доставке артефактов («ADR: сборка и доставка Dependency Artifacts»: вшивать или грузить import map'ом) может поменять то, как ошибки сопоставляются со строками студента.
 - **`codda dev`.** Как локальный просмотр подхватывает изменения в папке курса. Прояснится после «Команд CLI `codda`».
 
 ## Out of scope
