@@ -40,7 +40,7 @@ Wayfinder создаст `.scratch/mvp/map.md` и тикеты-решения (`
 
 ### Шаг 3. Карта → фичи → код
 
-Когда путь ясен, MVP режется на фичи по фазам roadmap. Каждая фича — в своей ветке от `main` (`git switch -c <slug>`) и проходит цикл из [ai-workflow.md](ai-workflow.md#жизненный-цикл): `/grill-with-docs` → `/to-spec` → `/to-tickets` в одной сессии, затем `/clear` + `/implement` на каждый тикет.
+Когда путь ясен, MVP режется на фичи по фазам roadmap. Каждая фича — в своей ветке от `main` (её создаёт агент) и проходит цикл из [ai-workflow.md](ai-workflow.md#жизненный-цикл): `/grill-with-docs` → `/to-spec` → `/to-tickets` в одной сессии, затем `/clear` + `/implement` на каждый тикет.
 
 С MVP тесты строже, чем на PoC: ошибки и граничные случаи тестируются в рамках самого тикета (`CLAUDE.md` → «Тесты»).
 
