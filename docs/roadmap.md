@@ -36,7 +36,7 @@
 - Прогрев Worker, холодный старт вне deadline Run (R1); защита от бесконечных циклов в Safari/Firefox (R3); preview/HMR (блок A).
 - CSS из npm-пакетов (блок B).
 - Быстрый Run с зависимостями (R4): эксперимент `.scratch/mvp/issues/07-artifact-transport-experiment.md`, затем import map в Sandbox вместо вшивания в бандл; статический лексер для CJS-экспортов; зависимости на уровне Lesson, если понадобятся (блок B, ADR-0007).
-- Hover, go to definition, форматирование (блок E).
+- Hover, go to definition, форматирование (блок E); auto-import и signature help в autocomplete, JSDoc в подсказках; строка «Есть ошибки типов: N» в Test Report и баннере PASS, если в пилоте студенты игнорируют подчёркивания (тикет 09, ADR-0009).
 - Прогресс и Workspace на сервере, вход пользователя; подсказки и счётчик попыток (блок H).
 - Security baseline целиком (блок F) — обязателен до серверного хранения и до внешних пользователей.
 

@@ -78,6 +78,10 @@ _Avoid_: preview, frame, песочница
 Код внутри Sandbox, который выполняет Lesson Tests и формирует Test Report.
 _Avoid_: test runner, jest
 
+**Type Checker**:
+Web Worker с TypeScript language service: diagnostics и autocomplete в редакторе. В Runtime не входит, Run не блокирует и на оценку не влияет. См. ADR-0009.
+_Avoid_: linter, LSP, language server
+
 **Dependency Artifact**:
 Неизменяемая browser-ready сборка `dependencies` Course по его `package-lock.json`, подготовленная в CI: ESM-модули, `importmap.json` и типы. Один на Course, адрес — по hash сборки. См. ADR-0007.
 _Avoid_: vendor, CDN-пакет, node_modules
