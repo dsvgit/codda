@@ -1,10 +1,11 @@
 import { useState, type ReactNode } from "react";
 import { Editor } from "./Editor";
-import { lesson } from "./lesson";
+import type { Lesson } from "../courses";
+import { lesson as defaultLesson } from "./lesson";
 import { run, type TestReport } from "./runtime/runner";
 import type { TestResult } from "./runtime/types";
 
-export function App() {
+export function App({ lesson = defaultLesson }: { lesson?: Lesson }) {
   const [source, setSource] = useState(lesson.starter);
   const [report, setReport] = useState<TestReport>();
   const [running, setRunning] = useState(false);
