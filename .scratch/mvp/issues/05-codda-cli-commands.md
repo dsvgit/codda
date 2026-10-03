@@ -24,7 +24,7 @@ Blocked by: 03, 08
 
 | Команда | Что делает |
 |---|---|
-| `codda init [путь]` | Работает только в пустой папке (кроме `.git`) и ничего не спрашивает. Создаёт `course.yaml` (`id` = имя папки), `package.json` без зависимостей, `.npmrc` (`save-exact=true`), `.gitignore` (`node_modules/`, `.codda/`, `dist/`) и Lesson `hello`. Затем запускает `npm install`. |
+| `codda init [путь] [--ci github\|gitlab]` | Работает только в пустой папке (кроме `.git`) и ничего не спрашивает. Создаёт `course.yaml` (`id` = имя папки), `package.json` без зависимостей, `.npmrc` (`save-exact=true`), `.gitignore` (`node_modules/`, `.codda/`, `dist/`) и Lesson `hello`. С `--ci` кладёт шаблон CI (добавлено тикетом 06). Затем запускает `npm install`. |
 | `codda lesson <id> [--module <title>] [--tsx]` | Создаёт Lesson из шаблона (`.ts` без зависимостей, `--tsx` требует `react`) и дописывает его в последний или указанный Module, сохраняя комментарии в `course.yaml`. Новый Lesson сразу проходит `codda test`. |
 | `codda test [путь]` | Полная проверка курса, она же команда для CI. Если путь ведёт в папку Lesson, проверяется только этот Lesson и общий манифест. |
 | `codda dev [путь] [--port]` | Сервер на `127.0.0.1:4173`. При правке файлов пересобирает `course.json` и перезагружает страницу (SSE). При изменении `package*.json` выполняет npm и пересобирает Dependency Artifact. Lesson с ошибками манифеста показывается страницей ошибок. Тесты сам не запускает. |
