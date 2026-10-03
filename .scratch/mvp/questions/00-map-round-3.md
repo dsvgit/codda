@@ -1,6 +1,6 @@
 # Wayfinder MVP — раунд 3
 
-Предыдущие раунды: [destination-questions.md](destination-questions.md), [scope-questions.md](scope-questions.md). Ответ пишите под **Ответ:**. Если ничего не написано, значит, вы согласны с рекомендацией.
+Предыдущие раунды: [00-map-round-1-destination.md](00-map-round-1-destination.md), [00-map-round-2-scope.md](00-map-round-2-scope.md). Ответ пишите под **Ответ:**. Если ничего не написано, значит, вы согласны с рекомендацией.
 
 ## Что уже решено
 

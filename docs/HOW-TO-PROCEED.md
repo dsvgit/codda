@@ -8,9 +8,9 @@
 
 ## Часть 2. От PoC к MVP (4–6 недель)
 
-### Шаг 0. Хвост PoC
+### Шаг 0. Хвост PoC ✅
 
-Курс React Hooks в `courses/` сделан вне тикетов. Решить при grilling блока C: стать ли ему первым настоящим Course на Lesson Manifest или удалиться.
+Курс React Hooks в `courses/` сделан вне тикетов. Решено (раунд 3 Плана решений): он переводится на формат Lesson Manifest и становится пилотным Course, старый формат удаляется — в фиче `lesson-manifest`.
 
 ### Шаг 1. План решений MVP (1 сессия) ✅
 
@@ -31,7 +31,9 @@ Wayfinder создаст `.scratch/mvp/map.md` и тикеты-решения (`
 - **prototype:** раскладка UI с несколькими файлами и навигацией по Lesson (`/prototype`).
 - **grilling:** где хостится Sandbox origin и какие CSP (блок F; риск R2 — до первых внешних пользователей).
 
-### Шаг 2. Пройти План решений (несколько сессий)
+### Шаг 2. Пройти План решений (несколько сессий) ✅
+
+Сделано 2026-10-04: тикеты 01–09 в [.scratch/mvp/issues/](../.scratch/mvp/issues/) закрыты, «Not yet specified» пуст — итоги в «Decisions so far» [map.md](../.scratch/mvp/map.md).
 
 ```
 /clear
@@ -46,18 +48,17 @@ Wayfinder создаст `.scratch/mvp/map.md` и тикеты-решения (`
 
 С MVP тесты строже, чем на PoC: ошибки и граничные случаи тестируются в рамках самого тикета (`CLAUDE.md` → «Тесты»).
 
-Рекомендуемый порядок фич:
+Рекомендуемый порядок фич (рамки каждой уточняются на её `/grill-with-docs`; отложенное — в «MVP, часть 2» [roadmap.md](roadmap.md)):
 
 | # | Фича (`.scratch/<slug>`) | Блок | Фаза |
 |---|---|---|---|
-| 1 | `lesson-manifest` — несколько Lesson из файлов, Solution, Reset | C | 1 |
-| 2 | `multi-file-workspace` — virtual FS, табы → **MVP, часть 2** | A | 1 |
-| 3 | `runtime-hardening` — прогрев и холодный старт вне deadline (R1), loop-guard (R3), отмена, console, source maps, async-ошибки (R8) | A | 1 |
-| 4 | `author-cli` — `course create` / `course test` + CI-проверка уроков | D | 1 |
-| 5 | `dependency-pipeline` — registry → CI → артефакты по hash | B | 2 |
-| 6 | `ts-tooling` — diagnostics, autocomplete, `.d.ts` | E | 2 |
-| 7 | `course-ux` — навигация, прогресс, save/restore | H | 3 |
-| 8 | `security-baseline` — отдельный origin, CSP, лимиты + `/security-review` → **MVP, часть 2** (до серверного хранения и внешних пользователей) | F | 3 |
-| 9 | `pilot-course` — 5–10 реальных Lesson, прогон через CLI, пилот на людях | — | 3 |
+| 0 | `misc-01-ci-bootstrap` — GitHub Actions: typecheck, unit, e2e на PR и push в `main`; обязательная проверка в branch protection ([тикет](../.scratch/misc/issues/01-ci-bootstrap.md)) | — | 1 |
+| 1 | `lesson-manifest` — `course.yaml` + папки Lesson (тикет 03), Zod-схема, UI читает Course как данные `course.json` (ADR-0008), экран Lesson по прототипу 04, Solution, Reset, проверка границы ADR-0006 в CI; перевод React Hooks, удаление старого формата | C | 1 |
+| 2 | `runtime-hardening` — отмена Run, console, source maps, async-ошибки (R8), восстановление после падения | A | 1 |
+| 3 | `dependency-artifacts` — Dependency Artifact на Course из `package.json` + `package-lock.json`, `importmap.json` + `types.json` по hash, вшивание в бандл (ADR-0007) | B | 1 |
+| 4 | `author-cli` — `codda init/lesson/test/dev/build` (тикет 05, ADR-0008), шаги `codda test/build` и выкладка на GitHub Pages в CI, шаблоны CI для курсов (тикет 06) | D | 1 |
+| 5 | `ts-tooling` — Type Checker: diagnostics, autocomplete, `.d.ts` из `types.json` (тикет 09, ADR-0009) | E | 2 |
+| 6 | `course-ux` — дерево Course и навигация, локальный прогресс и Workspace в `localStorage` | H | 3 |
+| 7 | `pilot-course` — 5–10 реальных Lesson, прогон через CLI, пилот на людях (только Chrome) | — | 3 |
 
 `/improve-codebase-architecture` — раз в неделю-две, пока код не расползся.

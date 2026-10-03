@@ -7,3 +7,4 @@ Lesson Manifest перечисляет зависимости с точными 
 - Студент не может добавить произвольный пакет — только то, что объявил Author.
 - Нужен отдельный CI-пайплайн (roadmap, блок B): CommonJS → ESM, package exports, subpath imports, CSS/JSON, `.d.ts`, peer/shared deps, кэширование.
 - В PoC пайплайна нет: артефакты (`react`, `react-dom`) собираются локальным скриптом и кладутся в репозиторий.
+- Уточнён ADR-0007: один Dependency Artifact на Course из его `package.json`, в MVP вшивается в бандл.

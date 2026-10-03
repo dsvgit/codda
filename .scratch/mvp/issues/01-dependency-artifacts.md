@@ -25,7 +25,7 @@ Research: docs/research/dependency-artifacts.md (ветка research/dependency-
 
 ## Answer
 
-Факты и сравнение вариантов — в [docs/research/dependency-artifacts.md](../../../docs/research/dependency-artifacts.md). Это рекомендация; решение (ADR) — в тикете «ADR: сборка и доставка Dependency Artifacts», после замеров из тикета «Спайк: транспорт Dependency Artifacts в Sandbox».
+Факты и сравнение вариантов — в [docs/research/dependency-artifacts.md](../../../docs/research/dependency-artifacts.md). Это рекомендация; решение (ADR) — в тикете «ADR: сборка и доставка Dependency Artifacts», после замеров из тикета «Эксперимент: транспорт Dependency Artifacts в Sandbox».
 
 Рекомендация research (§8):
 

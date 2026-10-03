@@ -1,6 +1,6 @@
 # Wayfinder MVP — раунд 2: скоуп
 
-Ответы раунда 1 — в [destination-questions.md](destination-questions.md). Решено: карта ведёт от PoC к MVP (Q1), карта живёт в ветке `mvp` (Q5), скоуп можно менять, но он должен быть виден явно (Q3).
+Ответы раунда 1 — в [00-map-round-1-destination.md](00-map-round-1-destination.md). Решено: карта ведёт от PoC к MVP (Q1), карта живёт в ветке `mvp` (Q5), скоуп можно менять, но он должен быть виден явно (Q3).
 
 ---
 
