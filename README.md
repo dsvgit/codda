@@ -112,5 +112,6 @@ test("adds two positive numbers", () => {
 - [CONTEXT.md](CONTEXT.md) — глоссарий: Lesson, Run, Sandbox, Test Report, Dependency Artifact…
 - [docs/adr/](docs/adr/) — архитектурные решения
 - [docs/roadmap.md](docs/roadmap.md) — дорожная карта до MVP
+- [docs/poc-report.md](docs/poc-report.md) — итоги PoC: ответы на пять вопросов, замеры, риски, решение GO
 - [docs/HOW-TO-PROCEED.md](docs/HOW-TO-PROCEED.md) — как работать над проектом (скиллы, порядок тикетов)
 - [.scratch/golden-path-poc/](.scratch/golden-path-poc/) — спека и тикеты PoC

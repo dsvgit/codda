@@ -4,7 +4,7 @@
 
 | Стадия | Срок | Результат |
 |---|---|---|
-| **Phase 0 — Golden Path PoC** | 2–3 дня | Один файл, один Lesson, Run → PASS/FAIL без Internet. Решение go/no-go. |
+| **Phase 0 — Golden Path PoC** ✅ | 2–3 дня | Один файл, один Lesson, Run → PASS/FAIL без Internet. **GO** (2026-10-03), см. [poc-report.md](poc-report.md). |
 | **Phase 1 — Фундамент** | 1–2 нед. | Надёжный Runtime, Lesson Manifest, multi-file, прототип зависимостей, Author CLI |
 | **Phase 2 — Инструменты** | 1–2 нед. | TypeScript tooling, настоящий dependency pipeline в CI, редактор |
 | **Phase 3 — Готовность к людям** | 1–2 нед. | Security, браузеры, производительность, persistence, Course UX |
@@ -49,8 +49,12 @@
 
 Сначала проверить, как ведут себя Playwright WebKit и настоящий Safari, а также Firefox (Fission). Решение оформить ADR.
 
+Из [PoC Report](poc-report.md): R3 — этот пункт; полный Chrome изоляцию тоже не гарантирует (память, Android). R1 — холодный старт вынести из deadline Run, прогревать Worker, отдавать `.wasm` сжатым и с кэшем по hash: сейчас на медленной сети первый Run кончается ложным «Timed out». R8 — асинхронные ошибки во время тестов.
+
 ### B. Dependency pipeline — Phase 1 (spike) → Phase 2
 `internal npm registry → CI install → browser compatibility check → ESM artifacts → immutable storage (по hash)`. Решить: CommonJS, ESM, package `exports`, subpath imports, CSS, JSON, `.d.ts`, peer/shared deps, конфликты версий, кэширование, import maps vs вшивание в бандл. **Начать с research-спайка.**
+
+Из [PoC Report](poc-report.md): R4 — вшивание артефактов в бандл против загрузки в Sandbox отдельно. R5 — `act` требует development-сборку React. R9 — default-импорт CJS-пакетов и проверка целостности по hash.
 
 ### C. Модель Lesson — Phase 1
 ```
@@ -69,6 +73,8 @@ Diagnostics, autocomplete, hover, go to definition, `.d.ts` зависимост
 
 ### F. Security — Phase 3
 Sandbox на отдельном origin, sandbox-атрибуты, CSP (`connect-src 'none'` для Sandbox), валидация postMessage, доступ к parent/cookies/storage, бесконечные циклы (отдельный origin их не решает в Safari — см. «Timeout вне Chrome» в блоке A), исчерпание памяти/Worker, iframe escape, prototype pollution, supply chain зависимостей. **Security review до того, как пускать произвольные задания.**
+
+Из [PoC Report](poc-report.md): R2 — Sandbox ходит в сеть, CSP `connect-src 'none'` нужен до первых внешних пользователей, а не в финальном hardening.
 
 ### G. Server Grader — Phase 4, только по необходимости
 Run (браузер, обратная связь) vs Submit (сервер, изолированная VM, Hidden Tests). Триггеры: защита от списывания, Node/FS/DB/сеть, серверные фреймворки.
