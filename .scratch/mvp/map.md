@@ -32,11 +32,11 @@ Label: wayfinder:map
 - [Раскладка экрана Lesson и тулбар](issues/04-lesson-screen-prototype.md): по прототипу (ветка `prototype/lesson-screen`) — вариант «IDE»: дерево Course с ✓ и «Пройдено N из M» · Instructions · редактор; тулбар над редактором (Запустить тесты ⇄ Отмена, Сбросить, Показать решение, Пред./След.); нижняя панель с вкладками Тесты / Console / Проблемы / Решение (решение только для чтения, Workspace не трогает); баннер PASS с «Следующий урок →»; Reset откатывается через Ctrl/Cmd+Z.
 - [Эксперимент: транспорт Dependency Artifacts в Sandbox](issues/07-artifact-transport-experiment.md): отложен в «MVP, часть 2» решением тикета 08.
 - [ADR: сборка и доставка Dependency Artifacts](issues/08-dependency-artifacts-adr.md): ADR-0007 — один Dependency Artifact на Course из `package.json` + `package-lock.json` (npm ведёт lock, у Lesson своих зависимостей нет); `importmap.json` + `types.json` по hash; CJS через `require` + `export default`; только dev-сборка; в MVP вшивается в бандл как в PoC, эксперимент 07 отложен в «MVP, часть 2».
+- [Команды CLI `codda`](issues/05-codda-cli-commands.md): `init`, `lesson`, `test`, `dev`, `build` (без `ci` и `deps`, CI = `CI=true`); путь необязателен, ищется `course.yaml` вверх; UI собран заранее, курс — данные `course.json` + `deps/` (ADR-0008); `codda test` — манифест → npm → артефакт → сборка → полный Chromium через Playwright (зеркало), Solution всё PASS, Starter ≥1 FAIL, типы Solution/тестов строго; коды выхода 0/1/2; `node cli/codda.ts`.
 
 ## Not yet specified
 
 - **Test Harness: асинхронные ошибки, отмена Run и source maps в Sandbox (3.3–3.7).** Пока похоже на работу внутри фичи `runtime-hardening`. Решение о доставке принято (ADR-0007): в MVP артефакты по-прежнему вшиваются в бандл, так что сопоставление ошибок со строками студента остаётся как в PoC.
-- **`codda dev`.** Как локальный просмотр подхватывает изменения в папке курса. Прояснится после «Команд CLI `codda`».
 
 ## Out of scope
 
