@@ -3,3 +3,5 @@ dist/
 .DS_Store
 *.tsbuildinfo
 .vitest/
+test-results/
+playwright-report/

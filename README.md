@@ -32,6 +32,7 @@ npm run dev
 |---|---|
 | `npm run dev` | Dev-сервер Vite с hot reload |
 | `npm test` | Все тесты в headless Chromium (Vitest browser mode + Playwright) |
+| `npm run test:e2e` | e2e на Playwright: сам поднимает dev-сервер, проходит Golden Path и проверяет изоляцию Sandbox; внешняя сеть заблокирована |
 | `npx vitest run src/runtime/runner.test.ts` | Один файл тестов |
 | `npx vitest` | Тесты в watch-режиме |
 | `npm run typecheck` | Проверка типов TypeScript |
@@ -45,6 +46,7 @@ npm run dev
 
 - `src/runtime/runner.test.ts` — главный шов, `run({ source, tests }) → TestReport`: исходник студента и Lesson Tests на входе, Test Report на выходе.
 - `src/App.test.tsx` — основной сценарий через UI: Run → FAIL → исправление в редакторе → Run → PASS.
+- `e2e/` — Playwright против настоящего dev-сервера (`npm run test:e2e`). `golden-path.e2e.ts` проходит тот же сценарий на странице приложения. `sandbox-isolation.e2e.ts` подсовывает через редактор враждебный код студента: чтение parent/cookies/storage, поддельные сообщения, `fetch` в Internet. Фикстура `e2e/offline.ts` обрывает любой запрос не на localhost, печатает список всех запросов страницы и валит тест, если был хоть один внешний.
 
 На стадии PoC действует упрощённое правило: на каждом шаге — один happy-path тест, остальные случаи потом (см. раздел «Тесты» в [CLAUDE.md](CLAUDE.md)).
 
@@ -95,7 +97,8 @@ test("adds two positive numbers", () => {
 - Timeout (5 с) работает, только пока Sandbox живёт в отдельном процессе от страницы. Chrome так делает по умолчанию; Playwright-овский `chrome-headless-shell` — нет, поэтому тесты запускаются в полном Chromium (`channel: "chromium"` в `vite.config.ts`).
 - Если исключение вылетает из асинхронного кода уже во время выполнения тестов, весь Run показывается как runtime-ошибка, а не как упавший тест.
 - Импортировать можно только `react` (именованные экспорты, без `import React from "react"`), `react/jsx-runtime` и `react-dom/client`. Артефакты — development-сборка React: `act` в production-сборке не работает.
-- e2e с заблокированной сетью — тикет [04](.scratch/golden-path-poc/issues/04-offline-isolation-e2e.md).
+- Sandbox не закрыт от сети: `fetch` из кода студента уходит наружу (с `Origin: null`, ответ отрезает CORS). В e2e такие запросы блокирует сам тест; CSP и отдельный origin для Sandbox — этап Security после PoC. Подробности — в [тикете 04](.scratch/golden-path-poc/issues/04-offline-isolation-e2e.md).
+- Код студента может прислать поддельный отчёт со своим `runId`. Результат в браузере — подсказка студенту, а не оценка ([ADR-0004](docs/adr/0004-browser-only-grading-first.md)).
 
 ## Если что-то не работает
 
