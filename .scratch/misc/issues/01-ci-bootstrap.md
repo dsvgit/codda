@@ -6,12 +6,17 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] `.github/workflows/ci.yml`: триггеры `pull_request` и `push` в `main`, один job `check` с четырьмя шагами выше
-- [ ] Версия образа Playwright совпадает с `playwright` в `package.json`; рядом комментарий, что их нужно обновлять вместе
-- [ ] Workflow зелёный на PR этого тикета (ссылка на run — в `## Comments`)
-- [ ] Красный прогон проверен: временно сломанный тест в PR даёт красный `check` (после проверки откатить)
-- [ ] Шаг для человека (`ready-for-human`): в branch protection `main` сделать `check` обязательной проверкой; после этого убрать оговорку «до тикета misc/01 CI нет» из `CLAUDE.md` и `docs/ai-workflow.md`
+- [x] `.github/workflows/ci.yml`: триггеры `pull_request` и `push` в `main`, один job `check` с четырьмя шагами выше
+- [x] Версия образа Playwright совпадает с `playwright` в `package.json`; рядом комментарий, что их нужно обновлять вместе
+- [x] Workflow зелёный на PR этого тикета (ссылка на run — в `## Comments`)
+- [x] Красный прогон проверен: временно сломанный тест в PR даёт красный `check` (после проверки откатить)
+- [x] Шаг для человека (`ready-for-human`): в branch protection `main` сделать `check` обязательной проверкой; после этого убрать оговорку «до тикета misc/01 CI нет» из `CLAUDE.md` и `docs/ai-workflow.md`
 
 ## Comments
+
+- **2026-10-04, агент.** Workflow в PR [#2](https://github.com/dsvgit/codda/pull/2). Прогоны: [зелёный](https://github.com/dsvgit/codda/actions/runs/37155429184); [красный](https://github.com/dsvgit/codda/actions/runs/37155529521) на временно сломанном тесте (коммит `DO NOT MERGE` и его revert, при squash-merge в `main` не попадают); [зелёный](https://github.com/dsvgit/codda/actions/runs/37155599769) после отката.
+- **Вне «What to build»: `fileParallelism: false` в `vite.config.ts`.** Первый [прогон](https://github.com/dsvgit/codda/actions/runs/37155292858) упал: три файла vitest шли в параллельных браузерах, и холодный React-Run в двух из них занял ~5.6 с, больше дедлайна Run в 5 с. С файлами по очереди холодный Run в CI занимает ~1 с. Цена — `npm test` локально +2 с (13 → 15.7 с). Это тот же приём, что `workers: 2` в `playwright.config.ts`. Отдельный вопрос на будущее: холодный первый Run на слабой машине студента тоже может не уложиться в 5 с.
+- **`playwright` и `@playwright/test` в `package.json` закреплены точно (`1.63.0`, без `^`).** Иначе обновление lockfile сдвинуло бы Playwright мимо тега образа. Обновлять три места вместе: два пакета и образ в `ci.yml`.
+- **2026-10-04, агент по просьбе человека.** `check` сделана обязательной проверкой в branch protection `main` через `gh api` (`app_id` 15368 — GitHub Actions, `strict: false`; прочие настройки защиты сохранены). Оговорка «до тикета misc/01 CI нет» убрана из `CLAUDE.md` и `docs/ai-workflow.md`.

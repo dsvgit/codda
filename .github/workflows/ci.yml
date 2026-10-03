@@ -1,0 +1,26 @@
+# Checks every PR and every push to main (which deploys to the pilot): ticket
+# .scratch/misc/issues/01-ci-bootstrap.md, decision in
+# .scratch/mvp/issues/06-ci-and-pilot-hosting.md. The `check` job is the
+# required status check in main's branch protection.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    container:
+      # Keep in sync with `playwright` and `@playwright/test` in package.json
+      # (pinned exactly, no ^): the image ships the browsers for exactly this
+      # Playwright version. Bump all three together.
+      image: mcr.microsoft.com/playwright:v1.63.0-noble
+      options: --user 1001
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run test:e2e
