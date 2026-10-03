@@ -4,15 +4,15 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** in-progress
+**Status:** done
 
-- [ ] Проект Vite + React + TS запускается одной командой (`npm run dev`)
-- [ ] `esbuild.wasm` отдаётся локально (`wasmURL` указывает на наш origin), никаких CDN
-- [ ] Модуль Runner с интерфейсом `run({ source, tests }) → Promise<TestReport>` (форма TestReport — из спеки)
-- [ ] Sandbox пересоздаётся на каждый Run; parent проверяет `event.source`, `type` и `runId`
-- [ ] Test Harness: `test`, `expect().toBe/toEqual`, async-тесты; провал теста не останавливает остальные
-- [ ] UI: список тестов ✓/✗ с текстом ошибки и итог «N / M passed»
-- [ ] Браузерный тест на шве Runner: правильное решение → все pass; неправильное → fail с expected/actual
+- [x] Проект Vite + React + TS запускается одной командой (`npm run dev`)
+- [x] `esbuild.wasm` отдаётся локально (`wasmURL` указывает на наш origin), никаких CDN
+- [x] Модуль Runner с интерфейсом `run({ source, tests }) → Promise<TestReport>` (форма TestReport — из спеки)
+- [x] Sandbox пересоздаётся на каждый Run; parent проверяет `event.source`, `type` и `runId`
+- [x] Test Harness: `test`, `expect().toBe/toEqual`, async-тесты; провал теста не останавливает остальные
+- [x] UI: список тестов ✓/✗ с текстом ошибки и итог «N / M passed»
+- [x] Браузерный тест на шве Runner: правильное решение → все pass; неправильное → fail с expected/actual
 
 ## Comments
 

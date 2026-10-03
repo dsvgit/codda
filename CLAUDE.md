@@ -2,7 +2,11 @@
 
 Платформа интерактивных курсов по программированию: студент читает задание, правит код в браузере, жмёт **Run tests** и получает PASS/FAIL. Весь код студента компилируется и исполняется **в браузере**, на собственном runtime, внутри полностью внутренней инфраструктуры.
 
-Текущая стадия: **Golden Path PoC** — `.scratch/golden-path-poc/`. Дорожная карта — `docs/roadmap.md`. Как двигаться дальше — `docs/HOW-TO-PROCEED.md`.
+Текущая стадия: **Golden Path PoC завершён (GO)**, итог — `docs/poc-report.md`, спека и тикеты — `.scratch/golden-path-poc/`. Следующая стадия — MVP: `docs/roadmap.md`, шаги — `docs/HOW-TO-PROCEED.md`.
+
+## Процесс
+
+Работа идёт по тикетам через скиллы `mattpocock-skills`: `/clear` → `/implement <тикет>` → `/tdd` → `/code-review` → `## Comments` и `Status` тикета → коммит. Решение или правило, всплывшее в разговоре, сразу записывается в файл: правило — сюда, термин — в `CONTEXT.md`, архитектура — в ADR, задача на будущее — в roadmap. Работа вне тикета: если по правилу «Тикет или нет?» из `docs/ai-workflow.md` ей нужен тикет — до кода предложить его оформить. Весь процесс, соглашения и роли — `docs/ai-workflow.md`.
 
 ## Жёсткие ограничения
 
@@ -21,6 +25,10 @@
 ### Issue tracker
 
 Локальный markdown в `.scratch/<feature>/` (spec.md + issues/NN-*.md). См. `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Метка — значение `Status:` тикета, названия канонические. См. `docs/agents/triage-labels.md`.
 
 ### Domain docs
 

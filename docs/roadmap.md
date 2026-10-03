@@ -65,6 +65,8 @@ Course └ Module └ Lesson
 ```
 Lesson Manifest — контракт между авторингом, CI, Runtime и (будущим) Server Grader.
 
+После PoC в `courses/react-hooks/` без тикета появились 5 Lesson по хукам — TS-модули со строковыми полями, как `src/lesson.ts`, открываются через `?lesson=<id>`. Формат временный: при проектировании Lesson Manifest решить, переводить ли их или удалить.
+
 ### D. Авторский workflow — Phase 1
 `course create react/use-state` → скелет Lesson. `course test react/use-state` → ✓ starter собирается, ✓ solution собирается, ✓ solution проходит все тесты, ✓ starter их не проходит, ✓ manifest валиден, ✓ зависимости доступны. Тот же чек — в CI на каждый PR.
 

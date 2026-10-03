@@ -2,7 +2,7 @@
 
 Платформа интерактивных курсов по программированию. Студент читает задание, правит код в браузере, жмёт **Run tests** и получает PASS/FAIL. Код студента компилируется и исполняется **прямо в браузере**, на собственном Runtime, без обращения к внешним сервисам.
 
-Сейчас это **Golden Path PoC**: одна страница, один захардкоженный Lesson, один редактируемый файл. Цель — проверить техническую гипотезу, а не сделать продукт. Подробности — в [спеке PoC](.scratch/golden-path-poc/spec.md).
+Сейчас это **Golden Path PoC** (завершён, решение GO — [PoC Report](docs/poc-report.md)): одна страница, один захардкоженный Lesson, один редактируемый файл. Цель — проверить техническую гипотезу, а не сделать продукт. Подробности — в [спеке PoC](.scratch/golden-path-poc/spec.md).
 
 ## Требования
 
@@ -23,6 +23,8 @@ npm run dev
 1. Нажмите **Run tests** — увидите `0 / 3 passed` и ошибки вида `expected "1", got "?"`.
 2. В редакторе допишите `Counter`: `useState(0)`, число в `<output>`, `onClick` у кнопок `+` и `−` (готовое решение — `lesson.solution` в `src/lesson.ts`).
 3. Снова **Run tests** — `3 / 3 passed`.
+
+Другие Lesson для ручного прогона — курс React Hooks в `courses/react-hooks/`: откройте `/?lesson=react-hooks/01-use-state` (id — ключи в `courses/index.ts`). Решение каждого — поле `solution` в файле Lesson.
 
 Первый Run занимает около секунды, потому что загружаются и инициализируются `esbuild.wasm` (~14 МБ) и Dependency Artifacts с React (~1.2 МБ). Последующие — около 0.5 с: React вшивается в бандл заново на каждый Run.
 
@@ -113,5 +115,6 @@ test("adds two positive numbers", () => {
 - [docs/adr/](docs/adr/) — архитектурные решения
 - [docs/roadmap.md](docs/roadmap.md) — дорожная карта до MVP
 - [docs/poc-report.md](docs/poc-report.md) — итоги PoC: ответы на пять вопросов, замеры, риски, решение GO
-- [docs/HOW-TO-PROCEED.md](docs/HOW-TO-PROCEED.md) — как работать над проектом (скиллы, порядок тикетов)
+- [docs/ai-workflow.md](docs/ai-workflow.md) — процесс разработки с AI: скиллы, тикеты, роли человека и агента
+- [docs/HOW-TO-PROCEED.md](docs/HOW-TO-PROCEED.md) — следующие шаги: от PoC к MVP
 - [.scratch/golden-path-poc/](.scratch/golden-path-poc/) — спека и тикеты PoC
