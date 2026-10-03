@@ -61,7 +61,7 @@ git init && git add -A && git commit -m "docs: SDD for Golden Path PoC"
 /implement .scratch/golden-path-poc/issues/01-ts-function-tracer-bullet.md
 ```
 
-`/implement` идёт через `/tdd` (red → green на шве Runner), гоняет typecheck и тесты, в конце — `/code-review`, затем коммит. После тикета:
+`/implement` идёт через `/tdd` (red → green на шве Runner; в PoC — один happy-path тест на шаг, прочие кейсы — отдельным проходом позже, см. `CLAUDE.md` → «Тесты»), гоняет typecheck и тесты, в конце — `/code-review`, затем коммит. После тикета:
 
 1. Сами запустите `npm run dev` и пройдите сценарий руками.
 2. Отметьте чекбоксы и поставьте `Status: done` в файле тикета.
