@@ -3,14 +3,38 @@ import type { CompileInput, ReportMessage, TestReport } from "./types";
 
 export type { TestReport } from "./types";
 
-/** One Run: compile source + Lesson Tests, execute them in a fresh Sandbox. */
-export async function run(input: CompileInput): Promise<TestReport> {
-  const compiled = await compile(input);
-  if (!compiled.ok) return { kind: "compile-error", errors: compiled.errors };
-  return executeInSandbox(compiled.code);
+/**
+ * One Run: compile source + Lesson Tests, execute them in a fresh Sandbox.
+ * The whole Run, compilation included, gets `timeoutMs`; past it the Sandbox
+ * is destroyed (and the Worker, if it is still compiling) and the Run reports
+ * a timeout.
+ */
+export function run(
+  input: CompileInput,
+  { timeoutMs = 5000 }: { timeoutMs?: number } = {},
+): Promise<TestReport> {
+  const deadline = new AbortController();
+  let timer: ReturnType<typeof setTimeout>;
+  const timedOut = new Promise<TestReport>((resolve) => {
+    timer = setTimeout(() => {
+      deadline.abort();
+      resolve({ kind: "timeout", ms: timeoutMs });
+    }, timeoutMs);
+  });
+  return Promise.race([compileAndExecute(input, deadline.signal), timedOut]).finally(() =>
+    clearTimeout(timer),
+  );
 }
 
-function executeInSandbox(code: string): Promise<TestReport> {
+async function compileAndExecute(input: CompileInput, signal: AbortSignal): Promise<TestReport> {
+  const compiled = await compile(input, signal);
+  if (!compiled.ok) return { kind: "compile-error", errors: compiled.errors };
+  return executeInSandbox(compiled.code, signal);
+}
+
+// Relies on Chrome giving the opaque-origin Sandbox its own process: otherwise
+// a busy loop inside it would also freeze this page and the deadline timer.
+function executeInSandbox(code: string, signal: AbortSignal): Promise<TestReport> {
   const runId = crypto.randomUUID();
   const iframe = document.createElement("iframe");
   // ADR-0003: allow-scripts only, never allow-same-origin.
@@ -23,13 +47,18 @@ function executeInSandbox(code: string): Promise<TestReport> {
     `</body></html>`;
 
   return new Promise((resolve) => {
+    const dispose = () => {
+      window.removeEventListener("message", onMessage);
+      signal.removeEventListener("abort", dispose);
+      iframe.remove();
+    };
     const onMessage = (event: MessageEvent) => {
       if (event.source !== iframe.contentWindow || !isReportFor(event.data, runId)) return;
-      window.removeEventListener("message", onMessage);
-      iframe.remove();
+      dispose();
       resolve(event.data.report);
     };
     window.addEventListener("message", onMessage);
+    signal.addEventListener("abort", dispose, { once: true });
     document.body.append(iframe);
   });
 }
@@ -40,14 +69,18 @@ function isReportFor(data: unknown, runId: string): data is ReportMessage {
   return (
     message.type === "codda:report" &&
     message.runId === runId &&
-    isTestsReport(message.report)
+    isSandboxReport(message.report)
   );
 }
 
-// Only the Test Harness reports from inside the Sandbox, and it only sends "tests".
-function isTestsReport(report: unknown): report is TestReport {
+// Only the Test Harness reports from inside the Sandbox: either test results
+// or an exception that escaped the Lesson Tests / student's module.
+function isSandboxReport(report: unknown): report is TestReport {
   if (typeof report !== "object" || report === null) return false;
-  const { kind, results } = report as { kind?: unknown; results?: unknown };
+  const { kind, results, message, stack } = report as Record<string, unknown>;
+  if (kind === "runtime-error") {
+    return typeof message === "string" && (stack === undefined || typeof stack === "string");
+  }
   return (
     kind === "tests" &&
     Array.isArray(results) &&

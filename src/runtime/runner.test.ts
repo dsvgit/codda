@@ -107,3 +107,55 @@ test("overlapping runs each get their own report", async () => {
     "pass",
   ]);
 });
+
+test("syntax error is reported as a compile error with line and column", async () => {
+  const source = `export function add(a: number, b: number) {
+  return a +;
+}
+`;
+
+  const report = await run({ source, tests: lesson.tests });
+
+  expect(report).toEqual({
+    kind: "compile-error",
+    errors: [{ message: 'Unexpected ";"', line: 2, column: 13 }],
+  });
+});
+
+test("exception at the top level of the student's module is a runtime error", async () => {
+  const source = `throw new Error("boom");
+export const add = (a: number, b: number) => a + b;
+`;
+
+  const report = await run({ source, tests: lesson.tests });
+
+  expect(report).toMatchObject({ kind: "runtime-error", message: "Error: boom" });
+});
+
+const looping = `while (true) {}
+export const add = (a: number, b: number) => a + b;
+`;
+
+test("infinite loop times out after 5 s and the next Run works", { timeout: 20_000 }, async () => {
+  expect(await run({ source: looping, tests: lesson.tests })).toEqual({
+    kind: "timeout",
+    ms: 5000,
+  });
+  expect(document.querySelector("iframe")).toBeNull();
+
+  const next = await run({ source: solution, tests: lesson.tests });
+  expect(next.kind === "tests" && next.results.map((r) => r.status)).toEqual(["pass", "pass"]);
+});
+
+test("compilation that outlives the deadline times out, runs nothing later, and the next Run works", async () => {
+  expect(await run({ source: looping, tests: lesson.tests }, { timeoutMs: 1 })).toEqual({
+    kind: "timeout",
+    ms: 1,
+  });
+
+  await new Promise((resolve) => setTimeout(resolve, 1000));
+  expect(document.querySelector("iframe")).toBeNull();
+
+  const next = await run({ source: solution, tests: lesson.tests });
+  expect(next.kind === "tests" && next.results.map((r) => r.status)).toEqual(["pass", "pass"]);
+});

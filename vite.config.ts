@@ -11,7 +11,10 @@ export default defineConfig({
     browser: {
       enabled: true,
       headless: true,
-      provider: playwright(),
+      // Full Chromium, not chrome-headless-shell: only the full build puts the
+      // Sandbox iframe in its own process, as Chrome does. In the shell an
+      // infinite loop in student code freezes the parent and the Run timeout.
+      provider: playwright({ launchOptions: { channel: "chromium" } }),
       instances: [{ browser: "chromium" }],
     },
   },

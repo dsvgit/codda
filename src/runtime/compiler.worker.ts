@@ -54,7 +54,8 @@ async function compile({ source, tests }: CompileInput): Promise<CompileResult> 
       errors: errors.map((e) => ({
         message: e.text,
         line: e.location?.line,
-        column: e.location?.column,
+        // esbuild columns are 0-based; editors show 1-based.
+        column: e.location ? e.location.column + 1 : undefined,
       })),
     };
   }

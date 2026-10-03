@@ -1,12 +1,32 @@
 // Test Harness: compiled into every bundle as the `@codda/test` module and
 // executed inside the Sandbox. Lesson Tests import `test` and `expect` from it.
-import type { ReportMessage, TestResult } from "./types";
+import type { ReportMessage, TestReport, TestResult } from "./types";
 
 declare const __coddaRunId: string;
 
 type TestFn = () => void | Promise<void>;
 
 const registered: { name: string; fn: TestFn }[] = [];
+
+// This module is evaluated before the Lesson Tests and the student's code, so
+// an exception thrown at their top level lands here and runAll never starts.
+addEventListener("error", (event) => {
+  const err: unknown = event.error;
+  sendReport({
+    kind: "runtime-error",
+    message: String(err ?? event.message),
+    stack: err instanceof Error ? err.stack : undefined,
+  });
+});
+
+let reported = false;
+
+function sendReport(report: TestReport): void {
+  if (reported) return;
+  reported = true;
+  const message: ReportMessage = { type: "codda:report", runId: __coddaRunId, report };
+  parent.postMessage(message, "*");
+}
 
 export function test(name: string, fn: TestFn): void {
   registered.push({ name, fn });
@@ -64,10 +84,5 @@ export async function runAll(): Promise<void> {
       results.push({ name, status: "fail", error });
     }
   }
-  const message: ReportMessage = {
-    type: "codda:report",
-    runId: __coddaRunId,
-    report: { kind: "tests", results },
-  };
-  parent.postMessage(message, "*");
+  sendReport({ kind: "tests", results });
 }

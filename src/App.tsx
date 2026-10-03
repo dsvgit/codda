@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Editor } from "./Editor";
 import { lesson } from "./lesson";
 import { run, type TestReport } from "./runtime/runner";
+import type { TestResult } from "./runtime/types";
 
 export function App() {
   const [source, setSource] = useState(lesson.starter);
@@ -39,14 +40,57 @@ export function App() {
 }
 
 function Report({ report }: { report: TestReport }) {
-  if (report.kind !== "tests") {
-    return <pre className="report">{JSON.stringify(report, null, 2)}</pre>;
+  switch (report.kind) {
+    case "tests":
+      return <TestResults results={report.results} />;
+    case "compile-error":
+      return (
+        <BrokenRun title="Compile error">
+          <ul>
+            {report.errors.map((e, i) => (
+              <li key={i}>
+                {e.line !== undefined && `Line ${e.line}, column ${e.column}: `}
+                {e.message}
+              </li>
+            ))}
+          </ul>
+        </BrokenRun>
+      );
+    case "runtime-error":
+      return (
+        <BrokenRun title="Runtime error">
+          <p>An uncaught exception stopped the Run before the tests could finish.</p>
+          <pre>{report.stack ?? report.message}</pre>
+        </BrokenRun>
+      );
+    case "timeout":
+      return (
+        <BrokenRun title="Timed out">
+          <p>
+            The Run did not finish in {report.ms / 1000} s and was stopped. Look for an
+            infinite loop.
+          </p>
+        </BrokenRun>
+      );
   }
-  const passed = report.results.filter((r) => r.status === "pass").length;
+}
+
+/** A Run that produced no test results: compile error, runtime error or timeout. */
+function BrokenRun({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <section className="report broken" aria-label="Test Report">
+      <h2>{title}</h2>
+      {children}
+    </section>
+  );
+}
+
+function TestResults({ results }: { results: TestResult[] }) {
+  const passed = results.filter((r) => r.status === "pass").length;
   return (
     <section className="report" aria-label="Test Report">
       <ul>
-        {report.results.map((r, i) => (
+        {results.map((r, i) => (
           <li key={i} className={r.status}>
             {r.status === "pass" ? "✓" : "✗"} {r.name}
             {r.error && <span className="error"> — {r.error}</span>}
@@ -54,7 +98,7 @@ function Report({ report }: { report: TestReport }) {
         ))}
       </ul>
       <p className="summary">
-        {passed} / {report.results.length} passed
+        {passed} / {results.length} passed
       </p>
     </section>
   );

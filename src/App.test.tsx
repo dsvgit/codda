@@ -32,3 +32,15 @@ test("student runs the starter, fixes it and sees every test pass", async () => 
 
   await expect.element(page.getByText("2 / 2 passed")).toBeVisible();
 });
+
+test("student who breaks the syntax sees where the compile error is", async () => {
+  renderApp();
+
+  await page
+    .getByRole("textbox")
+    .fill("export function add(a: number, b: number) {\n  return a +;\n}\n");
+  await page.getByRole("button", { name: "Run tests" }).click();
+
+  await expect.element(page.getByText("Compile error")).toBeVisible();
+  await expect.element(page.getByText('Line 2, column 13: Unexpected ";"')).toBeVisible();
+});

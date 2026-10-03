@@ -90,13 +90,14 @@ test("adds two positive numbers", () => {
 
 ## Известные ограничения на текущем этапе
 
-- Если код студента бросает исключение вне теста или зацикливается, Run висит на «Running…» — помогает только перезагрузка страницы. Ошибки компиляции, runtime-ошибки и timeout — тикет [02](.scratch/golden-path-poc/issues/02-compile-runtime-timeout-errors.md).
-- Отчёты, отличные от списка тестов, UI пока показывает сырым JSON.
+- Timeout (5 с) работает, только пока Sandbox живёт в отдельном процессе от страницы. Chrome так делает по умолчанию; Playwright-овский `chrome-headless-shell` — нет, поэтому тесты запускаются в полном Chromium (`channel: "chromium"` в `vite.config.ts`).
+- Если исключение вылетает из асинхронного кода уже во время выполнения тестов, весь Run показывается как runtime-ошибка, а не как упавший тест.
 - React/TSX и Dependency Artifact — тикет [03](.scratch/golden-path-poc/issues/03-react-counter-with-dependency-artifact.md); e2e с заблокированной сетью — тикет [04](.scratch/golden-path-poc/issues/04-offline-isolation-e2e.md).
 
 ## Если что-то не работает
 
 - **`npm test` ругается, что не найден браузер** — выполните `npx playwright install chromium`.
+- **Тест с бесконечным циклом висит дольше 20 с, а Vitest не может его прервать** — тесты запущены в `chrome-headless-shell`, где Sandbox делит процесс со страницей. Проверьте `launchOptions.channel` в `vite.config.ts`.
 - **Vitest пишет «Vite unexpectedly reloaded a test»** или тест падает на первом прогоне после установки новой зависимости — добавьте её в `optimizeDeps.include` в `vite.config.ts`.
 - **Run ничего не показывает** — откройте DevTools: ошибки esbuild-wasm видны в консоли Worker, ошибки кода студента — в консоли iframe.
 

@@ -39,3 +39,14 @@ body {
   text-align: right;
   font-weight: 600;
 }
+.report.broken {
+  border-left: 4px solid #cf222e;
+  padding-left: 12px;
+}
+.report.broken h2 {
+  color: #cf222e;
+}
+.report pre {
+  white-space: pre-wrap;
+  font-family: ui-monospace, monospace;
+}
