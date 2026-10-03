@@ -12,7 +12,9 @@
 
 Курс React Hooks в `courses/` сделан вне тикетов. Решить при grilling блока C: стать ли ему первым настоящим Course на Lesson Manifest или удалиться.
 
-### Шаг 1. Карта MVP (1 сессия)
+### Шаг 1. План решений MVP (1 сессия) ✅
+
+Сделано 2026-10-03: [.scratch/mvp/map.md](../.scratch/mvp/map.md), ветка `mvp`. Скоуп MVP уточнён — см. «MVP, часть 2» в [roadmap.md](roadmap.md).
 
 MVP — многосессионная работа с неизвестными, поэтому сначала карта решений, потом спеки.
 
@@ -29,7 +31,7 @@ Wayfinder создаст `.scratch/mvp/map.md` и тикеты-решения (`
 - **prototype:** раскладка UI с несколькими файлами и навигацией по Lesson (`/prototype`).
 - **grilling:** где хостится Sandbox origin и какие CSP (блок F; риск R2 — до первых внешних пользователей).
 
-### Шаг 2. Пройти карту (несколько сессий)
+### Шаг 2. Пройти План решений (несколько сессий)
 
 ```
 /clear
@@ -49,13 +51,13 @@ Wayfinder создаст `.scratch/mvp/map.md` и тикеты-решения (`
 | # | Фича (`.scratch/<slug>`) | Блок | Фаза |
 |---|---|---|---|
 | 1 | `lesson-manifest` — несколько Lesson из файлов, Solution, Reset | C | 1 |
-| 2 | `multi-file-workspace` — virtual FS, табы | A | 1 |
+| 2 | `multi-file-workspace` — virtual FS, табы → **MVP, часть 2** | A | 1 |
 | 3 | `runtime-hardening` — прогрев и холодный старт вне deadline (R1), loop-guard (R3), отмена, console, source maps, async-ошибки (R8) | A | 1 |
 | 4 | `author-cli` — `course create` / `course test` + CI-проверка уроков | D | 1 |
 | 5 | `dependency-pipeline` — registry → CI → артефакты по hash | B | 2 |
 | 6 | `ts-tooling` — diagnostics, autocomplete, `.d.ts` | E | 2 |
 | 7 | `course-ux` — навигация, прогресс, save/restore | H | 3 |
-| 8 | `security-baseline` — отдельный origin, CSP, лимиты + `/security-review` | F | 3 |
+| 8 | `security-baseline` — отдельный origin, CSP, лимиты + `/security-review` → **MVP, часть 2** (до серверного хранения и внешних пользователей) | F | 3 |
 | 9 | `pilot-course` — 5–10 реальных Lesson, прогон через CLI, пилот на людях | — | 3 |
 
 `/improve-codebase-architecture` — раз в неделю-две, пока код не расползся.

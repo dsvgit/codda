@@ -75,7 +75,7 @@
 
 Если сырьё уже есть (обсуждение в другом чате, заметки) — вставить его в сессию и попросить синтезировать глоссарий, ADR, спеку и тикеты. Так начинался PoC; grilling тогда пропустили, и его вопросы («главный шов — Runner?», «свой Test Harness?») решались уже в спеке.
 
-Для большого туманного объёма (MVP) перед этим шагом — `/wayfinder`: карта решений `.scratch/<effort>/map.md` и тикеты-решения (`research` / `prototype` / `grilling` / `task`).
+Для большого туманного объёма (MVP) перед этим шагом — `/wayfinder`: **План решений** (так по-русски называется карта wayfinder) `.scratch/<effort>/map.md` и тикеты-решения (`research` / `prototype` / `grilling` / `task`).
 
 ### 2. Спека
 
@@ -134,7 +134,7 @@ grep -H 'Status:' .scratch/<feature>/issues/*.md
 | `ready-for-agent`, все `Blocked by` в `done` | Это frontier: взять первый по номеру → `/clear` + `/implement` |
 | Все тикеты `done` | Фича готова: следующая строка в HOW-TO-PROCEED (следующая фича, тикет-отчёт стадии) |
 
-**Карта wayfinder** (`.scratch/<effort>/map.md`): `/clear` → `/wayfinder .scratch/<effort>/map.md` — скилл сам находит frontier. Тикет в `claimed` без `## Answer` — оборванный, продолжить его.
+**План решений** (карта wayfinder, `.scratch/<effort>/map.md`): `/clear` → `/wayfinder .scratch/<effort>/map.md` — скилл сам находит frontier. Тикет в `claimed` без `## Answer` — оборванный, продолжить его.
 
 **Оборвались шаги 1–3** (grilling, спека, нарезка): им нужен весь разговор, поэтому сначала вернуть сессию — `claude --continue` (последняя) или `claude --resume` (выбор из списка). Если сессию не вернуть — `/grill-with-docs` заново, дав ему то, что уже записано: `CONTEXT.md`, новые ADR, черновик спеки.
 

@@ -16,16 +16,28 @@
 
 Внутренний пользователь проходит **небольшой реальный Course** (один Module, 5–10 Lesson) по React + TypeScript:
 
-- Lesson — обычные файлы в Git (Instructions в MDX, Lesson Manifest, Starter, Lesson Tests, Solution); Author проверяет их одной командой CLI.
-- Workspace из нескольких файлов, табы/дерево, TS/TSX.
+- Lesson — обычные файлы в Git (Instructions в Markdown, Lesson Manifest, Starter, Lesson Tests, Solution); Author проверяет их одной командой CLI `codda`. Инструмент отделён от контента: курс передаётся путём ([ADR-0006](adr/0006-tool-separate-from-content.md)).
+- Workspace из одного файла TS/TSX (несколько файлов — в «MVP, часть 2»).
 - npm-зависимости, объявленные в Lesson Manifest, приходят как Dependency Artifacts из CI и внутреннего registry.
-- Run → Test Report; ошибки компиляции, runtime, timeout; console.
+- Run → Test Report; ошибки компиляции, runtime, timeout; console; отмена Run; source maps; восстановление после падения.
 - Базовые подсказки TypeScript (diagnostics, autocomplete для React).
 - Навигация по Lesson, Reset, показ Solution, прогресс и Workspace сохраняются (минимум — локально).
-- Security baseline пройден: Sandbox на отдельном origin, CSP, лимиты, review.
+- UI на русском.
+- Пилот — внутренние пользователи, только Chrome. Security baseline перенесён в «MVP, часть 2», но обязателен до серверного хранения и до любых внешних пользователей.
 - Всё работает в полностью закрытом контуре (ADR-0002).
 
 **Не входит в MVP:** Vim, несколько framework'ов, `npm install` студентом, Node в браузере, Linux sandbox, Server Grader / Hidden Tests (ADR-0004), сложная авторизация, интеграция с LMS, authoring UI.
+
+## MVP, часть 2
+
+Отложено при составлении Плана решений MVP (`.scratch/mvp/scope-questions.md`, отметки «после»):
+
+- Multi-file Workspace: virtual FS, импорты между файлами, табы, дерево, создание/удаление файлов студентом (блок A).
+- Прогрев Worker, холодный старт вне deadline Run (R1); защита от бесконечных циклов в Safari/Firefox (R3); preview/HMR (блок A).
+- CSS из npm-пакетов (блок B).
+- Hover, go to definition, форматирование (блок E).
+- Прогресс и Workspace на сервере, вход пользователя; подсказки и счётчик попыток (блок H).
+- Security baseline целиком (блок F) — обязателен до серверного хранения и до внешних пользователей.
 
 ## Эволюция после PoC (версии)
 
