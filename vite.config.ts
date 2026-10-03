@@ -4,7 +4,9 @@ import { playwright } from "@vitest/browser-playwright";
 
 export default defineConfig({
   plugins: [react()],
-  optimizeDeps: { include: ["esbuild-wasm"] },
+  optimizeDeps: {
+    include: ["esbuild-wasm", "react", "react-dom/client", "codemirror", "@codemirror/lang-javascript"],
+  },
   test: {
     browser: {
       enabled: true,
