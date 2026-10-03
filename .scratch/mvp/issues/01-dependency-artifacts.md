@@ -20,3 +20,5 @@ Blocked by: None
 Registry берётся из `.npmrc` или используется registry по умолчанию (ADR-0006).
 
 Ответ — сравнение вариантов с рекомендацией и ссылками на первоисточники. Решение принимается на его основе (ADR).
+
+Research: docs/research/dependency-artifacts.md (ветка research/dependency-artifacts)
