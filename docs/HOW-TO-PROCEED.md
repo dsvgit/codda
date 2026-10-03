@@ -8,10 +8,9 @@
 
 ## Часть 2. От PoC к MVP (4–6 недель)
 
-### Шаг 0. Закрыть хвосты PoC
+### Шаг 0. Хвост PoC
 
-1. Провести демо по сценарию из конца [poc-report.md](poc-report.md), включая прогон с выключенным Wi-Fi. Затем в [тикете 05](../.scratch/golden-path-poc/issues/05-poc-report.md) отметить чекбокс и поставить `Status: done`.
-2. Курс React Hooks в `courses/` сделан вне тикетов. Решить при grilling блока C: стать ли ему первым настоящим Course на Lesson Manifest или удалиться.
+Курс React Hooks в `courses/` сделан вне тикетов. Решить при grilling блока C: стать ли ему первым настоящим Course на Lesson Manifest или удалиться.
 
 ### Шаг 1. Карта MVP (1 сессия)
 
