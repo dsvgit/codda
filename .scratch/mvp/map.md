@@ -38,7 +38,9 @@ Label: wayfinder:map
 
 ## Not yet specified
 
-- **Test Harness: асинхронные ошибки, отмена Run и source maps в Sandbox (3.3–3.7).** Пока похоже на работу внутри фичи `runtime-hardening`. Решение о доставке принято (ADR-0007): в MVP артефакты по-прежнему вшиваются в бандл, так что сопоставление ошибок со строками студента остаётся как в PoC.
+Пусто — Destination достигнут 2026-10-04. План решений закрыт, дальше — фичи по таблице Шага 3 в [docs/HOW-TO-PROCEED.md](../../docs/HOW-TO-PROCEED.md).
+
+- Test Harness: асинхронные ошибки, отмена Run и source maps в Sandbox (3.3–3.7) — не вопрос до старта, а работа внутри фичи `runtime-hardening`; решается на её `/grill-with-docs`. Доставка решена (ADR-0007): в MVP артефакты вшиваются в бандл, сопоставление ошибок со строками студента — как в PoC.
 
 ## Out of scope
 
