@@ -70,14 +70,16 @@
 
 ### C. Модель Lesson — Phase 1
 ```
-Course └ Module └ Lesson
-                   ├ instructions.mdx
-                   ├ manifest.yaml
-                   ├ starter/  tests/  solution/
+Course (course.yaml: id, title, dependencies, modules → lessons)
+ └ Lesson <id>/
+    ├ lesson.md        frontmatter (title, dependencies) + Instructions
+    ├ main.tsx         Starter
+    ├ solution.tsx
+    └ lesson.test.tsx
 ```
-Lesson Manifest — контракт между авторингом, CI, Runtime и (будущим) Server Grader.
+Lesson Manifest — контракт между авторингом, CI, Runtime и (будущим) Server Grader. Схема и правила — `## Answer` тикета `.scratch/mvp/issues/03-lesson-manifest-schema.md`. Пять Lesson React Hooks из `courses/react-hooks/` переводятся на этот формат, старый формат удаляется.
 
-После PoC в `courses/react-hooks/` без тикета появились 5 Lesson по хукам — TS-модули со строковыми полями, как `src/lesson.ts`, открываются через `?lesson=<id>`. Формат временный: при проектировании Lesson Manifest решить, переводить ли их или удалить.
+Кандидат, если всплывёт в пилоте: плашка «Starter обновлён — Reset, чтобы взять новый» на сохранённом Workspace, если Author поменял Starter. Для неё рядом с Workspace нужно хранить hash Starter.
 
 ### D. Авторский workflow — Phase 1
 `course create react/use-state` → скелет Lesson. `course test react/use-state` → ✓ starter собирается, ✓ solution собирается, ✓ solution проходит все тесты, ✓ starter их не проходит, ✓ manifest валиден, ✓ зависимости доступны. Тот же чек — в CI на каждый PR.

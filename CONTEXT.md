@@ -7,15 +7,15 @@
 ### Учебный контент
 
 **Course**:
-Упорядоченный набор Module по одной теме.
+Упорядоченный набор Module по одной теме. Это папка с `course.yaml`: `id`, название, Dependencies Course, Module и порядок Lesson в них.
 _Avoid_: программа, трек
 
 **Module**:
-Группа Lesson внутри Course.
+Группа Lesson внутри Course. Существует только как запись в `course.yaml`, своей папки у Module нет.
 _Avoid_: раздел, глава
 
 **Lesson**:
-Одно задание: Instructions + Starter + Lesson Tests + Solution + описание Dependencies.
+Одно задание: Instructions + Starter + Lesson Tests + Solution + описание Dependencies. Папка внутри Course. Имя папки — id Lesson, по нему хранятся прогресс и Workspace.
 _Avoid_: exercise, задача, challenge, урок-страница
 
 **Instructions**:
@@ -23,7 +23,7 @@ _Avoid_: exercise, задача, challenge, урок-страница
 _Avoid_: описание, README
 
 **Starter**:
-Исходные файлы Lesson, с которых студент начинает работу.
+Исходные файлы Lesson, с которых студент начинает работу. В MVP это один файл `main.ts` или `main.tsx`; Lesson Tests импортируют его как `./main`.
 _Avoid_: шаблон, boilerplate, заготовка
 
 **Solution**:
@@ -39,7 +39,7 @@ Lesson Tests, которые не отдаются в браузер и выпо
 _Avoid_: секретные тесты
 
 **Lesson Manifest**:
-Машиночитаемое описание Lesson — контракт между авторингом, CI и Runtime.
+Машиночитаемое описание Lesson — контракт между авторингом, CI и Runtime. Это не отдельный файл. Lesson Manifest складывается из frontmatter `lesson.md` (`title`, `dependencies`), записи Lesson в `course.yaml` и файлов Lesson, найденных по соглашению об именах (`main.*`, `solution.*`, `lesson.test.*`).
 _Avoid_: config, lesson.json (как название понятия)
 
 ### Работа студента

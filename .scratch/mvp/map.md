@@ -28,6 +28,7 @@ Label: wayfinder:map
 
 - [Как собирать и доставлять Dependency Artifacts](issues/01-dependency-artifacts.md): research рекомендует артефакт на набор Course ∪ Lesson, CJS-обёртки с default-экспортом, доставку import map'ом отдельно от кода студента, только dev-сборку, типы отдельным JSON-артефактом; транспорт — после замера, решение — ADR.
 - [TypeScript language service в Web Worker для CodeMirror 6 без сети](issues/02-ts-language-service.md): TS 7 в браузере не работает — отдельный Worker «Type Checker» на TS 6 + `@typescript/vfs`, lib и `.d.ts` с нашего origin, своя обвязка CM6; продуктовые вопросы — отдельным тикетом.
+- [Схема Lesson Manifest и файловая структура Course](issues/03-lesson-manifest-schema.md): `course.yaml` (`id`, `title`, `dependencies`, `modules` с явным порядком Lesson); Lesson — папка-id с `lesson.md` (frontmatter `title`, `dependencies`), `main.ts(x)`, `solution.*`, `lesson.test.*`; версии точные, повтор пакета из Course — ошибка; Zod, strict; ошибки `codda test` — все сразу, по строке; Instructions без raw HTML и картинок.
 
 ## Not yet specified
 
