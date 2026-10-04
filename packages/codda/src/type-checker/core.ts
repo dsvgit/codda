@@ -11,7 +11,10 @@ import { TS_COMPILER_OPTIONS } from "../ts-config.ts";
 export type TypeError = { from: number; to: number; line: number; column: number; message: string; code: number };
 
 export type TypeEnvironment = {
-  /** Creates the file `name` (e.g. "main.tsx") or replaces its text. */
+  /**
+   * Creates the file `name` (e.g. "main.tsx") or replaces its text. It is the
+   * student's one file: another name (another Lesson's Starter) drops the old one.
+   */
   setFile: (name: string, text: string) => void;
   /** Syntactic and semantic errors of the file; warnings and suggestions are left out. */
   errors: (name: string) => TypeError[];
@@ -23,6 +26,7 @@ export function createTypeEnvironment(ts: typeof TS, files: Record<string, strin
   const fsMap = new Map(Object.entries(files));
   // The environment needs its root file at creation: it is made with the first file.
   let env: VirtualTypeScriptEnvironment | undefined;
+  let current: string | undefined;
 
   return {
     setFile(name, text) {
@@ -31,11 +35,13 @@ export function createTypeEnvironment(ts: typeof TS, files: Record<string, strin
         fsMap.set(path, text);
         // vfs is typed against the bare "typescript" (TS 7 types); it gets TS 6.
         env = createVirtualTypeScriptEnvironment(createSystem(fsMap), [path], ts as never, options as never);
-      } else if (env.getSourceFile(path)) {
+      } else if (path === current) {
         env.updateFile(path, text);
       } else {
+        env.deleteFile(current!);
         env.createFile(path, text);
       }
+      current = path;
     },
     errors(name) {
       const path = `/${name}`;

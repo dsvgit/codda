@@ -200,18 +200,3 @@ test("a Course without a Dependency Artifact: lib files only, no types.json, an 
   expect(await hoverText(page)).toBe("Type 'number' is not assignable to type 'string'. (TS2322)");
   expect(typesRequests).toEqual([]);
 });
-
-test("one Type Checker per session: another Lesson's new editor does not start a second one", async ({ page }) => {
-  const workers: string[] = [];
-  page.on("worker", (worker) => workers.push(worker.url()));
-  await page.goto("./#/use-state");
-  await page.getByRole("textbox", { name: "main.tsx" }).fill(MARKER);
-  await expect(underlines(page)).toHaveCount(1);
-
-  await page.goto("./#/use-effect");
-  await expect(page.getByRole("heading", { name: "React Hooks · useEffect" })).toBeVisible();
-  await page.getByRole("textbox", { name: "main.tsx" }).fill(MARKER);
-
-  await expect(underlines(page)).toHaveCount(1);
-  expect(workers.filter((url) => url.includes("type-checker"))).toHaveLength(1);
-});

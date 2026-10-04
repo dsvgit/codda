@@ -8,7 +8,8 @@ import ts from "typescript-6";
 import { createTypeEnvironment, type TypeEnvironment } from "./core.ts";
 import type { TypeCheckerRequest, TypeCheckerResponse } from "./client.ts";
 
-let env: Promise<TypeEnvironment> | undefined;
+// Set once the lib files and types.json are in; the client sends no request before.
+let env: TypeEnvironment;
 
 const post = (message: TypeCheckerResponse) => self.postMessage(message);
 
@@ -18,16 +19,19 @@ async function fetchJson(url: string): Promise<Record<string, string>> {
   return response.json();
 }
 
-self.onmessage = async ({ data }: MessageEvent<TypeCheckerRequest>) => {
+// Requests are answered synchronously: an exception of TypeScript is the
+// Worker's `error` event, and the client gives up on the Type Checker.
+self.onmessage = ({ data }: MessageEvent<TypeCheckerRequest>) => {
   if (data.type === "init") {
     const { lib, types } = data;
-    env = Promise.all([fetchJson(lib), types ? fetchJson(types) : {}]).then(([libFiles, typeFiles]) =>
-      createTypeEnvironment(ts, { ...libFiles, ...typeFiles }),
-    );
-    env.catch((err: Error) => post({ type: "failed", message: err.message }));
+    Promise.all([fetchJson(lib), types ? fetchJson(types) : {}])
+      .then(([libFiles, typeFiles]) => {
+        env = createTypeEnvironment(ts, { ...libFiles, ...typeFiles });
+        post({ type: "ready" });
+      })
+      .catch((err: Error) => post({ type: "failed", message: err.message }));
     return;
   }
-  const checker = await env!;
-  checker.setFile(data.file, data.text);
-  post({ type: "diagnostics", id: data.id, errors: checker.errors(data.file) });
+  env.setFile(data.file, data.text);
+  post({ type: "diagnostics", id: data.id, errors: env.errors(data.file) });
 };

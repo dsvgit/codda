@@ -1,9 +1,15 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { Editor, type EditorHandle } from "./Editor";
 import type { CourseData, LessonData } from "./course-data";
 import { run, type ConsoleLine, type TestReport } from "./runtime/runner";
 import type { CompileError, TestResult } from "./runtime/types";
-import { typeChecker } from "./type-checker/client";
+import {
+  onTypeCheckerStatus,
+  typeChecker,
+  typeCheckerStatus,
+  type TypeCheckerStatus,
+  type TypeError,
+} from "./type-checker/client";
 import "./styles.css";
 
 const NO_ERRORS: CompileError[] = [];
@@ -78,7 +84,10 @@ function Lesson({ course, lesson }: { course: CourseData; lesson: LessonData }) 
   const [consoleLines, setConsoleLines] = useState<ConsoleLine[]>([]);
   // Underlined in the Workspace until the first edit or the next Run.
   const [underlined, setUnderlined] = useState(NO_ERRORS);
-  const [tab, setTab] = useState<"tests" | "console" | "solution">("tests");
+  const [tab, setTab] = useState<"tests" | "console" | "problems" | "solution">("tests");
+  // The Workspace's type errors; none until its first check is done.
+  const [typeErrors, setTypeErrors] = useState<TypeError[]>();
+  const typeStatus = useSyncExternalStore(onTypeCheckerStatus, typeCheckerStatus);
   const workspace = useRef<EditorHandle>(null);
   const cancel = useRef<AbortController>(null);
   // Edited since the Run started: the compile errors no longer match the text.
@@ -148,6 +157,8 @@ function Lesson({ course, lesson }: { course: CourseData; lesson: LessonData }) 
             }}
             errors={underlined}
             typeCheck={(text) => typeCheck(course, lesson, text)}
+            onTypeErrors={setTypeErrors}
+            typeCheckStatus={typeStatus}
           />
         </div>
         <div className="panel">
@@ -160,6 +171,12 @@ function Lesson({ course, lesson }: { course: CourseData; lesson: LessonData }) 
               Console
               {consoleLines.length > 0 && <span className="badge count">{consoleLines.length}</span>}
             </button>
+            <button role="tab" aria-selected={tab === "problems"} onClick={() => setTab("problems")}>
+              Проблемы
+              {typeStatus !== "unavailable" && (
+                <span className="badge count">{typeStatus === "ready" && typeErrors ? typeErrors.length : "…"}</span>
+              )}
+            </button>
             <button role="tab" aria-selected={tab === "solution"} onClick={() => setTab("solution")}>
               Решение
             </button>
@@ -169,6 +186,8 @@ function Lesson({ course, lesson }: { course: CourseData; lesson: LessonData }) 
               <Editor label="Решение" initialValue={lesson.solution} readOnly />
             ) : tab === "console" ? (
               <Console lines={consoleLines} />
+            ) : tab === "problems" ? (
+              <Problems status={typeStatus} errors={typeErrors} onPick={(pos) => workspace.current!.goTo(pos)} />
             ) : report ? (
               <Report report={report} />
             ) : (
@@ -204,6 +223,32 @@ function Console({ lines }: { lines: ConsoleLine[] }) {
       {lines.map((line, i) => (
         <li key={i} className={line.level}>
           {line.text}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** The «Проблемы» tab: the Workspace's type errors; a click on one goes to it in the editor. */
+function Problems({
+  status,
+  errors,
+  onPick,
+}: {
+  status: TypeCheckerStatus;
+  errors?: TypeError[];
+  onPick: (pos: number) => void;
+}) {
+  if (status === "unavailable") return <p className="muted">Проверка типов недоступна</p>;
+  if (status === "loading" || !errors) return <p className="muted">Проверка типов загружается</p>;
+  if (errors.length === 0) return <p className="muted">Проблем нет</p>;
+  return (
+    <ul className="problems" aria-label="Проблемы">
+      {errors.map((e, i) => (
+        <li key={i}>
+          <button onClick={() => onPick(e.from)}>
+            {e.line}:{e.column} — {e.message} (TS{e.code})
+          </button>
         </li>
       ))}
     </ul>

@@ -160,6 +160,7 @@ Slug фичи — имя папки без номера: `lesson-manifest/02` = 
 - 2026-10-05 — author-cli — push, `check` зелёный на `24236ee` (прогон 37226218146). /code-review (Standards: 0 жёстких; Spec: 3 «чинить сейчас»). Исправлено: тест чужого запроса снят со skip (на `await fetch`), критерии 06 возвращены к исходным, `permissions: contents: read` в GitHub-шаблоне, `npx --no-install vite`, `moduleTitle`, место комментария `uiDir`. Остальное — в «Отложенные проблемы»
 - 2026-10-05 — author-cli — push правок по review, `check` зелёный (прогон 37228012008); фича закрыта
 - 2026-10-05 — ts-tooling/01 — коммит: Type Checker в редакторе Workspace — модуль конфига TS (ADR-0009), Compiler на нём и loader по расширению (`testsName` в `course.json`), lib-файлы `typescript-6` одним JSON с hash (`codda-ts-lib`), ядро на `@typescript/vfs`, отдельный Worker на сессию, второй `linter` (300 мс) рядом с ошибкой компиляции; заглушка `any` в `types.json` — `declare module` (`PIPELINE_VERSION` = 3). Агент прерывался на лимите, доделано следующей сессией
+- 2026-10-05 — ts-tooling/02 — коммит: вкладка «Проблемы» (счётчик `…`/N/без числа, список `строка:колонка — сообщение (TSxxxx)`, клик ставит курсор), статус Type Checker `loading | ready | unavailable` (ответ `ready`, `error` у Worker посреди сессии, подчёркивания снимаются), смена расширения Starter удаляет старый файл из окружения
 
 ## Журнал допущений
 
@@ -276,6 +277,10 @@ Slug фичи — имя папки без номера: `lesson-manifest/02` = 
 - ts-tooling/01 — ошибки компиляции — второй lint-источник с `forceLinting` при смене (вместо `setDiagnostics`) — `setDiagnostics` перетирал бы ошибки типов, а общий `delay` (максимум по linter'ам) задерживал бы снятие подчёркивания на старте Run
 - ts-tooling/01 — `App.test.tsx` идёт без Type Checker (lib JSON отклоняется `failRequests` на весь файл) — спека: компонентному тесту Type Checker не нужен; иначе синтаксическая ошибка подчёркивалась дважды
 - ts-tooling/01 — Course без Dependency Artifact в e2e — подмена `course.json` через `page.route`, а не курс-фикстура на диске — Course Build для e2e один
+- ts-tooling/02 — воркер отвечает на запросы синхронно, а ждут готовности они на клиенте: исключение TS посреди сессии становится `error` у Worker и даёт `unavailable` той же веткой. Отдельного `try/catch` и сообщения нет
+- ts-tooling/02 — счётчик «Проблемы» в `ready` до первого ответа на проверку — `…`, как в `loading`, без «0» до проверки. Число `0` показывается, когда ошибок нет
+- ts-tooling/02 — строка списка — `<button>` (клик и клавиатура), список — `<ul aria-label="Проблемы">`. Вид в спеке не задан
+- ts-tooling/02 — e2e смены `main.tsx` ↔ `main.ts` на курсе-фикстуре через `page.route` `course.json`: в React Hooks нет `.ts`-Lesson
 
 ## Отложенные проблемы
 
@@ -301,3 +306,4 @@ Slug фичи — имя папки без номера: `lesson-manifest/02` = 
 - author-cli (review) — `dependency-artifact.ts`: `.catch(() => {})` глушит любую ошибку esbuild, а не только синтаксическую в файле Lesson
 - author-cli (review) — критерий 02 «нет дочерних процессов после выхода» проверен только руками через `ps`
 - author-cli (review) — косметика: три копии связки `mkdtemp → assemble → replaceFolder` в `codda.ts` (557 строк, пять команд в одном модуле); `packageDir` дважды; имя Solution через `replace("main", "solution")` дублирует правило `read-course.ts`; ошибки курса и урока различаются сравнением строк
+- ts-tooling/02 — локальный `npm test` без повторов (под нагрузкой машины, load average 12–20) падает в 1–2 тестах CLI, которые запускают `codda test` в Chromium. Это `cli/test-command.test.ts` (ложный timeout у `solved`, «чужой запрос» не пойман — снятый с `test.skip` на review author-cli) и `cli/init-lesson.test.ts` (`✗ last-one`). На чистом `37ff279` то же самое. С `CI=true` (повторы) зелёный. Гипотеза — первые две записи выше. Ничего не отключено

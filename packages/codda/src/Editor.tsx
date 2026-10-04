@@ -3,7 +3,7 @@ import { EditorView, basicSetup } from "codemirror";
 import { javascript } from "@codemirror/lang-javascript";
 import { forceLinting, linter, type Diagnostic } from "@codemirror/lint";
 import type { CompileError } from "./runtime/types";
-import type { TypeError } from "./type-checker/client";
+import type { TypeCheckerStatus, TypeError } from "./type-checker/client";
 
 type Props = {
   label: string;
@@ -14,24 +14,42 @@ type Props = {
   errors?: CompileError[];
   /** The type errors of a text, underlined ~300 ms after typing stops (Type Checker); none: not checked. */
   typeCheck?: (text: string) => Promise<TypeError[]>;
+  /** The type errors once they are underlined: those of the current text only. */
+  onTypeErrors?: (errors: TypeError[]) => void;
+  /** A change re-checks at once: an unavailable Type Checker takes its underlines away. */
+  typeCheckStatus?: TypeCheckerStatus;
   ref?: Ref<EditorHandle>;
 };
 
-/** The user event of the empty transaction that makes the linters take new compile errors. */
-const COMPILE_ERRORS = "codda.compile-errors";
+/** The user event of the empty transaction that makes the linters run again: new compile errors or Type Checker status. */
+const RELINT = "codda.relint";
 
 export type EditorHandle = {
   /** Replaces the whole text in one transaction: Mod-z brings the old text back. */
   replaceAll: (text: string) => void;
+  /** Puts the cursor at offset `pos` and focuses the editor. */
+  goTo: (pos: number) => void;
 };
 
-export function Editor({ label, initialValue, onChange, readOnly = false, errors = [], typeCheck, ref }: Props) {
+export function Editor({
+  label,
+  initialValue,
+  onChange,
+  readOnly = false,
+  errors = [],
+  typeCheck,
+  onTypeErrors,
+  typeCheckStatus,
+  ref,
+}: Props) {
   const host = useRef<HTMLDivElement>(null);
   const view = useRef<EditorView>(null);
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
   const typeCheckRef = useRef(typeCheck);
   typeCheckRef.current = typeCheck;
+  const onTypeErrorsRef = useRef(onTypeErrors);
+  onTypeErrorsRef.current = onTypeErrors;
   const checked = typeCheck !== undefined;
   // Until the next edit: then they no longer match the text.
   const compileErrors = useRef(errors);
@@ -52,9 +70,9 @@ export function Editor({ label, initialValue, onChange, readOnly = false, errors
         }),
         // Two sources of diagnostics: @codemirror/lint runs both and shows them together.
         linter((view) => compileErrors.current.flatMap((e) => toDiagnostic(view, e)), {
-          needsRefresh: (update) => update.transactions.some((tr) => tr.isUserEvent(COMPILE_ERRORS)),
+          needsRefresh: (update) => update.transactions.some((tr) => tr.isUserEvent(RELINT)),
         }),
-        checked ? linter(typeErrorSource(typeCheckRef), { delay: 300 }) : [],
+        checked ? linter(typeErrorSource(typeCheckRef, onTypeErrorsRef), { delay: 300 }) : [],
       ],
     });
     view.current = editor;
@@ -64,10 +82,16 @@ export function Editor({ label, initialValue, onChange, readOnly = false, errors
   useEffect(() => {
     compileErrors.current = errors;
     const editor = view.current!;
-    editor.dispatch({ userEvent: COMPILE_ERRORS });
+    editor.dispatch({ userEvent: RELINT });
     // Now, not after the type check's 300 ms: the start of a Run clears them at once.
     forceLinting(editor);
   }, [errors]);
+
+  useEffect(() => {
+    const editor = view.current!;
+    editor.dispatch({ userEvent: RELINT });
+    forceLinting(editor);
+  }, [typeCheckStatus]);
 
   useImperativeHandle(ref, () => ({
     replaceAll: (text) => {
@@ -78,6 +102,11 @@ export function Editor({ label, initialValue, onChange, readOnly = false, errors
         changes: { from: 0, to: editor.state.doc.length, insert: text },
         userEvent: "reset",
       });
+    },
+    goTo: (pos) => {
+      const editor = view.current!;
+      editor.dispatch({ selection: { anchor: pos }, scrollIntoView: true });
+      editor.focus();
     },
   }));
 
@@ -91,10 +120,15 @@ function toDiagnostic(editor: EditorView, { line, column, message }: CompileErro
   return [{ from: from + column - 1, to, severity: "error", message }];
 }
 
-/** A lint source asking the Type Checker; CodeMirror drops the answer if the text changed meanwhile. */
-function typeErrorSource(typeCheck: { current: Props["typeCheck"] }) {
+/**
+ * A lint source asking the Type Checker. CodeMirror drops the answer if the
+ * text changed meanwhile, and so does `onTypeErrors`: the next check follows.
+ */
+function typeErrorSource(typeCheck: { current: Props["typeCheck"] }, onTypeErrors: { current: Props["onTypeErrors"] }) {
   return async (view: EditorView): Promise<Diagnostic[]> => {
-    const errors = await typeCheck.current!(view.state.doc.toString());
+    const doc = view.state.doc;
+    const errors = await typeCheck.current!(doc.toString());
+    if (view.state.doc === doc) onTypeErrors.current?.(errors);
     return errors.map(({ from, to, message, code }) => ({
       from,
       to,

@@ -101,3 +101,13 @@ test("the file is replaced on each call: a fix removes the error", () => {
 
   expect(errorsOf("main.ts", `export const n: number = 1;\n`, env)).toEqual([]);
 });
+
+test("another Starter's extension drops the old file: its globals do not clash with the new one's", () => {
+  const env = createTypeEnvironment(ts, lib);
+  // Scripts, not modules: their top-level names are global to the program.
+  errorsOf("main.tsx", `const count = 1;\n`, env);
+
+  expect(errorsOf("main.ts", `const count = 2;\n`, env)).toEqual([]);
+  // And back: the first name is a new file again.
+  expect(errorsOf("main.tsx", `const count = 3;\nexport const n: number = "";\n`, env)).toMatchObject([{ code: 2322 }]);
+});

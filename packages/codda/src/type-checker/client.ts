@@ -12,12 +12,31 @@ export type TypeCheckerRequest =
   | { type: "diagnostics"; id: number; file: string; text: string };
 
 export type TypeCheckerResponse =
+  | { type: "ready" }
   | { type: "failed"; message: string }
   | { type: "diagnostics"; id: number; errors: TypeError[] };
+
+/** `loading` until the Worker has its lib files and types.json, also before it is started. */
+export type TypeCheckerStatus = "loading" | "ready" | "unavailable";
 
 type TypeChecker = { diagnostics: (file: string, text: string) => Promise<TypeError[]> };
 
 let checker: TypeChecker | undefined;
+let status: TypeCheckerStatus = "loading";
+const listeners = new Set<() => void>();
+
+/** The session's Type Checker status; with `onTypeCheckerStatus`, a store for `useSyncExternalStore`. */
+export const typeCheckerStatus = () => status;
+
+export function onTypeCheckerStatus(listener: () => void) {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+}
+
+function setStatus(next: TypeCheckerStatus) {
+  status = next;
+  for (const listener of listeners) listener();
+}
 
 /**
  * The session's Type Checker. `types`: absolute URL of types.json of the
@@ -31,19 +50,26 @@ export function typeChecker(types: string | undefined): TypeChecker {
 
 function start(types: string | undefined): TypeChecker {
   const worker = new Worker(new URL("./type-checker.worker.ts", import.meta.url), { type: "module" });
-  let unavailable = false;
   let nextId = 0;
   const pending = new Map<number, (errors: TypeError[]) => void>();
+  let settle!: () => void;
+  // Settled once the Worker is ready or unavailable.
+  const settled = new Promise<void>((resolve) => (settle = resolve));
 
   const fail = () => {
-    unavailable = true;
+    setStatus("unavailable");
     worker.terminate();
     for (const resolve of pending.values()) resolve([]);
     pending.clear();
+    settle();
   };
+  // A script that does not load, and an uncaught error in the Worker later on.
   worker.addEventListener("error", fail);
   worker.addEventListener("message", ({ data }: MessageEvent<TypeCheckerResponse>) => {
-    if (data.type === "failed") fail();
+    if (data.type === "ready") {
+      setStatus("ready");
+      settle();
+    } else if (data.type === "failed") fail();
     else {
       pending.get(data.id)?.(data.errors);
       pending.delete(data.id);
@@ -53,8 +79,9 @@ function start(types: string | undefined): TypeChecker {
   worker.postMessage({ type: "init", lib, types } satisfies TypeCheckerRequest);
 
   return {
-    diagnostics(file, text) {
-      if (unavailable) return Promise.resolve([]);
+    async diagnostics(file, text) {
+      await settled;
+      if (status === "unavailable") return [];
       const id = nextId++;
       worker.postMessage({ type: "diagnostics", id, file, text } satisfies TypeCheckerRequest);
       return new Promise((resolve) => pending.set(id, resolve));

@@ -460,7 +460,8 @@ test("«Console» between «Тесты» and «Решение» shows the lines 
   await expect.element(report().getByText("PASS · 2 / 2")).toBeVisible();
   await expect.element(testsTab()).toHaveAttribute("aria-selected", "true");
   const tabs = page.getByRole("tab").elements().map((t) => t.textContent);
-  expect(tabs).toEqual(["Тесты2/2", "Console3", "Решение"]);
+  // «Проблемы» without a counter: no Type Checker in this file.
+  expect(tabs).toEqual(["Тесты2/2", "Console3", "Проблемы", "Решение"]);
 
   await consoleTab().click();
 
