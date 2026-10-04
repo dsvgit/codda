@@ -149,6 +149,7 @@ Slug фичи — имя папки без номера: `lesson-manifest/02` = 
 - 2026-10-04 — dependency-artifacts/05 — коммит: `types.json` в `deps/<hash>/` — `package.json` и `.d.ts`/`.d.mts`/`.d.cts` пакетов `dependencies` и их транзитивных `dependencies`/`peerDependencies` с типами; у пакета без типов и без `@types` — предупреждение и заглушка `any` в `@types/<имя>` на каждую точку входа; `PIPELINE_VERSION` = 2
 - 2026-10-04 — dependency-artifacts/01 — ранний push, `check` зелёный (прогон 37211927030 на `3c5249e`)
 - 2026-10-04 — dependency-artifacts — /code-review (Standards: 0 жёстких; Spec: 8, все откладываемые). Исправлено: `esbuild` в `dependencies` пакета (CLI импортирует его на старте), `.tmp-*` удаляется в `finally`, `built` → `failed`. Остальное — в «Отложенные проблемы»
+- 2026-10-04 — dependency-artifacts — push, `check` зелёный (прогон 37221677271); фича закрыта
 
 ## Журнал допущений
 
