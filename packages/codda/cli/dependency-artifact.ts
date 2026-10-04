@@ -75,13 +75,15 @@ export async function buildDependencyArtifact(courseRoot: string, lessonIds: str
     }
     mkdirSync(join(root, ".codda", "deps"), { recursive: true });
     const tmp = mkdtempSync(join(root, ".codda", "deps", `${hash}.tmp-`));
-    const built = await bundle(root, entries, importers, deps, tmp);
-    if (built) {
+    try {
+      const failed = await bundle(root, entries, importers, deps, tmp);
+      if (failed) return failed;
+      writeFileSync(join(tmp, "types.json"), JSON.stringify(types(root, entries)) + "\n");
+      renameSync(tmp, cached);
+    } finally {
+      // After the rename there is nothing left at `tmp`.
       rmSync(tmp, { recursive: true, force: true });
-      return built;
     }
-    writeFileSync(join(tmp, "types.json"), JSON.stringify(types(root, entries)) + "\n");
-    renameSync(tmp, cached);
     log = `Зависимости: deps/${hash} — собраны за ${((performance.now() - started) / 1000).toFixed(1)} с`;
   }
   cpSync(cached, join(out, deps), { recursive: true });

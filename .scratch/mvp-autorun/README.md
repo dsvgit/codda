@@ -147,6 +147,8 @@ Slug фичи — имя папки без номера: `lesson-manifest/02` = 
 - 2026-10-04 — dependency-artifacts/03 — коммит: ошибки сборки артефакта — пакет не объявлен в `dependencies` (Lesson, файл, specifier, все сразу), пакет импортирует Node built-in (имя пакета, где импорт), CJS падает при `require()`, subpath вне `exports` — с файлом Lesson; артефакта при ошибке нет
 - 2026-10-04 — dependency-artifacts/04 — коммит: ошибки Run из-за артефакта — «Импорт "<specifier>" не предусмотрен заданием» на строке импорта (и при `deps: null`), 404 на `importmap.json`/файл — «Курс обновился, перезагрузите страницу», прочий сбой и `integrity` — «Не удалось загрузить зависимости курса: …», код студента не исполняется, следующий Run грузит заново
 - 2026-10-04 — dependency-artifacts/05 — коммит: `types.json` в `deps/<hash>/` — `package.json` и `.d.ts`/`.d.mts`/`.d.cts` пакетов `dependencies` и их транзитивных `dependencies`/`peerDependencies` с типами; у пакета без типов и без `@types` — предупреждение и заглушка `any` в `@types/<имя>` на каждую точку входа; `PIPELINE_VERSION` = 2
+- 2026-10-04 — dependency-artifacts/01 — ранний push, `check` зелёный (прогон 37211927030 на `3c5249e`)
+- 2026-10-04 — dependency-artifacts — /code-review (Standards: 0 жёстких; Spec: 8, все откладываемые). Исправлено: `esbuild` в `dependencies` пакета (CLI импортирует его на старте), `.tmp-*` удаляется в `finally`, `built` → `failed`. Остальное — в «Отложенные проблемы»
 
 ## Журнал допущений
 
@@ -235,3 +237,8 @@ Slug фичи — имя папки без номера: `lesson-manifest/02` = 
 - runtime-hardening (review) — два Run компилируются в одном Worker, Worker падает: первый получает `internal-error`, второй — ложный timeout. Обход: при падении отклонять все ожидающие `compile` (`compiler.ts`)
 - runtime-hardening (review) — косметика: лимиты Console продублированы в `harness.ts` и `runner.ts` («1000» зашито в текст), имя `started` в `harness.ts`
 - dependency-artifacts/02 — optional-пакеты, которые npm не ставит на этой платформе, есть в `package-lock.json`, но не в `node_modules/.package-lock.json`: такой Course запускает `npm ci` при каждом промахе кэша. Пилот (React) не задет. Обход: не считать отсутствующие записи с `optional: true` расхождением
+- dependency-artifacts (review) — два одновременных `course.json` в `npm run dev`: два `npm ci` и `ENOTEMPTY` на `renameSync`, запрос виснет. Обход: если кэш уже есть — удалить tmp и взять кэш. Там же: `mkdtemp` на каждом старте dev-сервера не удаляется, `spawnSync` блокирует сервер на время `npm ci`; предупреждения о пакетах без типов в dev теряются
+- dependency-artifacts (review) — `compiler.worker.ts`: файла нет в `files` → молча пустой модуль вместо ошибки; после неудачной загрузки другие импорты того же Run могут повторить загрузку (держать один промис на compile)
+- dependency-artifacts (review) — «прочие ошибки esbuild» выводятся без specifier/Lesson (спека просит с ними); `pkg` и `pkg/index.js`, разрешённые в один ESM-файл, дают один ключ — specifier пропадает из `imports`
+- dependency-artifacts (review) — буква спеки: проверка `package.json`/lockfile только у курса с пакетами; в CI `npm ci` курса делает сам `codda` (корневой `npm ci` курсы не ставит, кэша `.codda/` нет); dev-сервер собирает артефакт, хотя Out of Scope отдаёт это `author-cli`
+- dependency-artifacts (review) — косметика: `package.json` читается дважды в `dependency-artifact.ts`; augmentation `ProvidedContext` в двух местах; `vitest.global-setup.ts` импортирует константы из `vite.config.ts`; `setTimeout(300)` в `runner.test.ts` — кандидат во флейки

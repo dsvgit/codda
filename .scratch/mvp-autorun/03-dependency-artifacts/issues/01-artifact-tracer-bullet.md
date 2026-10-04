@@ -18,7 +18,7 @@
 - [x] Тест Runner: CJS-пакет без `__esModule` — `import x from "pkg"` равен объекту `module.exports`
 - [x] e2e Golden Path и офлайн-проверка зелёные на выходе `codda build`; в списке запросов `deps/<hash>/importmap.json` и файлы артефакта, все на наш origin
 - [x] Удалены PoC-скрипт сборки зависимостей, npm-скрипт `build:deps`, `public/deps/`, копирование PoC-артефакта в `codda build`; `grep` по коду инструмента не находит `manifest.json` зависимостей и `build-deps`
-- [ ] `npm run typecheck`, `npm test`, `npm run test:e2e` зелёные; CI `check` зелёный (там `npm ci` курса-фикстуры идёт в registry по умолчанию)
+- [x] `npm run typecheck`, `npm test`, `npm run test:e2e` зелёные; CI `check` зелёный (там `npm ci` курса-фикстуры идёт в registry по умолчанию) — прогон 37211927030 на `3c5249e`
 
 ## Comments
 
