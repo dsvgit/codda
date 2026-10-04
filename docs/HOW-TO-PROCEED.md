@@ -57,6 +57,7 @@ Wayfinder создаст `.scratch/mvp/map.md` и тикеты-решения (`
 | 2 | `runtime-hardening` — отмена Run, console, source maps, async-ошибки (R8), восстановление после падения | A | 1 |
 | 3 | `dependency-artifacts` — Dependency Artifact на Course из `package.json` + `package-lock.json`, `importmap.json` + `types.json` по hash, вшивание в бандл (ADR-0007) | B | 1 |
 | 4 | `author-cli` — `codda init/lesson/test/dev/build` (тикет 05, ADR-0008), шаги `codda test/build` и выкладка на GitHub Pages в CI, шаблоны CI для курсов (тикет 06) | D | 1 |
+| 4a | `misc-03-workspaces-cli-publish` — npm workspaces (`packages/codda/`, курсы вне workspaces) и публикация пакета `codda` для `npx codda` в репозиториях курсов; пересматривает ADR-0006, сначала grilling ([тикет](../.scratch/misc/issues/03-workspaces-cli-publish.md)) | D | 1 |
 | 5 | `ts-tooling` — Type Checker: diagnostics, autocomplete, `.d.ts` из `types.json` (тикет 09, ADR-0009) | E | 2 |
 | 6 | `course-ux` — дерево Course и навигация, локальный прогресс и Workspace в `localStorage` | H | 3 |
 | 7 | `pilot-course` — 5–10 реальных Lesson, прогон через CLI, пилот на людях (только Chrome) | — | 3 |
