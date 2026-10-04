@@ -34,7 +34,12 @@ const markdown = new Marked({
   renderer: {
     html: ({ text, block }) => (block ? `<p>${escapeHtml(text.trim())}</p>\n` : escapeHtml(text)),
     // External links open in a new tab; `#/…` and other links inside the site do not.
+    // The HTML goes into our own page, so a link with any other scheme
+    // (javascript:, data:, …) is only its text. Browsers ignore tabs, newlines
+    // and leading spaces in a URL, so they are dropped before the check.
     link(token) {
+      const scheme = /^([a-z][a-z0-9+.-]*):/i.exec(token.href.replace(/[\x00-\x20]/g, ""))?.[1];
+      if (scheme && !/^(https?|mailto)$/i.test(scheme)) return this.parser.parseInline(token.tokens);
       const html = Renderer.prototype.link.call(this, token);
       return /^https?:\/\//i.test(token.href) ? html.replace(">", ' target="_blank" rel="noopener">') : html;
     },
@@ -169,15 +174,15 @@ export function readCourse(root: string): Result {
 
   // course.yaml against the folders on disk.
   const listed = listedLessons(raw.value);
-  const firstPath = new Map<string, string>();
+  const lessonPathById = new Map<string, string>();
   for (const { id, path } of listed) {
     if (typeof id !== "string" || !KEBAB_CASE.test(id)) continue; // reported by the schema
-    const first = firstPath.get(id);
+    const first = lessonPathById.get(id);
     if (first) {
       errors.push(`course.yaml: ${path}: урок ${id} уже указан в ${first}`);
       continue;
     }
-    firstPath.set(id, path);
+    lessonPathById.set(id, path);
     if (!isDirectory(join(root, id))) errors.push(`course.yaml: ${path}: нет папки урока ${id}`);
   }
   // A folder with lesson.md is a Lesson; others (node_modules/, dist/) are not.
@@ -192,7 +197,7 @@ export function readCourse(root: string): Result {
   }
 
   const lessons = new Map<string, LessonData | undefined>();
-  for (const id of firstPath.keys()) {
+  for (const id of lessonPathById.keys()) {
     if (isDirectory(join(root, id))) lessons.set(id, readLesson(root, id, errors));
   }
 

@@ -40,8 +40,7 @@ test("an unknown flag exits 2 and names the flag", () => {
 
   expect(status).toBe(2);
   expect(stdout).toBe("");
-  expect(stderr).toContain("неизвестный флаг --bogus");
-  expect(stderr).toContain("codda --help");
+  expect(stderr).toBe("codda: неизвестный флаг --bogus (справка: codda --help)\n");
 });
 
 test("an unknown command exits 2 and names the command", () => {

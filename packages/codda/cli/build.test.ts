@@ -130,7 +130,7 @@ test("without course.yaml at the path: one line, exit 2, nothing created", () =>
 
   expect(status).toBe(2);
   expect(stdout).toBe("");
-  expect(stderr).toContain(`нет course.yaml в ${empty}`);
+  expect(stderr).toBe(`codda: нет course.yaml в ${empty} (справка: codda --help)\n`);
   expect(existsSync(join(empty, "dist"))).toBe(false);
 });
 
@@ -460,6 +460,24 @@ describe("Instructions: lesson.md body → HTML in course.json", () => {
     );
     expect(html).toContain('<a href="http://example.com" target="_blank" rel="noopener">http://example.com</a>');
     expect(html).toContain('<a href="#/use-ref">урок</a>');
+  });
+
+  test("a link with a script scheme becomes plain text: the HTML goes into our own page", () => {
+    const html = instructionsOf(
+      [
+        "[раз](javascript:alert(1)) [два](JavaScript:alert(2)) [три](data:text/html,<b>x</b>) [четыре][ref]",
+        "",
+        "<javascript:alert(5)> [шесть](<java\tscript:alert(6)>)",
+        "",
+        "[ref]: javascript:alert(4)",
+        "",
+      ].join("\n"),
+    );
+
+    expect(html).not.toContain("<a");
+    expect(html).not.toContain("href");
+    expect(html).toContain("<p>раз два три четыре</p>");
+    expect(html).toContain("шесть");
   });
 
   test("a body that starts with `# …` is not an error", () => {

@@ -39,7 +39,7 @@ const uiDir = process.env.CODDA_UI_DIR ?? fileURLToPath(new URL("../dist-tool", 
 const depsDir = fileURLToPath(new URL("../public/deps", import.meta.url));
 
 function fail(message: string): never {
-  process.stderr.write(`codda: ${message}\nСправка: codda --help\n`);
+  process.stderr.write(`codda: ${message} (справка: codda --help)\n`);
   process.exit(2);
 }
 

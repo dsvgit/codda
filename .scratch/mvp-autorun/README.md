@@ -132,6 +132,7 @@ Slug фичи — имя папки без номера: `lesson-manifest/02` = 
 - 2026-10-04 — lesson-manifest/03 — коммит: экран Lesson — тулбар, вкладки «Тесты» и «Решение», Test Report на русском с баннером PASS и счётчиком, Reset одной транзакцией с отменой `Mod-z`; e2e на русских надписях
 - 2026-10-04 — lesson-manifest/04 — коммит: Instructions из Markdown — `marked` в модуле чтения Course, raw HTML экранируется, внешние ссылки в новой вкладке, картинка — ошибка Course со строкой; UI вставляет HTML
 - 2026-10-04 — lesson-manifest/05 — коммит: граница ADR-0006 — `rootDir` в tsconfig пакета и Node-тест `cli/boundary.test.ts` (esbuild разрешает каждый импорт исходников, включая `?raw`/`?url`), идёт в `npm test`
+- 2026-10-04 — lesson-manifest — /code-review (Standards: 1 жёсткое — XSS через `javascript:` в Instructions; Spec: 4), правки отдельным коммитом
 
 ## Журнал допущений
 
@@ -168,3 +169,4 @@ Slug фичи — имя папки без номера: `lesson-manifest/02` = 
 - lesson-manifest/05 — `public/`, `dist-tool/`, `.vitest/` не считаются исходниками — статика, собранный UI и вложения Vitest
 - lesson-manifest/05 — `rootDir` корневого `tsconfig.json` переопределён на `.` — он наследует пакетный, а e2e читают тип из `packages/codda/src`
 - lesson-manifest/05 — `new URL(…, import.meta.url)` не проверяется — не импорт; отмечено в Comments
+- lesson-manifest (review) — e2e на экранированный raw HTML на странице не добавлен: экранирует `codda build`, покрыто тестом CLI

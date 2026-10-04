@@ -11,7 +11,7 @@ export type CourseData = {
 export type LessonData = {
   id: string;
   title: string;
-  /** Markdown from the body of lesson.md; HTML from lesson-manifest/04 on. */
+  /** HTML from the Markdown body of lesson.md; `codda build` escapes raw HTML and drops script links. */
   instructions: string;
   workspace: { name: "main.ts" | "main.tsx"; starter: string };
   solution: string;

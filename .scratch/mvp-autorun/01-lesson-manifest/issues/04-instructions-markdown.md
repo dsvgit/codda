@@ -16,7 +16,7 @@
 - [x] Тело `lesson.md`, начинающееся с `# …`, не ошибка
 - [x] e2e: в Lesson `use-state` Instructions показаны с форматированием (есть элемент `code`), без текста frontmatter
 - [x] Instructions пяти Lesson React Hooks переписаны на Markdown, курс собирается без ошибок
-- [x] `npm run typecheck`, `npm test`, `npm run test:e2e` зелёные (локально; `check` — после CI)
+- [x] `npm run typecheck`, `npm test`, `npm run test:e2e` зелёные локально
 
 ## Comments
 
@@ -31,3 +31,4 @@
   - **Тесты:** `cli/build.test.ts`, блок «Instructions» (элементы Markdown, raw HTML, внешние ссылки, `# …`, картинки вместе с другой ошибкой); ожидание первого теста build (`instructions`) переведено на HTML. `App.test.tsx` — HTML показан с форматированием. e2e `course.e2e.ts` — `use-state` с элементом `code` и без frontmatter; проверка текста `use-effect` больше не ищет обратные кавычки.
   - **TDD-оговорка:** red → green для элементов Markdown, raw HTML, внешних ссылок, картинок, UI и e2e (e2e красным подтверждён на прежнем `App.tsx`). Тест «тело начинается с `# …`» зелёный сразу — это поведение `marked`, кода под него нет.
   - **Вне критериев:** у токенов с CRLF-переводами строк внутри одной картинки (многострочный `alt`) смещение может не найтись — для пилота не важно. Заголовок «Instructions» над заданием остался английским (так в спеке). Подсветки кода нет (по спеке).
+- **2026-10-04 — правки по review фичи (оркестратор).** Review нашёл XSS: `marked` не фильтрует схемы, `[x](javascript:…)` давал `<a href="javascript:…">` на странице нашего origin, вне Sandbox (ADR-0003). Теперь ссылка со схемой, кроме `http(s)`/`mailto`, выводится только текстом (табуляции и пробелы в URL отбрасываются до проверки); тест `a link with a script scheme becomes plain text` увиден красным. Проверка экранирования на уровне страницы (e2e с raw HTML) не добавлена: экранирует `codda build`, UI вставляет HTML как есть, а в пилотном курсе raw HTML нет — принято, покрыто тестом CLI.
