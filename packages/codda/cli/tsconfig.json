@@ -1,0 +1,12 @@
+{
+  // The CLI runs in Node 24 as TypeScript, without a build step.
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "lib": ["ES2022"],
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "resolveJsonModule": true,
+    "types": ["node"]
+  },
+  "include": ["."]
+}

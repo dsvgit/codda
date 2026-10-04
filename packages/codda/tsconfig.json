@@ -1,6 +1,6 @@
 {
-  // cli/ is not checked yet: it needs Node types, and @types/node is not among
-  // the dependencies allowed for the MVP run (.scratch/mvp-autorun/README.md).
+  // Browser code only; cli/ runs in Node and has its own cli/tsconfig.json, so
+  // Node globals do not leak into src/.
   "compilerOptions": {
     "target": "ES2022",
     "lib": ["ES2022", "DOM", "DOM.Iterable", "WebWorker"],
