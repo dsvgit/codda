@@ -5,11 +5,12 @@ import { run, type ConsoleLine, type TestReport } from "./runtime/runner";
 import type { CompileError, TestResult } from "./runtime/types";
 import "./styles.css";
 
+const NO_ERRORS: CompileError[] = [];
+
 /**
  * The Lesson screen for `lessonId` of `course`; without an id, the first
  * Lesson of the first Module. Another id opens that Lesson from a clean slate.
  */
-const NO_ERRORS: CompileError[] = [];
 
 export function App({ course, lessonId }: { course: CourseData; lessonId?: string }) {
   const lessons = course.modules.flatMap((m) => m.lessons);
@@ -39,6 +40,8 @@ function Lesson({ course, lesson }: { course: CourseData; lesson: LessonData }) 
   const [tab, setTab] = useState<"tests" | "console" | "solution">("tests");
   const workspace = useRef<EditorHandle>(null);
   const cancel = useRef<AbortController>(null);
+  // Edited since the Run started: the compile errors no longer match the text.
+  const editedDuringRun = useRef(false);
 
   useEffect(() => {
     document.title = `${lesson.title} — ${course.title}`;
@@ -48,13 +51,14 @@ function Lesson({ course, lesson }: { course: CourseData; lesson: LessonData }) 
     setTab("tests");
     setConsoleLines([]);
     setUnderlined(NO_ERRORS);
+    editedDuringRun.current = false;
     setRunning(true);
     cancel.current = new AbortController();
     try {
       const onConsole = (line: ConsoleLine) => setConsoleLines((lines) => [...lines, line]);
       const result = await run({ source, tests: lesson.tests }, { signal: cancel.current.signal, onConsole });
       setReport(result);
-      if (result.kind === "compile-error") setUnderlined(result.errors);
+      if (result.kind === "compile-error" && !editedDuringRun.current) setUnderlined(result.errors);
       // The student may have opened «Console» while the Run went.
       setTab("tests");
     } finally {
@@ -99,6 +103,7 @@ function Lesson({ course, lesson }: { course: CourseData; lesson: LessonData }) 
             onChange={(value) => {
               setSource(value);
               setUnderlined(NO_ERRORS);
+              editedDuringRun.current = true;
             }}
             errors={underlined}
           />

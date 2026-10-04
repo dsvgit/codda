@@ -126,6 +126,33 @@ test("before the first Run «Тесты» has a hint and no counter", async () =
 const cancelRun = () => page.getByRole("button", { name: "■ Отмена" });
 const looping = "while (true) {}\nexport const add = (a: number, b: number) => a + b;\n";
 
+// Before the tests with an infinite loop: see «Отложенные проблемы».
+test("Run from «Решение» opens «Тесты»; switching tabs keeps the Workspace and the Test Report", async () => {
+  renderApp("add");
+  await runTests().click();
+  await expect.element(report().getByText("FAIL · 0 / 2")).toBeVisible();
+
+  await page.getByRole("tab", { name: "Решение" }).click();
+  await expect.element(report()).not.toBeInTheDocument();
+  await testsTab().click();
+  await expect.element(report().getByText("FAIL · 0 / 2")).toBeVisible();
+
+  await editor().fill(course.modules[0].lessons[0].solution);
+  await page.getByRole("button", { name: "Показать решение" }).click();
+  await runTests().click();
+
+  await expect.element(testsTab()).toHaveAttribute("aria-selected", "true");
+  await expect.element(report().getByText("PASS · 2 / 2")).toBeVisible();
+  await page.getByRole("tab", { name: "Решение" }).click();
+  await testsTab().click();
+  await expect.element(report().getByText("PASS · 2 / 2")).toBeVisible();
+  await expect.poll(() => editor().element().textContent).toContain("return a + b;");
+});
+
+// Undo is Mod-z in CodeMirror: Cmd on macOS, Ctrl elsewhere (CI runs Linux).
+const undoModifier = /Mac/.test(navigator.platform) ? "Meta" : "Control";
+const workspaceText = () => editor().element().textContent;
+
 test("during a Run «■ Отмена» stands in place of «▶ Запустить тесты»; it shows a neutral «Запуск отменён»", async () => {
   // The screen is meant for a desktop; in a narrow one columns follow the toolbar width.
   await page.viewport(1280, 800);
@@ -202,6 +229,15 @@ test("a compile error in the Workspace is underlined from its position to the en
   await expect.poll(() => underlined().map((el) => el.textContent).join("")).toBe("; // here");
 });
 
+test("with Cyrillic before the error the underline still starts at it (esbuild counts columns in bytes)", async () => {
+  renderApp("add");
+  await editor().fill('export function add(a: number, b: number) {\n  return "привет" +; // here\n}\n');
+
+  await runTests().click();
+
+  await expect.poll(() => underlined().map((el) => el.textContent).join("")).toBe("; // here");
+});
+
 test("the underline goes away on the first edit", async () => {
   renderApp("add");
   await editor().fill("export function add(a: number, b: number) {\n  return a +;\n}\n");
@@ -269,33 +305,6 @@ test("«Показать решение» opens the read-only Solution on «Ре
   expect(solution.element().textContent).not.toContain("typed");
   await expect.element(editor()).toHaveTextContent("export const mine = 1;");
 });
-
-// Отложено: флейк первого Run после бесконечного цикла — .scratch/mvp-autorun/README.md, «Отложенные проблемы»
-test.skip("Run from «Решение» opens «Тесты»; switching tabs keeps the Workspace and the Test Report", async () => {
-  renderApp("add");
-  await runTests().click();
-  await expect.element(report().getByText("FAIL · 0 / 2")).toBeVisible();
-
-  await page.getByRole("tab", { name: "Решение" }).click();
-  await expect.element(report()).not.toBeInTheDocument();
-  await testsTab().click();
-  await expect.element(report().getByText("FAIL · 0 / 2")).toBeVisible();
-
-  await editor().fill(course.modules[0].lessons[0].solution);
-  await page.getByRole("button", { name: "Показать решение" }).click();
-  await runTests().click();
-
-  await expect.element(testsTab()).toHaveAttribute("aria-selected", "true");
-  await expect.element(report().getByText("PASS · 2 / 2")).toBeVisible();
-  await page.getByRole("tab", { name: "Решение" }).click();
-  await testsTab().click();
-  await expect.element(report().getByText("PASS · 2 / 2")).toBeVisible();
-  await expect.poll(() => editor().element().textContent).toContain("return a + b;");
-});
-
-// Undo is Mod-z in CodeMirror: Cmd on macOS, Ctrl elsewhere (CI runs Linux).
-const undoModifier = /Mac/.test(navigator.platform) ? "Meta" : "Control";
-const workspaceText = () => editor().element().textContent;
 
 test(`«↺ Сбросить» brings back the Starter and keeps the Test Report; ${undoModifier}+Z undoes it in one step`, async () => {
   renderApp("add");

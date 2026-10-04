@@ -103,8 +103,8 @@ async function compile({ source, tests }: CompileInput): Promise<CompileResult> 
       // Lesson Tests, so their error (e.g. a renamed export) comes without one.
       errors: errors.map(({ text, location }) =>
         location?.file === WORKSPACE_FILE
-          ? // esbuild columns are 0-based; editors show 1-based.
-            { message: text, line: location.line, column: location.column + 1 }
+          ? // esbuild columns are 0-based UTF-8 bytes; editors show 1-based characters.
+            { message: text, line: location.line, column: charColumn(location.lineText, location.column) + 1 }
           : { message: text },
       ),
     };
@@ -124,3 +124,8 @@ self.onmessage = async (
     self.postMessage({ id, error: err instanceof Error ? err.message : String(err) });
   }
 };
+
+/** The number of UTF-16 characters in the first `bytes` UTF-8 bytes of `text`. */
+function charColumn(text: string, bytes: number): number {
+  return new TextDecoder().decode(new TextEncoder().encode(text).slice(0, bytes)).length;
+}

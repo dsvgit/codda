@@ -140,6 +140,7 @@ Slug фичи — имя папки без номера: `lesson-manifest/02` = 
 - 2026-10-04 — runtime-hardening/03 — коммит: async-ошибки во время тестов (R8) — Test Harness слушает `error` и `unhandledrejection` весь Run и валит текущий тест (первая ошибка сохраняется), остальные выполняются; окно теста — конец промиса плюс два macrotask
 - 2026-10-04 — runtime-hardening/04 — коммит: `line/column` у ошибки компиляции только в Workspace (Workspace в esbuild — `file` `main`), ошибка Lesson Tests без строки; `runtime-error` без stack, сообщение — `message`; подчёркивание ошибки компиляции в редакторе через `@codemirror/lint`, снимается на правке и старте Run
 - 2026-10-04 — runtime-hardening/05 — коммит: падение Worker Compiler'а (не загрузился `esbuild.wasm` или скрипт, упал `initialize`) — сразу `internal-error`, Worker уничтожен, следующий Run поднимает новый; «Внутренняя ошибка» во вкладке «Тесты», новый текст timeout; сбой в тестах — `page.route` (команды Vitest browser и e2e)
+- 2026-10-04 — runtime-hardening — /code-review (Standards: 0 жёстких; Spec: 7). Исправлено: колонка ошибки в байтах (кириллица), падение экрана при правке во время Run, ложный чекбокс 01, тест «Run from «Решение»» возвращён (переставлен до тестов с бесконечным циклом). Остальное — в «Отложенные проблемы»
 
 ## Журнал допущений
 
@@ -201,3 +202,7 @@ Slug фичи — имя папки без номера: `lesson-manifest/02` = 
 <!-- По правилу 7: одна строка на проблему — тикет — что и где воспроизводится — гипотеза — что отключено. Разобрать после прогона. -->
 
 - runtime-hardening/02 — первый Run после Sandbox с бесконечным циклом (после отмены или timeout) иногда не стартует: новый iframe не исполняет ни строки, через 5 с ложный timeout, дальше Run работают. `App.test.tsx` на чистом `657a07c` падает в 5 из 12 прогонов. Гипотеза: Chrome отдаёт новый Sandbox ещё занятому процессу (`--disable-features=SubframeShutdownDelay` не помог). Возможный обход: пересоздать iframe, если нет `codda:port` за ~1 с. Тесты, которые ловят флейк, — `test.skip` со ссылкой сюда
+- runtime-hardening (review) — `Promise.reject` на верхнем уровне модуля валит первый тест, а не даёт `runtime-error`, как в спеке (Chrome сообщает о нём после старта `runAll`); e2e «fetch to the Internet» прикрыт `.catch`. Обход: до `runAll` подождать одну задачу
+- runtime-hardening (review) — окно теста R8 — два macrotask, в спеке один; текст timeout разбит на заголовок и «Возможные причины» — поправить букву спеки
+- runtime-hardening (review) — два Run компилируются в одном Worker, Worker падает: первый получает `internal-error`, второй — ложный timeout. Обход: при падении отклонять все ожидающие `compile` (`compiler.ts`)
+- runtime-hardening (review) — косметика: лимиты Console продублированы в `harness.ts` и `runner.ts` («1000» зашито в текст), имя `started` в `harness.ts`
