@@ -6,6 +6,8 @@
 
 Порядок: после `misc/02` (Pages), до `lesson-manifest`. `misc/02` меняет `vite.config.ts` и пути сборки, их удобнее переносить уже готовыми.
 
+Внутри репозитория CLI вызывается так же, как в репозитории курса: `npx codda …`. Через `npx codda` идут команды, которые работают с курсом. Скрипты разработки самого инструмента (`typecheck`, unit, e2e, `vite build` UI) остаются npm-скриптами корня: это работа над `codda`, а не его использование.
+
 Что остаётся как есть: PoC-импорт `courses/` из `src/main.tsx` и `src/App.tsx` (станет `../../../courses`). Его убирает `lesson-manifest` (ADR-0008). Поэтому `rootDir`, который делает импорт из `courses/` ошибкой `tsc`, включается не здесь, а в `lesson-manifest`, вместе с проверкой границы ADR-0006. Vite такой импорт не ловит, так что проверка в CI всё равно нужна.
 
 **Blocked by:** misc/02
@@ -22,7 +24,10 @@
 
 - [ ] Корень — npm workspaces с одним членом `packages/codda/`; один `package-lock.json` в корне; `courses/` в `workspaces` нет
 - [ ] `npm ci`, `npm run typecheck`, `npm test`, `npm run test:e2e`, `npm run build` из корня работают; `npm run dev` поднимает Golden Path; job `check` в CI зелёная, выкладка из `misc/02` выкладывает тот же `dist/` (путь в `ci.yml` обновлён)
-- [ ] Проверено и записано в `## Comments` (разовый опыт во временной папке, не тест): (а) `npm install` в папке внутри репозитория, которая не входит в `workspaces`, ведёт свой `package-lock.json` и не трогает корневой; (б) `file:`-зависимость на `packages/codda` ставится симлинком, и Node 24 запускает `.ts` из неё без сборки (по умолчанию Node идёт по симлинку к настоящему пути вне `node_modules`, где типы убираются). Если (б) не подтвердится — записать, что `author-cli` нужна сборка CLI в JS
+- [ ] `packages/codda/package.json`: `"bin": { "codda": "./cli/codda.ts" }`, CLI запускается без сборки. Пока это только каркас из тикета 05: `parseArgs`, `--help` на русском, `--version`, неизвестная команда или флаг → код выхода `2`. Команды `init/lesson/test/dev/build` добавляет `author-cli`: им нужен `course.yaml`, а его вводит `lesson-manifest`
+- [ ] Тест: `npx codda --version` из корня и из `courses/` печатает версию, `npx codda --bogus` даёт код `2`. Тест идёт в `check`
 - [ ] Документы: пути в `CLAUDE.md`, `docs/ai-workflow.md`, README; тикет 05 Плана решений не переписывается, а в `docs/HOW-TO-PROCEED.md` в строке `author-cli` указано: CLI в `packages/codda/cli/`, курс подключает его через `file:` и вызывает `npx codda`
 
 ## Comments
+
+- **2026-10-04 — опыт при оформлении (агент).** Во временной папке: корень с `"workspaces": ["packages/*"]`, пакет `codda` с `"bin": { "codda": "./cli/codda.ts" }` (shebang `#!/usr/bin/env node`, в файле аннотации типов), Node v24.20.0. `npx codda` работает (а) из корня; (б) из `courses/c` без своего `package.json` — npm находит корень выше; (в) из `courses/c` со своим `package.json` и `"codda": "file:../../packages/codda"` в `devDependencies`. В случае (в) у курса свой `package-lock.json`, корневой не меняется. Типы Node убирает во всех трёх случаях: bin — симлинк, Node идёт по нему к настоящему пути `packages/codda/cli/codda.ts`, а он вне `node_modules`. Сборка CLI в JS внутри репозитория не нужна; она нужна только для опубликованного пакета (тикет 04).
