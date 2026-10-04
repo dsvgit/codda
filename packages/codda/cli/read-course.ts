@@ -11,7 +11,7 @@ import type { CourseData, LessonData } from "../src/course-data.ts";
 
 z.config(z.locales.ru());
 
-const KEBAB_CASE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+export const KEBAB_CASE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 const kebabCase = z.string().regex(KEBAB_CASE, "ожидается kebab-case, например use-state");
 
 const CourseYaml = z.strictObject({

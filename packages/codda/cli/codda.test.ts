@@ -81,3 +81,21 @@ test("an unknown flag of `test` exits 2", () => {
   expect(status).toBe(2);
   expect(stderr).toBe("codda: неизвестный флаг --bogus (справка: codda --help)\n");
 });
+
+test("`codda init --help` and `codda lesson --help` describe both commands in Russian", () => {
+  const init = codda(repoRoot, "init", "--help");
+  const lesson = codda(repoRoot, "lesson", "--help");
+
+  expect([init.status, lesson.status]).toEqual([0, 0]);
+  expect(lesson.stdout).toBe(init.stdout);
+  expect(init.stdout).toContain("codda init [путь]");
+  expect(init.stdout).toContain("codda lesson <id> [--module <название>] [--tsx]");
+  expect(init.stdout).toMatch(/пустой папке/);
+});
+
+test("`--tsx` belongs to `lesson` only", () => {
+  const { status, stderr } = codda(repoRoot, "init", "--tsx");
+
+  expect(status).toBe(2);
+  expect(stderr).toBe("codda: неизвестный флаг --tsx (справка: codda --help)\n");
+});

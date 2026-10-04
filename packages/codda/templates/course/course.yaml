@@ -1,0 +1,6 @@
+id: {{id}}
+title: {{title}}
+modules:
+  - title: Основы
+    lessons:
+      - hello

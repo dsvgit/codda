@@ -11,10 +11,11 @@ import { expect, test } from "vitest";
 
 /**
  * Not sources: dependencies, the built UI, static files served as is,
- * Vitest's attachments in .vitest/ (folders named after test files), and the
- * Course the browser tests build a Dependency Artifact of (Course files).
+ * Vitest's attachments in .vitest/ (folders named after test files), the
+ * Course the browser tests build a Dependency Artifact of and the templates of
+ * `codda init`/`lesson` (Course files).
  */
-const NOT_SOURCES = new Set(["node_modules", "dist-tool", "public", ".vitest", "fixtures"]);
+const NOT_SOURCES = new Set(["node_modules", "dist-tool", "public", ".vitest", "fixtures", "templates"]);
 
 /**
  * Every import of the package's sources that leads outside it, one line each.

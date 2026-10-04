@@ -1,13 +1,15 @@
 #!/usr/bin/env node
 // codda CLI. Runs as TypeScript directly in Node 24, without a build step
-// (.scratch/mvp/issues/05-codda-cli-commands.md). So far `build`, `test` and
-// `dev`; the commands init/lesson come with the rest of the author-cli feature.
+// (.scratch/mvp/issues/05-codda-cli-commands.md): `build`, `test`, `dev`,
+// `init` and `lesson`.
 //
-// Exit codes: 0 — success, 1 — errors in the Course, 2 — environment or
-// invocation (unknown command or flag, no course.yaml, the UI build failed,
-// --out that is not a codda build, a busy port).
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, renameSync, rmSync, statSync, watch, writeFileSync } from "node:fs";
-import { basename, dirname, join, relative, resolve } from "node:path";
+// Exit codes: 0 — success, 1 — errors in the Course (and of `lesson`), 2 —
+// environment or invocation (unknown command or flag, no course.yaml, the UI
+// build failed, --out that is not a codda build, a busy port, a non-empty
+// folder for `init`).
+import { spawnSync } from "node:child_process";
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, renameSync, rmSync, statSync, watch, writeFileSync } from "node:fs";
+import { basename, dirname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import pkg from "../package.json" with { type: "json" };
@@ -15,9 +17,10 @@ import type { CourseData, LessonData } from "../src/course-data.ts";
 import type { TestReport } from "../src/runtime/types.ts";
 import { buildDependencyArtifact } from "./dependency-artifact.ts";
 import { findCourse } from "./find-course.ts";
-import { readCourse } from "./read-course.ts";
+import { KEBAB_CASE, readCourse } from "./read-course.ts";
 import { formatLesson, formatSummary, type LessonResult } from "./report.ts";
 import { serveFolder } from "./static-server.ts";
+import { isMap, isScalar, isSeq, parseDocument } from "yaml";
 import { buildUi, UI_HASH_FILE, uiIsFresh } from "./ui-build.ts";
 import { verdict } from "./verdict.ts";
 
@@ -25,6 +28,8 @@ const HELP = `Использование: codda [флаги]
        codda build [путь] [--out <папка>]
        codda test [путь]
        codda dev [путь] [--port <n>]
+       codda init [путь]
+       codda lesson <id> [--module <название>] [--tsx]
 
 Инструмент автора курсов codda.
 
@@ -41,6 +46,13 @@ const HELP = `Использование: codda [флаги]
                  любой свободный); после правки файла курса страница
                  перезагружается, ошибки курса видны в браузере и в терминале.
                  Ctrl+C — остановить
+  init           создать новый курс в пустой папке (по умолчанию текущей; .git
+                 можно): id и название курса — имя папки в kebab-case, урок
+                 hello, package.json с codda, затем npm install
+  lesson         добавить урок <id> (kebab-case) из шаблона: папка урока и строка
+                 в course.yaml (в последний модуль или в модуль --module с этим
+                 названием; комментарии course.yaml сохраняются). --tsx — урок
+                 с компонентом React (нужны react и react-dom в dependencies)
 
 Флаги:
   -h, --help     показать эту справку
@@ -52,13 +64,18 @@ const options = {
   version: { type: "boolean", short: "v" },
   out: { type: "string" },
   port: { type: "string" },
+  module: { type: "string" },
+  tsx: { type: "boolean" },
 } as const;
 
 /** Flags that belong to one command only. */
-const COMMAND_OF: Record<string, string> = { out: "build", port: "dev" };
+const COMMAND_OF: Record<string, string> = { out: "build", port: "dev", module: "lesson", tsx: "lesson" };
 
 // The tool's built UI (`npm run build`, ADR-0008). CODDA_UI_DIR replaces it in
 // the CLI's own tests, which run before the UI is built.
+/** The templates of a Course and of a Lesson (`ts`, `tsx`), next to the CLI. */
+const templatesDir = fileURLToPath(new URL("../templates", import.meta.url));
+
 const uiDir = process.env.CODDA_UI_DIR ?? fileURLToPath(new URL("../dist-tool", import.meta.url));
 
 /** The marker of a Course Build: only a folder with it may be cleared by `--out`. */
@@ -74,7 +91,7 @@ function fail(message: string): never {
 const { values, positionals, tokens } = parseArgs({ options, strict: false, allowPositionals: true, tokens: true });
 const [command, ...args] = positionals;
 
-if (command !== undefined && !["build", "test", "dev"].includes(command)) fail(`неизвестная команда ${command}`);
+if (command !== undefined && !["build", "test", "dev", "init", "lesson"].includes(command)) fail(`неизвестная команда ${command}`);
 for (const token of tokens) {
   if (token.kind !== "option") continue;
   if (!(token.name in options) || (token.name in COMMAND_OF && COMMAND_OF[token.name] !== command)) fail(`неизвестный флаг ${token.rawName}`);
@@ -87,6 +104,8 @@ if (values.help) process.stdout.write(HELP);
 else if (command === "build") process.exitCode = await build();
 else if (command === "test") process.exitCode = await test();
 else if (command === "dev") await dev();
+else if (command === "init") process.exitCode = init();
+else if (command === "lesson") process.exitCode = lesson();
 else if (values.version) process.stdout.write(`${pkg.version}\n`);
 else process.stdout.write(HELP);
 
@@ -397,4 +416,126 @@ async function devBuild(root: string, served: string): Promise<void> {
     rmSync(staging, { recursive: true, force: true });
   }
   if (!("errors" in result)) process.stdout.write("Курс собран без ошибок\n");
+}
+
+/**
+ * Copies the template folder `name` into `dest`, `{{id}}` and `{{title}}`
+ * replaced. `npmrc` and `gitignore` become dotfiles: npm never publishes a
+ * package's own `.npmrc` and `.gitignore`. Returns the files written, relative
+ * to `dest`.
+ */
+function copyTemplate(name: string, dest: string, vars: { id: string; title: string }): string[] {
+  mkdirSync(dest, { recursive: true });
+  return readdirSync(join(templatesDir, name)).map((file) => {
+    const text = readFileSync(join(templatesDir, name, file), "utf8").replaceAll("{{id}}", vars.id).replaceAll("{{title}}", vars.title);
+    const target = ["npmrc", "gitignore"].includes(file) ? `.${file}` : file;
+    writeFileSync(join(dest, target), text);
+    return target;
+  });
+}
+
+/**
+ * `codda init [путь]`: a new Course in an empty folder (`.git` allowed),
+ * created when missing. Its id and title are the folder name. `codda` goes
+ * into devDependencies — `file:` to this package when it does not run from
+ * node_modules (this repository), its version otherwise — and `npm install`
+ * installs it, so `npx codda test` works right away.
+ */
+function init(): number {
+  if (args.length > 1) fail(`лишний аргумент ${args[1]}`);
+  const dir = resolve(args[0] ?? ".");
+  if (existsSync(dir)) {
+    if (!statSync(dir).isDirectory()) fail(`${dir} — не папка`);
+    if (readdirSync(dir).some((name) => name !== ".git")) fail(`папка ${dir} не пуста: курс создаётся только в пустой папке (можно с .git)`);
+  }
+  const id = basename(dir);
+  if (!KEBAB_CASE.test(id)) {
+    const hint = id.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "my-course";
+    fail(`имя папки «${id}» станет id курса и должно быть в kebab-case: переименуйте папку, например в ${hint}`);
+  }
+
+  mkdirSync(dir, { recursive: true });
+  const files = copyTemplate("course", dir, { id, title: id });
+  const packageDir = fileURLToPath(new URL("..", import.meta.url));
+  const manifest = JSON.parse(readFileSync(join(dir, "package.json"), "utf8"));
+  manifest.devDependencies = {
+    codda: packageDir.split(sep).includes("node_modules") ? pkg.version : `file:${relative(realpathSync(dir), packageDir).split(sep).join("/")}`,
+  };
+  writeFileSync(join(dir, "package.json"), `${JSON.stringify(manifest, null, 2)}\n`);
+  files.push(...copyTemplate("lesson-ts", join(dir, "hello"), { id: "hello", title: "hello" }).map((file) => `hello/${file}`));
+  process.stdout.write(`Курс ${id} создан в ${dir}:\n${files.map((file) => `  ${file}\n`).join("")}`);
+
+  process.stdout.write("npm install…\n");
+  const npm = spawnSync("npm", ["install", "--no-audit", "--no-fund"], { cwd: dir, encoding: "utf8" });
+  if (npm.status !== 0) {
+    process.stderr.write(`npm install: ${npm.stderr || npm.error?.message || ""}\n`);
+    process.stderr.write("codda: не удалось установить codda в курс: файлы курса созданы, повторите npm install в его папке\n");
+    return 2;
+  }
+
+  const cd = args[0] === undefined ? "" : `  cd ${args[0]}\n`;
+  process.stdout.write(
+    `Дальше:\n${cd}  npx codda test                       проверить курс\n` +
+      "  npx codda lesson <id>                добавить урок\n" +
+      "Для уроков на React: npm install react react-dom @types/react @types/react-dom, затем npx codda lesson <id> --tsx\n",
+  );
+  return 0;
+}
+
+/**
+ * `codda lesson <id> [--module <название>] [--tsx]`: a new Lesson folder from
+ * a template in the Course root, its id appended to `lessons` of the last
+ * Module or of the Module titled exactly `--module`. course.yaml is edited as
+ * a YAML document, so its comments and key order stay.
+ */
+function lesson(): number {
+  if (args.length === 0) fail("укажите id урока: codda lesson <id>");
+  if (args.length > 1) fail(`лишний аргумент ${args[1]}`);
+  const [id] = args;
+  const found = findCourse(".");
+  if (found === null) fail(`здесь нет курса: ${resolve(".")}`);
+  const { root } = found;
+  const error = (message: string) => {
+    process.stderr.write(`codda: ${message}\n`);
+    return 1;
+  };
+
+  if (!KEBAB_CASE.test(id)) return error(`id урока «${id}» должен быть в kebab-case, например use-state`);
+
+  const yamlPath = join(root, "course.yaml");
+  const doc = parseDocument(readFileSync(yamlPath, "utf8"));
+  if (doc.errors.length > 0) return error("course.yaml не читается как YAML: исправьте его (npx codda test покажет ошибки)");
+  const modules = doc.get("modules");
+  const items = isSeq(modules) ? modules.items.filter(isMap) : [];
+  const listed = items.flatMap((item) => {
+    const lessons = item.get("lessons");
+    return isSeq(lessons) ? lessons.items.map((lesson) => (isScalar(lesson) ? lesson.value : lesson)) : [];
+  });
+  if (listed.includes(id)) return error(`урок ${id} уже указан в course.yaml`);
+  if (existsSync(join(root, id))) return error(`папка ${id}/ уже есть`);
+  const title = typeof values.module === "string" ? values.module : undefined;
+  const module = title === undefined ? items.at(-1) : items.find((item) => item.get("title") === title);
+  if (module === undefined) {
+    const titles = items.map((item) => `«${item.get("title")}»`).join(", ");
+    return error(title === undefined ? "в course.yaml нет ни одного модуля" : `в course.yaml нет модуля «${title}»; модули: ${titles}`);
+  }
+  const lessons = module.get("lessons");
+  if (!isSeq(lessons)) return error(`у модуля «${module.get("title")}» в course.yaml нет списка lessons`);
+
+  if (values.tsx) {
+    const manifest = join(root, "package.json");
+    const dependencies = existsSync(manifest) ? (JSON.parse(readFileSync(manifest, "utf8")).dependencies ?? {}) : {};
+    if (!("react" in dependencies && "react-dom" in dependencies)) {
+      return error("для урока --tsx нужны react и react-dom в dependencies package.json курса: npm install react react-dom @types/react @types/react-dom");
+    }
+  }
+
+  lessons.add(doc.createNode(id));
+  const files = copyTemplate(values.tsx ? "lesson-tsx" : "lesson-ts", join(root, id), { id, title: id });
+  writeFileSync(yamlPath, doc.toString({ flowCollectionPadding: false }));
+  process.stdout.write(
+    `Урок ${id} создан в модуле «${module.get("title")}»:\n${files.map((file) => `  ${id}/${file}\n`).join("")}` +
+      `Проверить: npx codda test ${id}\n`,
+  );
+  return 0;
 }
