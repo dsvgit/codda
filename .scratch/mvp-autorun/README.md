@@ -158,6 +158,7 @@ Slug фичи — имя папки без номера: `lesson-manifest/02` = 
 - 2026-10-04 — author-cli/05 — коммит: `codda init [путь]` (пустая папка или только `.git`, id из имени папки, `course.yaml` с Lesson `hello`, `package.json` с `codda` в `devDependencies` через `file:`, `.npmrc`, `.gitignore`, `npm install`) и `codda lesson <id> [--module] [--tsx]` (шаблоны `ts`/`tsx` в `packages/codda/templates/`, правка `course.yaml` через `parseDocument` с комментариями, ошибки — код `1`); свежий курс и свежие Lesson проходят `codda test`
 - 2026-10-04 — author-cli/06 — коммит: CI по курсам — шаг `npm ci` → `npx codda test` → `npx codda build` в каждой `courses/*` с `course.yaml`, выкладка `dist/` пилотного курса из `PILOT_COURSE`; `codda init --ci github|gitlab` — шаблоны `templates/ci/` с версией Playwright (Pages / S3)
 - 2026-10-05 — author-cli — push, `check` зелёный на `24236ee` (прогон 37226218146). /code-review (Standards: 0 жёстких; Spec: 3 «чинить сейчас»). Исправлено: тест чужого запроса снят со skip (на `await fetch`), критерии 06 возвращены к исходным, `permissions: contents: read` в GitHub-шаблоне, `npx --no-install vite`, `moduleTitle`, место комментария `uiDir`. Остальное — в «Отложенные проблемы»
+- 2026-10-05 — author-cli — push правок по review, `check` зелёный (прогон 37228012008); фича закрыта
 
 ## Журнал допущений
 
