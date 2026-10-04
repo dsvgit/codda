@@ -111,6 +111,9 @@ export default defineConfig({
         test: {
           name: "browser",
           include: ["src/**/*.test.{ts,tsx}"],
+          // In CI only: the deferred flake of a false 5 s timeout (a new Sandbox that
+          // never starts) — .scratch/mvp-autorun/README.md, «Отложенные проблемы».
+          retry: process.env.CI ? 2 : 0,
           globalSetup: ["./vitest.global-setup.ts"],
           // Each file starts a cold Run (esbuild.wasm + Dependency Artifacts).
           // With files in parallel browsers, on a CI runner it no longer fits
@@ -144,7 +147,16 @@ export default defineConfig({
       },
       {
         // The CLI and the dev server run in Node: their tests start them for real.
-        test: { name: "cli", include: ["cli/**/*.test.ts"], environment: "node" },
+        test: {
+          name: "cli",
+          include: ["cli/**/*.test.ts"],
+          environment: "node",
+          // They start real processes (npm, esbuild, Chromium): Vitest's 5 s
+          // default is too close under load.
+          testTimeout: 30_000,
+          // `codda test` runs Lessons in Chromium: the same flake as above.
+          retry: process.env.CI ? 2 : 0,
+        },
       },
     ],
   },

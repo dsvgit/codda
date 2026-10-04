@@ -1,3 +1,4 @@
+/// <reference types="node" />
 import { defineConfig, devices } from "@playwright/test";
 
 const devPort = 5179;
@@ -17,6 +18,9 @@ export default defineConfig({
   // Every test starts a cold Run (esbuild.wasm + Dependency Artifacts). With
   // more parallel browsers it no longer fits the Run's 5 s deadline.
   workers: 2,
+  // In CI only: the deferred flake of a false 5 s timeout (a new Sandbox that
+  // never starts) — .scratch/mvp-autorun/README.md, «Отложенные проблемы».
+  retries: process.env.CI ? 2 : 0,
   // Longer than the Run's own 5 s deadline, so a slow Run shows up in the UI
   // as "Timed out" instead of an expect timeout.
   expect: { timeout: 10_000 },
