@@ -10,7 +10,7 @@
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, renameSync, rmSync, writeFileSync } from "node:fs";
-import { createRequire } from "node:module";
+import { createRequire, isBuiltin } from "node:module";
 import { basename, dirname, extname, join, relative, sep } from "node:path";
 import * as esbuild from "esbuild";
 
@@ -44,9 +44,10 @@ type Result = { deps: null } | { deps: string; log: string } | { errors: string[
 export async function buildDependencyArtifact(courseRoot: string, lessonIds: string[], out: string): Promise<Result> {
   // esbuild reports real paths (on macOS the temp folder is a symlink).
   const root = realpathSync(courseRoot);
-  const entries = await entryPoints(root, lessonIds);
+  const importers = await entryPoints(root, lessonIds);
+  const entries = [...importers.keys()].sort();
   if (entries.length === 0) return { deps: null };
-  const problems = checkPackageJson(root);
+  const problems = checkPackageJson(root, importers);
   if (problems.length > 0) return { errors: problems };
 
   const hash = createHash("sha256")
@@ -73,7 +74,7 @@ export async function buildDependencyArtifact(courseRoot: string, lessonIds: str
     }
     mkdirSync(join(root, ".codda", "deps"), { recursive: true });
     const tmp = mkdtempSync(join(root, ".codda", "deps", `${hash}.tmp-`));
-    const built = await bundle(root, entries, deps, tmp);
+    const built = await bundle(root, entries, importers, deps, tmp);
     if (built) {
       rmSync(tmp, { recursive: true, force: true });
       return built;
@@ -89,16 +90,27 @@ export async function buildDependencyArtifact(courseRoot: string, lessonIds: str
 const EXACT_VERSION = /^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$/;
 
 /**
- * package.json and package-lock.json are there, and every package in
- * `dependencies` has an exact version. `devDependencies` are not read.
+ * package.json and package-lock.json are there, every package in
+ * `dependencies` has an exact version, and every entry point is a package
+ * declared there. `devDependencies` are not read.
  */
-function checkPackageJson(root: string): string[] {
+function checkPackageJson(root: string, importers: Map<string, string[]>): string[] {
   const missing = ["package.json", "package-lock.json"].filter((name) => !existsSync(join(root, name)));
   if (missing.length > 0) return missing.map((name) => `нет ${name} в корне курса: запустите \`npm install\``);
   const { dependencies = {} } = JSON.parse(readFileSync(join(root, "package.json"), "utf8")) as { dependencies?: Record<string, string> };
-  return Object.entries(dependencies)
+  const ranges = Object.entries(dependencies)
     .filter(([, version]) => !EXACT_VERSION.test(version))
     .map(([name, version]) => `package.json: у пакета \`${name}\` версия \`${version}\`, нужна точная (X.Y.Z): запустите \`npm install ${name}@<версия> --save-exact\``);
+  const undeclared = [...importers]
+    .filter(([specifier]) => !Object.hasOwn(dependencies, packageName(specifier)))
+    .flatMap(([specifier, files]) => files.map((file) => `${file}: импорт "${specifier}": пакет не объявлен в dependencies package.json Course`))
+    .sort();
+  return [...ranges, ...undeclared];
+}
+
+/** The package of a bare specifier: `react-dom/client` → `react-dom`, `@scope/pkg/sub` → `@scope/pkg`. */
+function packageName(specifier: string): string {
+  return specifier.split("/").slice(0, specifier.startsWith("@") ? 2 : 1).join("/");
 }
 
 /**
@@ -124,7 +136,7 @@ function installed(root: string): boolean {
  * One esbuild call on all entry points into `dir`; the import map gives the
  * files at their addresses under `deps` in the build root. Errors, if any.
  */
-async function bundle(root: string, entries: string[], deps: string, dir: string): Promise<{ errors: string[] } | undefined> {
+async function bundle(root: string, entries: string[], importers: Map<string, string[]>, deps: string, dir: string): Promise<{ errors: string[] } | undefined> {
   const require = createRequire(join(root, "package.json"));
   // Entry point in the metafile → specifier; esbuild names an ES module entry by its file.
   const specifierOf = new Map<string, string>();
@@ -146,7 +158,13 @@ async function bundle(root: string, entries: string[], deps: string, dir: string
             build.onResolve({ filter: /.*/ }, async (args) => {
               if (args.kind !== "entry-point") return;
               const resolved = await build.resolve(args.path, { kind: "import-statement", resolveDir: root });
-              if (resolved.errors.length > 0) return { errors: resolved.errors };
+              if (resolved.errors.length > 0) {
+                // Told at the Lesson files that import the specifier, not at the Course root.
+                // The notes are left out: here they only suggest marking the path external.
+                const why = resolved.errors.map(({ text }) => text).join("; ");
+                const files = importers.get(args.path) ?? [];
+                return { errors: files.map((file) => ({ text: `${file}: импорт "${args.path}": ${why}`, location: null })) };
+              }
               // An ES module is its own entry point; a CommonJS one gets a wrapper.
               if (isEsModule(resolved.path)) {
                 specifierOf.set(relative(root, resolved.path).split(sep).join("/"), args.path);
@@ -155,11 +173,17 @@ async function bundle(root: string, entries: string[], deps: string, dir: string
               specifierOf.set(`codda-cjs:${args.path}`, args.path);
               return { path: args.path, namespace: "codda-cjs" };
             });
-            build.onLoad({ filter: /.*/, namespace: "codda-cjs" }, (args) => ({
-              contents: cjsWrapper(args.path, require),
-              resolveDir: root,
-              loader: "js",
-            }));
+            build.onLoad({ filter: /.*/, namespace: "codda-cjs" }, (args) => {
+              let exports: object;
+              try {
+                exports = require(args.path);
+              } catch (err) {
+                const text = `пакет \`${packageName(args.path)}\` падает при загрузке в Node (\`require\`): ${err instanceof Error ? err.message : String(err)}; \`codda\` берёт из него имена экспортов`;
+                // An error without a location: esbuild would take one from the stack, inside esbuild.
+                return { errors: [{ text, location: null }] };
+              }
+              return { contents: cjsWrapper(args.path, exports), resolveDir: root, loader: "js" };
+            });
           },
         },
       ],
@@ -182,14 +206,17 @@ async function bundle(root: string, entries: string[], deps: string, dir: string
   writeFileSync(join(dir, "importmap.json"), JSON.stringify({ imports: sortKeys(imports), integrity }, null, 2) + "\n");
 }
 
-/** Sorted, unique bare specifiers imported by the Lessons' sources. */
-async function entryPoints(root: string, lessonIds: string[]): Promise<string[]> {
+/**
+ * The bare specifiers imported by the Lessons' sources, each with the files
+ * (`<lesson>/<file>`, relative to the Course) that import it.
+ */
+async function entryPoints(root: string, lessonIds: string[]): Promise<Map<string, string[]>> {
   const sources = lessonIds.flatMap((id) =>
     readdirSync(join(root, id))
       .filter((name) => /^(main|solution|lesson\.test)\.tsx?$/.test(name))
       .map((name) => join(root, id, name)),
   );
-  const found = new Set<string>();
+  const found = new Map<string, string[]>();
   await esbuild.build({
     entryPoints: sources,
     bundle: true,
@@ -205,14 +232,18 @@ async function entryPoints(root: string, lessonIds: string[]): Promise<string[]>
         setup(build) {
           build.onResolve({ filter: /.*/ }, (args) => {
             if (args.kind === "entry-point") return;
-            if (!args.path.startsWith(".") && args.path !== "@codda/test") found.add(args.path);
+            if (!args.path.startsWith(".") && args.path !== "@codda/test") {
+              const file = relative(root, args.importer).split(sep).join("/");
+              const files = found.get(args.path) ?? [];
+              if (!files.includes(file)) found.set(args.path, [...files, file]);
+            }
             return { path: args.path, external: true };
           });
         },
       },
     ],
   });
-  return [...found].sort();
+  return found;
 }
 
 /**
@@ -234,11 +265,11 @@ function isEsModule(path: string): boolean {
 
 /**
  * The ES module entry point of a CommonJS module (R9): `export default` is
- * `module.exports`, the named exports are its keys as `require()` in Node
- * from the Course folder sees them.
+ * `module.exports`, the named exports are the keys of `exports`, what
+ * `require()` in Node from the Course folder returned.
  */
-function cjsWrapper(specifier: string, require: NodeJS.Require): string {
-  const names = Object.keys(require(specifier)).filter((name) => name !== "default" && name !== "__esModule");
+function cjsWrapper(specifier: string, exports: object): string {
+  const names = Object.keys(exports).filter((name) => name !== "default" && name !== "__esModule");
   const quoted = names.map((name) => JSON.stringify(name));
   return (
     `const m = require(${JSON.stringify(specifier)});\n` +
@@ -252,6 +283,16 @@ function sortKeys(record: Record<string, string>): Record<string, string> {
   return Object.fromEntries(Object.entries(record).sort(([a], [b]) => (a < b ? -1 : 1)));
 }
 
+/**
+ * An esbuild error for the Author. A package importing a Node built-in is told
+ * by name: the package of the importing file, the last `node_modules/<name>`
+ * of its path, so a transitive dependency is named, not the entry point.
+ */
 function formatMessage({ text, location }: esbuild.Message): string {
+  const builtin = /^Could not resolve "(.+)"$/.exec(text)?.[1];
+  const inPackage = location && /(?:^|\/)node_modules\/((?:@[^/]+\/)?[^/]+)\/(?!.*\/node_modules\/)/.exec(location.file)?.[1];
+  if (builtin && isBuiltin(builtin) && inPackage) {
+    return `пакет \`${inPackage}\` импортирует встроенный модуль Node \`${builtin}\` и не работает в браузере`;
+  }
   return location ? `${location.file}:${location.line}: ${text}` : text;
 }

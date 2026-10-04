@@ -328,3 +328,150 @@ test("a Course without package imports builds without npm, package.json and deps
   expect(existsSync(join(out, "deps"))).toBe(false);
   expect(stdout).not.toContain("Зависимости:");
 });
+
+/** No artifact anywhere: neither in the build output nor in the cache of the Course. */
+function expectNoArtifact(course: string, out: string) {
+  expect(existsSync(join(out, "deps"))).toBe(false);
+  expect(existsSync(join(course, ".codda", "deps")) && readdirSync(join(course, ".codda", "deps")).length).toBeFalsy();
+}
+
+test("an import of a package missing from dependencies names the Lesson, the file and the specifier", () => {
+  const course = join(tmp, "course");
+  writeCourse(course);
+  writeFiles(course, {
+    "greet/main.ts": 'import { greet } from "cjs-pkg";\nimport pad from "left-pad";\nexport const hi = () => greet(pad("мир"));\n',
+    "greet/solution.ts": 'import { greet } from "cjs-pkg";\nimport { readFileSync } from "node:fs";\nexport const hi = () => greet(String(readFileSync));\n',
+    "greet/lesson.test.ts": 'import { test } from "@codda/test";\nimport { trim } from "@acme/strings/trim";\nimport { hi } from "./main";\ntest("hi", () => trim(hi()));\n',
+  });
+  const out = join(tmp, "site");
+
+  const { status, stderr } = codda(["build", course, "--out", out]);
+
+  expect(status).toBe(1);
+  const lines = stderr.trimEnd().split("\n");
+  expect(lines).toEqual([
+    'greet/lesson.test.ts: импорт "@acme/strings/trim": пакет не объявлен в dependencies package.json Course',
+    'greet/main.ts: импорт "left-pad": пакет не объявлен в dependencies package.json Course',
+    'greet/solution.ts: импорт "node:fs": пакет не объявлен в dependencies package.json Course',
+  ]);
+  expectNoArtifact(course, out);
+});
+
+test("undeclared imports in two Lessons are both reported at once", () => {
+  const course = join(tmp, "course");
+  writeCourse(course);
+  writeFiles(course, {
+    "greet/main.ts": 'import pad from "left-pad";\nexport const hi = () => pad("мир");\n',
+    "count/main.ts": 'import { chunk } from "lodash";\nexport const count = chunk([], 1).length;\n',
+  });
+  const out = join(tmp, "site");
+
+  const { status, stderr } = codda(["build", course, "--out", out]);
+
+  expect(status).toBe(1);
+  expect(stderr.trimEnd().split("\n")).toEqual([
+    'count/main.ts: импорт "lodash": пакет не объявлен в dependencies package.json Course',
+    'greet/main.ts: импорт "left-pad": пакет не объявлен в dependencies package.json Course',
+  ]);
+  expectNoArtifact(course, out);
+});
+
+/** Adds packages to dependencies, package-lock.json and node_modules, as `npm install` would. */
+function addPackages(course: string, packages: Record<string, { files: Record<string, string>; declared?: boolean }>) {
+  const pkg = readJson(join(course, "package.json"));
+  const lock = readJson(join(course, "package-lock.json"));
+  const files: Record<string, string> = {};
+  for (const [name, { files: pkgFiles, declared = true }] of Object.entries(packages)) {
+    const path = `node_modules/${name}`;
+    if (declared) pkg.dependencies[name] = "1.0.0";
+    lock.packages[path] = { version: "1.0.0" };
+    for (const [file, content] of Object.entries(pkgFiles)) files[`${path}/${file}`] = content;
+  }
+  lock.packages[""].dependencies = pkg.dependencies;
+  writeFiles(course, {
+    ...files,
+    "package.json": JSON.stringify(pkg),
+    "package-lock.json": JSON.stringify(lock),
+    "node_modules/.package-lock.json": JSON.stringify(lock),
+  });
+}
+
+test("a package that imports a Node built-in, even a transitive or scoped one, is an error naming that package", () => {
+  const course = join(tmp, "course");
+  writeCourse(course);
+  addPackages(course, {
+    "wrap-pkg": {
+      files: {
+        "package.json": JSON.stringify({ name: "wrap-pkg", version: "1.0.0", type: "module", main: "index.js" }),
+        "index.js": 'import inner from "inner-pkg";\nexport const wrap = inner;\n',
+      },
+    },
+    "inner-pkg": {
+      declared: false,
+      files: {
+        "package.json": JSON.stringify({ name: "inner-pkg", version: "1.0.0", main: "index.js" }),
+        "index.js": 'const fs = require("fs");\nmodule.exports = fs.readFileSync;\n',
+      },
+    },
+    "@acme/paths": {
+      files: {
+        "package.json": JSON.stringify({ name: "@acme/paths", version: "1.0.0", type: "module", main: "index.js" }),
+        "index.js": 'import { join } from "node:path";\nexport const paths = join;\n',
+      },
+    },
+  });
+  writeFiles(course, {
+    "greet/main.ts": 'import { greet } from "cjs-pkg";\nimport { wrap } from "wrap-pkg";\nimport { paths } from "@acme/paths";\nexport const hi = () => greet(String([wrap, paths]));\n',
+  });
+  const out = join(tmp, "site");
+
+  const { status, stderr } = codda(["build", course, "--out", out]);
+
+  expect(status).toBe(1);
+  expect(stderr.trimEnd().split("\n").sort()).toEqual([
+    "пакет `@acme/paths` импортирует встроенный модуль Node `node:path` и не работает в браузере",
+    "пакет `inner-pkg` импортирует встроенный модуль Node `fs` и не работает в браузере",
+  ]);
+  expectNoArtifact(course, out);
+});
+
+test("a CommonJS package that throws on require() in Node is an error naming the package and the message", () => {
+  const course = join(tmp, "course");
+  writeCourse(course);
+  addPackages(course, {
+    "browser-only": {
+      files: {
+        "package.json": JSON.stringify({ name: "browser-only", version: "1.0.0", main: "index.js" }),
+        "index.js": "exports.width = window.innerWidth;\n",
+      },
+    },
+  });
+  writeFiles(course, { "greet/main.ts": 'import { greet } from "cjs-pkg";\nimport { width } from "browser-only";\nexport const hi = () => greet(String(width));\n' });
+  const out = join(tmp, "site");
+
+  const { status, stderr } = codda(["build", course, "--out", out]);
+
+  expect(status).toBe(1);
+  expect(stderr.trimEnd().split("\n")).toEqual([
+    "пакет `browser-only` падает при загрузке в Node (`require`): window is not defined; `codda` берёт из него имена экспортов",
+  ]);
+  expectNoArtifact(course, out);
+});
+
+test("a subpath missing from the package's exports is esbuild's error with the Lesson file and the specifier", () => {
+  const course = join(tmp, "course");
+  writeCourse(course);
+  writeFiles(course, {
+    "node_modules/esm-pkg/package.json": JSON.stringify({ name: "esm-pkg", version: "2.0.0", type: "module", exports: { ".": "./index.js" } }),
+    "count/solution.ts": 'import { start } from "esm-pkg";\nimport { extra } from "esm-pkg/extra";\nexport const count = start + extra;\n',
+  });
+  const out = join(tmp, "site");
+
+  const { status, stderr } = codda(["build", course, "--out", out]);
+
+  expect(status).toBe(1);
+  const lines = stderr.trimEnd().split("\n");
+  expect(lines).toHaveLength(1);
+  expect(lines[0]).toBe('count/solution.ts: импорт "esm-pkg/extra": Could not resolve "esm-pkg/extra"');
+  expectNoArtifact(course, out);
+});

@@ -144,6 +144,7 @@ Slug фичи — имя папки без номера: `lesson-manifest/02` = 
 - 2026-10-04 — runtime-hardening — push, `check` зелёный (прогон 37210868217); фича закрыта
 - 2026-10-04 — dependency-artifacts/01 — коммит: `codda build` собирает Dependency Artifact в `deps/<hash>/` (точки входа из импортов Lesson, `npm ci` без `node_modules`, один esbuild со splitting, CJS-обёртки, `importmap.json` с `integrity`), `"deps"` в `course.json`; Compiler грузит файлы по `importmap.json` один раз за Worker; `package.json`/`package-lock.json` у React Hooks, курс-фикстура Runner-тестов; PoC `build-deps.mjs`, `build:deps`, `public/deps/` удалены
 - 2026-10-04 — dependency-artifacts/02 — коммит: кэш артефакта в `.codda/deps/<hash>/` (временная папка + `rename`), строка «Зависимости: deps/<hash> — собраны за N с / из кэша», правило npm по `node_modules/.package-lock.json` (одинаково при `CI=true`), ошибка `npm ci` с префиксом и подсказкой, точные версии в `dependencies`, нет `package.json`/`package-lock.json` — ошибка
+- 2026-10-04 — dependency-artifacts/03 — коммит: ошибки сборки артефакта — пакет не объявлен в `dependencies` (Lesson, файл, specifier, все сразу), пакет импортирует Node built-in (имя пакета, где импорт), CJS падает при `require()`, subpath вне `exports` — с файлом Lesson; артефакта при ошибке нет
 
 ## Журнал допущений
 
@@ -211,6 +212,9 @@ Slug фичи — имя папки без номера: `lesson-manifest/02` = 
 - dependency-artifacts/02 — тест ошибки `npm ci` идёт с `npm_config_offline=true` — npm 11 сверяет `package.json` с lockfile через registry, а не до него, как предполагала спека
 - dependency-artifacts/02 — вызов npm в тестах ловит поддельный `npm` первым в `PATH` — без тестовых крючков в сборщике
 - dependency-artifacts/02 — подсказка у диапазона версий: «запустите `npm install <пакет>@<версия> --save-exact`» — текст в спеке не задан
+- dependency-artifacts/03 — строка «не объявлен»: `<lesson>/<файл>: импорт "<specifier>": пакет не объявлен в dependencies package.json Course`, без номера строки, по строке на файл — формат в спеке не задан
+- dependency-artifacts/03 — `node:fs`/`fs` в Lesson — ошибка «пакет не объявлен», а не «встроенный модуль Node» — критерий тикета
+- dependency-artifacts/03 — ошибка разрешения точки входа (subpath вне `exports`) — текст esbuild без его заметок: `build.resolve` даёт только совет «mark as external»
 
 ## Отложенные проблемы
 
