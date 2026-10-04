@@ -1,6 +1,9 @@
 {
   // Browser code only; cli/ and vite.config.ts run in Node and are checked by
   // cli/tsconfig.json, so Node globals do not leak into src/.
+  // rootDir makes an import from outside (e.g. courses/) a typecheck error:
+  // the tool does not import courses (ADR-0006). Imports with ?raw/?url are
+  // invisible to tsc; boundary.test.ts catches those.
   "compilerOptions": {
     "target": "ES2022",
     "lib": ["ES2022", "DOM", "DOM.Iterable", "WebWorker"],
@@ -12,7 +15,8 @@
     "skipLibCheck": true,
     "isolatedModules": true,
     "allowImportingTsExtensions": true,
-    "types": ["vite/client"]
+    "types": ["vite/client"],
+    "rootDir": "src"
   },
   "include": ["src"]
 }
