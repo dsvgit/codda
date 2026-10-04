@@ -12,9 +12,9 @@
 
 **Blocked by:** misc/02
 
-**Status:** needs-info
+**Status:** ready-for-agent
 
-Открытые вопросы (короткий `/grill-with-docs` в `.scratch/misc/questions/03-workspaces.md`, затем `ready-for-agent`):
+Вопросы решены в [Q9 эксперимента «MVP за один прогон»](../../mvp/questions/00-mvp-autorun.md): один пакет `codda`; `e2e/` и `playwright.config.ts` остаются в корне; имя пакета — `codda`.
 
 1. **Один пакет или несколько:** `codda` = CLI + UI + Runtime или отдельно `@codda/runtime`, `@codda/ui`. Рекомендация — один: потребитель у него один, это CLI.
 2. **Где живут e2e и Playwright:** в корне (они проверяют сборку инструмента и курсы, как CI) или в `packages/codda/`.
