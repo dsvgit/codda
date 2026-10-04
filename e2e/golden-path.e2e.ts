@@ -10,7 +10,7 @@ test("student opens the Course, runs the starter, fixes it and sees every test p
   const course: CourseData = await (await page.request.get("course.json")).json();
   const useState = course.modules[0].lessons[0] as LessonData;
   // The Dependency Artifact: fetched by the Compiler Worker from our origin on
-  // the first Run, once.
+  // the first Run, once; its types.json by the Type Checker, once a session.
   expect(course.deps).toMatch(/^deps\/[0-9a-f]{16}\/$/);
   const importMap = await (await page.request.get(`${course.deps}importmap.json`)).json();
   const depsRequests: string[] = [];
@@ -25,7 +25,11 @@ test("student opens the Course, runs the starter, fixes it and sees every test p
   await runTests.click();
   await expect(page.getByText("FAIL · 2 / 3")).toBeVisible();
   await expect(page.getByText("✗ opens on click", { exact: false })).toBeVisible();
-  const artifactURLs = [`${course.deps}importmap.json`, ...Object.keys(importMap.integrity)];
+  const artifactURLs = [
+    `${course.deps}importmap.json`,
+    ...Object.keys(importMap.integrity),
+    `${course.deps}types.json`,
+  ];
   expect(depsRequests.sort()).toEqual(artifactURLs.map((path) => new URL(path, baseURL).href).sort());
   depsRequests.length = 0;
 

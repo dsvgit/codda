@@ -125,6 +125,33 @@ test("correct solution passes every test", async () => {
   });
 });
 
+test("main.ts and lesson.test.ts compile as TS, not TSX: generic arrows and type assertions", async () => {
+  const report = await run({
+    source: `export const id = <T>(x: T) => x;
+const value: unknown = 2;
+export const two = <number>value;
+`,
+    sourceName: "main.ts",
+    tests: `import { test, expect } from "@codda/test";
+import { id, two } from "./main";
+
+const first = <T>(xs: T[]) => xs[0];
+test("works", () => {
+  expect(id(first([two]))).toBe(<number>(<unknown>2));
+});
+`,
+    testsName: "lesson.test.ts",
+  });
+
+  expect(report).toEqual({ kind: "tests", results: [{ name: "works", status: "pass" }] });
+});
+
+test("main.tsx still compiles JSX", async () => {
+  const report = await run({ ...reactTask, source: reactTask.solution, sourceName: "main.tsx", testsName: "lesson.test.tsx", importMap });
+
+  expect(report).toMatchObject({ kind: "tests", results: [{ status: "pass" }] });
+});
+
 test("starter fails each test with expected and actual values", async () => {
   const report = await run({ source: addTask.starter, tests: addTask.tests });
 

@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { existsSync, mkdtempSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve, sep } from "node:path";
@@ -8,6 +9,7 @@ import react from "@vitejs/plugin-react";
 import { playwright } from "@vitest/browser-playwright";
 import { buildDependencyArtifact } from "./cli/dependency-artifact.ts";
 import { readCourse } from "./cli/read-course.ts";
+import { tsLibFiles } from "./cli/ts-lib.ts";
 import { UI_HASH_FILE, uiSourceHash } from "./cli/ui-build.ts";
 
 /** The Course whose Dependency Artifact the browser tests use (vitest.global-setup.ts). */
@@ -86,15 +88,53 @@ function uiHash(): Plugin {
   };
 }
 
+/**
+ * The lib files of TypeScript for the Type Checker (cli/ts-lib.ts) as one JSON
+ * file with a content hash in its name, from our own origin (ADR-0002): an
+ * asset of the build, served by the dev server. The page gets its path as
+ * `__CODDA_TS_LIB__`, relative to the page in a build (any subpath).
+ */
+function tsLib(): Plugin {
+  let json: string;
+  let fileName: string;
+  return {
+    name: "codda-ts-lib",
+    config(_, { command }) {
+      json = JSON.stringify(tsLibFiles());
+      fileName = `assets/ts-lib-${createHash("sha256").update(json).digest("hex").slice(0, 8)}.json`;
+      return { define: { __CODDA_TS_LIB__: JSON.stringify(command === "serve" ? `/${fileName}` : fileName) } };
+    },
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        if (req.url?.split("?")[0] !== `/${fileName}`) return next();
+        res.setHeader("Content-Type", "application/json");
+        res.end(json);
+      });
+    },
+    generateBundle() {
+      this.emitFile({ type: "asset", fileName, source: json });
+    },
+  };
+}
+
 export default defineConfig({
-  plugins: [react(), courseJson(), uiHash()],
+  plugins: [react(), courseJson(), uiHash(), tsLib()],
   // Relative URLs: the build works from any subpath, e.g. the pilot on GitHub
   // Pages at /codda/ (.scratch/misc/issues/02-pages-deploy.md).
   base: "./",
   // The tool's built UI; `codda build` copies it into a Course Build (ADR-0008).
   build: { outDir: "dist-tool" },
   optimizeDeps: {
-    include: ["esbuild-wasm", "react", "react-dom/client", "codemirror", "@codemirror/lang-javascript"],
+    include: [
+      "esbuild-wasm",
+      "react",
+      "react-dom/client",
+      "codemirror",
+      "@codemirror/lang-javascript",
+      "@codemirror/lint",
+      "typescript-6",
+      "@typescript/vfs",
+    ],
   },
   test: {
     projects: [

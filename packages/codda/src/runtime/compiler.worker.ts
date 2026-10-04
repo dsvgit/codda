@@ -7,6 +7,7 @@
 import * as esbuild from "esbuild-wasm";
 import wasmURL from "esbuild-wasm/esbuild.wasm?url";
 import harnessSource from "./harness.ts?raw";
+import { TS_COMPILER_OPTIONS } from "../ts-config.ts";
 import type { CompileInput, CompileResult } from "./types";
 
 const ready = esbuild.initialize({ wasmURL, worker: false });
@@ -83,7 +84,13 @@ async function fetchOk(url: string, integrity?: string): Promise<Response> {
 const WORKSPACE_PATH = "/main";
 const WORKSPACE_FILE = "main";
 
-async function compile({ source, tests, importMap }: CompileInput): Promise<CompileResult> {
+/** esbuild's loader for a file: `.ts` is TS (`<T>x` is a type assertion), anything else TSX. */
+const loaderOf = (name: string | undefined) => (name?.endsWith(".ts") ? "ts" : "tsx");
+
+// The shared TS config (ADR-0009): esbuild reads `jsx` and the like from it.
+const tsconfigRaw = { compilerOptions: TS_COMPILER_OPTIONS };
+
+async function compile({ source, sourceName, tests, testsName, importMap }: CompileInput): Promise<CompileResult> {
   // Import specifier → virtual file contents.
   const files: Record<string, string> = {
     "codda:entry": ENTRY,
@@ -111,7 +118,8 @@ async function compile({ source, tests, importMap }: CompileInput): Promise<Comp
       bundle: true,
       write: false,
       format: "iife",
-      jsx: "automatic",
+      target: TS_COMPILER_OPTIONS.target.toLowerCase(),
+      tsconfigRaw,
       logLevel: "silent",
       absWorkingDir: "/",
       plugins: [
@@ -130,10 +138,11 @@ async function compile({ source, tests, importMap }: CompileInput): Promise<Comp
               return { errors: [{ text: loadError ?? `Импорт "${args.path}" не предусмотрен заданием` }] };
             });
             build.onLoad({ filter: /.*/, namespace: "file" }, () => {
-              return { contents: source, loader: "tsx" };
+              return { contents: source, loader: loaderOf(sourceName) };
             });
             build.onLoad({ filter: /.*/, namespace: "codda" }, (args) => {
-              return { contents: files[args.path], loader: "tsx" };
+              // The Test Harness is .ts; the entry has no types at all.
+              return { contents: files[args.path], loader: args.path === "./tests" ? loaderOf(testsName) : "ts" };
             });
             build.onLoad({ filter: /.*/, namespace: "dependency" }, async (args) => {
               return { contents: (await loadArtifact(importMap!)).files[args.path], loader: "js" };

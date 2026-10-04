@@ -16,7 +16,11 @@ export type TestReport =
 
 export type CompileInput = {
   source: string;
+  /** The Workspace's file name: its extension picks the loader. Without one, TSX as in the PoC. */
+  sourceName?: "main.ts" | "main.tsx";
   tests: string;
+  /** The Lesson Tests' file name, the same way. */
+  testsName?: "lesson.test.ts" | "lesson.test.tsx";
   /** Absolute URL of importmap.json of the Course's Dependency Artifact; none if the Course has none. */
   importMap?: string;
 };

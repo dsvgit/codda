@@ -29,4 +29,6 @@ export type LessonData = {
   solution: string;
   /** Lesson Tests; they import the Workspace as "./main". */
   tests: string;
+  /** The Lesson Tests' file name: its extension picks how they compile. */
+  testsName: "lesson.test.ts" | "lesson.test.tsx";
 };

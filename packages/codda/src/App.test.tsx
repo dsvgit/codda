@@ -1,5 +1,5 @@
-import { afterEach, expect, test } from "vitest";
-import { page, userEvent } from "vitest/browser";
+import { afterAll, afterEach, beforeAll, expect, test } from "vitest";
+import { commands, page, userEvent } from "vitest/browser";
 import { createRoot, type Root } from "react-dom/client";
 import { App } from "./App";
 import type { CourseData } from "./course-data";
@@ -34,6 +34,7 @@ test("adds a negative number", () => {
   expect(add(-1, 1)).toBe(0);
 });
 `,
+          testsName: "lesson.test.ts",
         },
       ],
     },
@@ -53,6 +54,7 @@ test("greets", () => {
   expect(greet()).toBe("hi");
 });
 `,
+          testsName: "lesson.test.tsx",
         },
       ],
     },
@@ -60,6 +62,12 @@ test("greets", () => {
 } satisfies CourseData;
 
 let root: Root | undefined;
+
+// The screen's Run, without the Type Checker (spec ts-tooling, «Testing
+// Decisions»): its lib files do not load, so it is unavailable for the whole
+// file and the underlines here are the Compiler's only. Type errors — e2e.
+beforeAll(() => commands.failRequests("/ts-lib-[0-9a-f]+\\.json"));
+afterAll(() => commands.restoreRequests());
 
 afterEach(() => {
   root?.unmount();

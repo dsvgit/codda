@@ -162,7 +162,7 @@ function readLesson(root: string, id: string, errors: string[]): LessonData | un
   const solution = mains.length === 1 ? mains[0].replace("main", "solution") : undefined;
   if (solution && !has(solution)) errors.push(`${id}/: нет ${solution} — расширение как у ${mains[0]}`);
 
-  const tests = ["lesson.test.ts", "lesson.test.tsx"].filter(has);
+  const tests = (["lesson.test.ts", "lesson.test.tsx"] as const).filter(has);
   if (tests.length === 0) errors.push(`${id}/: нет lesson.test.ts или lesson.test.tsx`);
   if (tests.length === 2) errors.push(`${id}/: есть и lesson.test.ts, и lesson.test.tsx — нужен один`);
 
@@ -174,6 +174,7 @@ function readLesson(root: string, id: string, errors: string[]): LessonData | un
     workspace: { name: mains[0], starter: read(mains[0]) },
     solution: read(solution),
     tests: read(tests[0]),
+    testsName: tests[0],
   };
 }
 

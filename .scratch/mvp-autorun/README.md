@@ -159,6 +159,7 @@ Slug фичи — имя папки без номера: `lesson-manifest/02` = 
 - 2026-10-04 — author-cli/06 — коммит: CI по курсам — шаг `npm ci` → `npx codda test` → `npx codda build` в каждой `courses/*` с `course.yaml`, выкладка `dist/` пилотного курса из `PILOT_COURSE`; `codda init --ci github|gitlab` — шаблоны `templates/ci/` с версией Playwright (Pages / S3)
 - 2026-10-05 — author-cli — push, `check` зелёный на `24236ee` (прогон 37226218146). /code-review (Standards: 0 жёстких; Spec: 3 «чинить сейчас»). Исправлено: тест чужого запроса снят со skip (на `await fetch`), критерии 06 возвращены к исходным, `permissions: contents: read` в GitHub-шаблоне, `npx --no-install vite`, `moduleTitle`, место комментария `uiDir`. Остальное — в «Отложенные проблемы»
 - 2026-10-05 — author-cli — push правок по review, `check` зелёный (прогон 37228012008); фича закрыта
+- 2026-10-05 — ts-tooling/01 — коммит: Type Checker в редакторе Workspace — модуль конфига TS (ADR-0009), Compiler на нём и loader по расширению (`testsName` в `course.json`), lib-файлы `typescript-6` одним JSON с hash (`codda-ts-lib`), ядро на `@typescript/vfs`, отдельный Worker на сессию, второй `linter` (300 мс) рядом с ошибкой компиляции; заглушка `any` в `types.json` — `declare module` (`PIPELINE_VERSION` = 3). Агент прерывался на лимите, доделано следующей сессией
 
 ## Журнал допущений
 
@@ -268,6 +269,13 @@ Slug фичи — имя папки без номера: `lesson-manifest/02` = 
 - author-cli/06 — `--ci` с неизвестным значением проверяется до создания папки: код `2`, ничего не создано; текст `--ci: github или gitlab, а не <значение>` — в спеке не задан
 - author-cli/06 — GitLab: образ выкладки — переменная `$CODDA_DEPLOY_IMAGE`, `immutable` — `public, max-age=31536000, immutable`, `index.html` и `course.json` заливаются после `sync` отдельным `aws s3 cp`, `--endpoint-url` явно; GitHub-шаблон с `--user 1001`, как `ci.yml` — детали в спеке не заданы
 - author-cli/06 — `dist/` пилота пишет шаг курсов в `ci.yml` (`npx codda build` после `npx codda test`), а не `codda build` из `test:e2e` — выкладывается то, что проверил `codda test`; e2e идут на сборке из тех же файлов
+- ts-tooling/01 — `LessonData.testsName` в `course.json` — Compiler выбирает loader Lesson Tests по расширению, а имени файла в `course.json` не было; в `CompileInput` `sourceName`/`testsName` необязательны (без них `tsx`, как в PoC)
+- ts-tooling/01 — заглушка `any` для пакета без типов — `declare module "<specifier>";` вместо `declare const m: any; export = m;` (`PIPELINE_VERSION` = 3) — TS 6 давал TS2305 на именованный импорт из прежней
+- ts-tooling/01 — список lib — `lib` конфига плюс транзитивные `/// <reference lib>` (регулярка по тексту файлов `typescript-6`); путь JSON странице — `define` `__CODDA_TS_LIB__`, в сборке относительный
+- ts-tooling/01 — Type Checker стартует первым вызовом linter'а (300 мс после создания редактора Workspace) — «после первой отрисовки» без отдельного эффекта
+- ts-tooling/01 — ошибки компиляции — второй lint-источник с `forceLinting` при смене (вместо `setDiagnostics`) — `setDiagnostics` перетирал бы ошибки типов, а общий `delay` (максимум по linter'ам) задерживал бы снятие подчёркивания на старте Run
+- ts-tooling/01 — `App.test.tsx` идёт без Type Checker (lib JSON отклоняется `failRequests` на весь файл) — спека: компонентному тесту Type Checker не нужен; иначе синтаксическая ошибка подчёркивалась дважды
+- ts-tooling/01 — Course без Dependency Artifact в e2e — подмена `course.json` через `page.route`, а не курс-фикстура на диске — Course Build для e2e один
 
 ## Отложенные проблемы
 

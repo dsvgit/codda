@@ -3,6 +3,7 @@ import { Editor, type EditorHandle } from "./Editor";
 import type { CourseData, LessonData } from "./course-data";
 import { run, type ConsoleLine, type TestReport } from "./runtime/runner";
 import type { CompileError, TestResult } from "./runtime/types";
+import { typeChecker } from "./type-checker/client";
 import "./styles.css";
 
 const NO_ERRORS: CompileError[] = [];
@@ -14,7 +15,20 @@ const NO_ERRORS: CompileError[] = [];
 export function runLesson(course: CourseData, lesson: LessonData, source: string, options?: Parameters<typeof run>[1]) {
   // The artifact's folder in course.json is relative to the page (ADR-0008).
   const importMap = course.deps === null ? undefined : new URL(`${course.deps}importmap.json`, document.baseURI).href;
-  return run({ source, tests: lesson.tests, importMap }, options);
+  return run(
+    { source, sourceName: lesson.workspace.name, tests: lesson.tests, testsName: lesson.testsName, importMap },
+    options,
+  );
+}
+
+/**
+ * The type errors of the Workspace `text` of `lesson`, from the session's Type
+ * Checker with types.json of the same Dependency Artifact as the Compiler's.
+ * The first call starts it: after the Lesson screen is drawn.
+ */
+function typeCheck(course: CourseData, lesson: LessonData, text: string) {
+  const types = course.deps === null ? undefined : new URL(`${course.deps}types.json`, document.baseURI).href;
+  return typeChecker(types).diagnostics(lesson.workspace.name, text);
 }
 
 /**
@@ -133,6 +147,7 @@ function Lesson({ course, lesson }: { course: CourseData; lesson: LessonData }) 
               editedDuringRun.current = true;
             }}
             errors={underlined}
+            typeCheck={(text) => typeCheck(course, lesson, text)}
           />
         </div>
         <div className="panel">
