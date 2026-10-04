@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { run } from "../src/runtime/runner";
+import { run } from "../packages/codda/src/runtime/runner";
 import { lessons } from "./index";
 
 test.each(Object.entries(lessons))("%s: solution passes every lesson test", async (_, lesson) => {

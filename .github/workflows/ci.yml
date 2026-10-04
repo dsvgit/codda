@@ -4,9 +4,9 @@
 # .scratch/mvp/issues/06-ci-and-pilot-hosting.md. The `check` job is the
 # required status check in main's branch protection.
 #
-# `deploy` publishes the very dist/ that `check` built and tested
-# (`npm run test:e2e` builds it and runs the e2e against it from /codda/),
-# without rebuilding.
+# `deploy` publishes the very packages/codda/dist/ that `check` built and
+# tested (`npm run test:e2e` builds it and runs the e2e against it from
+# /codda/), without rebuilding.
 name: CI
 
 on:
@@ -19,8 +19,9 @@ jobs:
     runs-on: ubuntu-latest
     container:
       # Keep in sync with `playwright` and `@playwright/test` in package.json
-      # (pinned exactly, no ^): the image ships the browsers for exactly this
-      # Playwright version. Bump all three together.
+      # and `playwright` in packages/codda/package.json (pinned exactly, no ^):
+      # the image ships the browsers for exactly this Playwright version. Bump
+      # them all together.
       image: mcr.microsoft.com/playwright:v1.63.0-noble
       options: --user 1001
     steps:
@@ -33,7 +34,7 @@ jobs:
       - if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: actions/upload-pages-artifact@v5
         with:
-          path: dist/
+          path: packages/codda/dist/
 
   deploy:
     needs: check

@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { Editor } from "./Editor";
-import type { Lesson } from "../courses";
+import type { Lesson } from "../../../courses";
 import { lesson as defaultLesson } from "./lesson";
 import { run, type TestReport } from "./runtime/runner";
 import type { TestResult } from "./runtime/types";

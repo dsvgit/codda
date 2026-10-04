@@ -12,7 +12,7 @@
 
 **Blocked by:** misc/02 — код уже в `main`; `ready-for-human` у `misc/02` означает только включение Pages человеком и этот тикет не блокирует
 
-**Status:** ready-for-agent
+**Status:** done
 
 Вопросы решены в [Q9 эксперимента «MVP за один прогон»](../../questions/00-mvp-autorun.md): один пакет `codda`; `e2e/` и `playwright.config.ts` остаются в корне; имя пакета — `codda`.
 
@@ -22,12 +22,20 @@
 
 Критерии приёмки:
 
-- [ ] Корень — npm workspaces с одним членом `packages/codda/`; один `package-lock.json` в корне; `courses/` в `workspaces` нет
-- [ ] `npm ci`, `npm run typecheck`, `npm test`, `npm run test:e2e`, `npm run build` из корня работают; `npm run dev` поднимает Golden Path; job `check` в CI зелёная, выкладка из `misc/02` выкладывает тот же `dist/` (путь в `ci.yml` обновлён)
-- [ ] `packages/codda/package.json`: `"bin": { "codda": "./cli/codda.ts" }`, CLI запускается без сборки. Пока это только каркас из тикета 05: `parseArgs`, `--help` на русском, `--version`, неизвестная команда или флаг → код выхода `2`. Команды `init/lesson/test/dev/build` добавляет `author-cli`: им нужен `course.yaml`, а его вводит `lesson-manifest`
-- [ ] Тест: `npx codda --version` из корня и из `courses/` печатает версию, `npx codda --bogus` даёт код `2`. Тест идёт в `check`
-- [ ] Документы: пути в `CLAUDE.md`, `docs/ai-workflow.md`, README; тикет 05 Плана решений не переписывается, а в `docs/HOW-TO-PROCEED.md` в строке `author-cli` указано: CLI в `packages/codda/cli/`, курс подключает его через `file:` и вызывает `npx codda`
+- [x] Корень — npm workspaces с одним членом `packages/codda/`; один `package-lock.json` в корне; `courses/` в `workspaces` нет
+- [x] `npm ci`, `npm run typecheck`, `npm test`, `npm run test:e2e`, `npm run build` из корня работают; `npm run dev` поднимает Golden Path; job `check` в CI зелёная, выкладка из `misc/02` выкладывает тот же `dist/` (путь в `ci.yml` обновлён)
+- [x] `packages/codda/package.json`: `"bin": { "codda": "./cli/codda.ts" }`, CLI запускается без сборки. Пока это только каркас из тикета 05: `parseArgs`, `--help` на русском, `--version`, неизвестная команда или флаг → код выхода `2`. Команды `init/lesson/test/dev/build` добавляет `author-cli`: им нужен `course.yaml`, а его вводит `lesson-manifest`
+- [x] Тест: `npx codda --version` из корня и из `courses/` печатает версию, `npx codda --bogus` даёт код `2`. Тест идёт в `check`
+- [x] Документы: пути в `CLAUDE.md`, `docs/ai-workflow.md`, README; тикет 05 Плана решений не переписывается, а в `docs/HOW-TO-PROCEED.md` в строке `author-cli` указано: CLI в `packages/codda/cli/`, курс подключает его через `file:` и вызывает `npx codda`
 
 ## Comments
 
 - **2026-10-04 — опыт при оформлении (агент).** Во временной папке: корень с `"workspaces": ["packages/*"]`, пакет `codda` с `"bin": { "codda": "./cli/codda.ts" }` (shebang `#!/usr/bin/env node`, в файле аннотации типов), Node v24.20.0. `npx codda` работает (а) из корня; (б) из `courses/c` без своего `package.json` — npm находит корень выше; (в) из `courses/c` со своим `package.json` и `"codda": "file:../../packages/codda"` в `devDependencies`. В случае (в) у курса свой `package-lock.json`, корневой не меняется. Типы Node убирает во всех трёх случаях: bin — симлинк, Node идёт по нему к настоящему пути `packages/codda/cli/codda.ts`, а он вне `node_modules`. Сборка CLI в JS внутри репозитория не нужна; она нужна только для опубликованного пакета (тикет 04).
+
+- **2026-10-04 — реализация (агент).** Код инструмента (`src/`, `public/deps/`, `scripts/`, `index.html`, `vite.config.ts`) перенесён в `packages/codda/` через `git mv`; `package-lock.json` получен из старого обновлением, версии транзитивных зависимостей не сдвинулись. Корень — `codda-repo` (`private`, `workspaces: ["packages/codda"]`), скрипты корня делегируют в пакет через `npm run … -w codda --` (аргументы после `--` доходят до Vite/Vitest), `test:e2e` остаётся в корне. `dist/` теперь `packages/codda/dist/`, путь выкладки в `ci.yml` обновлён. В `playwright.config.ts` у обоих `webServer` `cwd: packages/codda`.
+  - **CLI** `packages/codda/cli/codda.ts`: `parseArgs` со `strict: false` и `tokens`, чтобы ошибки были на русском, а не английский `TypeError` из `parseArgs`. `--help`/`-h` и запуск без аргументов печатают справку, код `0`; `--version`/`-v` — версию из `package.json` пакета (`0.1.0`); неизвестный флаг или любая команда → `codda: неизвестный флаг …` / `неизвестная команда …` в stderr, код `2`. Файл исполняемый, `bin` линкуется npm в `node_modules/.bin/codda`.
+  - **Тесты** `packages/codda/cli/codda.test.ts`: запускают `npx codda` процессом из корня и из `courses/` (версия), `--help`, без аргументов, `--bogus`, `-x`, команда `bogus`. Vitest разбит на два проекта: `browser` (как раньше; `dir: "../.."`, чтобы `courses/courses.test.ts` вне пакета тоже шёл) и `cli` (Node). Всё в `npm test`, значит и в `check`.
+  - **Typecheck:** `npm run typecheck` = `tsc -p` пакета (`src`, `vite.config.ts`) + `tsc -p` корня (`courses`, `e2e`, `playwright.config.ts`, наследует опции пакета). `tsc -b` не нужен: проектных ссылок нет.
+  - **Находка — `cli/` вне typecheck.** Для `node:util`, `process`, `node:child_process` нужен `@types/node`, а его нет в списке разрешённых зависимостей README («стоп и вопрос»). Обход: `cli/` пока не входит в `tsconfig` (комментарий там же), Node всё равно исполняет его с проверкой поведения тестами. **Нужно решение человека до `author-cli`:** разрешить `@types/node` в `devDependencies` пакета и включить `cli/` в typecheck.
+  - **Документы:** раздел «Раскладка репозитория» и пути в `README.md`, строка о раскладке в `CLAUDE.md`. В `docs/ai-workflow.md` путей к коду нет, менять нечего. Строка `author-cli` в `docs/HOW-TO-PROCEED.md` уже содержала нужное (CLI в `packages/codda/cli/`, `file:`, `npx codda`). Исторические `docs/poc-report.md` и ADR не правились.
+  - **Вне критериев:** npm 11 печатает `install-scripts … not yet covered by allowScripts` для `esbuild` и `fsevents` — было и до переноса, на работу не влияет.

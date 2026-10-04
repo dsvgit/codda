@@ -1,6 +1,6 @@
 import { expect, test } from "./offline";
 import { lessons } from "../courses";
-import { lesson } from "../src/lesson";
+import { lesson } from "../packages/codda/src/lesson";
 
 test("student runs the starter, fixes it and sees every test pass, offline", async ({ page }) => {
   await page.goto("./");

@@ -21,7 +21,7 @@ npm run dev
 Откройте адрес, который напечатает Vite (обычно http://localhost:5173), и пройдите сценарий:
 
 1. Нажмите **Run tests** — увидите `0 / 3 passed` и ошибки вида `expected "1", got "?"`.
-2. В редакторе допишите `Counter`: `useState(0)`, число в `<output>`, `onClick` у кнопок `+` и `−` (готовое решение — `lesson.solution` в `src/lesson.ts`).
+2. В редакторе допишите `Counter`: `useState(0)`, число в `<output>`, `onClick` у кнопок `+` и `−` (готовое решение — `lesson.solution` в `packages/codda/src/lesson.ts`).
 3. Снова **Run tests** — `3 / 3 passed`.
 
 Другие Lesson для ручного прогона — курс React Hooks в `courses/react-hooks/`: откройте `/?lesson=react-hooks/01-use-state` (id — ключи в `courses/index.ts`). Решение каждого — поле `solution` в файле Lesson.
@@ -30,26 +30,36 @@ npm run dev
 
 Первый Run занимает около секунды, потому что загружаются и инициализируются `esbuild.wasm` (~14 МБ) и Dependency Artifacts с React (~1.2 МБ). Последующие — около 0.5 с: React вшивается в бандл заново на каждый Run.
 
+## Раскладка репозитория
+
+Репозиторий — npm workspaces с одним пакетом. Код инструмента (UI, Runtime, CLI) лежит в `packages/codda/`, курсы — в `courses/` и в workspaces не входят: у Course свои зависимости (ADR-0007). В корне — общие npm-скрипты, e2e (`e2e/`, `playwright.config.ts`) и один `package-lock.json`.
+
+CLI `codda` запускается без сборки (TypeScript в Node 24): `npx codda --help` из корня или из папки курса. Пока это каркас — `--help`, `--version`; команды для авторов курсов появятся позже. Курс вне этого репозитория подключит его через `"codda": "file:…/packages/codda"` в `devDependencies`.
+
 ## Команды
+
+Все команды — из корня репозитория.
+
 
 | Команда | Что делает |
 |---|---|
 | `npm run dev` | Dev-сервер Vite с hot reload |
 | `npm test` | Все тесты в headless Chromium (Vitest browser mode + Playwright) |
-| `npm run test:e2e` | Собирает `dist/` и гоняет e2e на Playwright дважды: на dev-сервере (проект `dev`) и на собранном `dist/` из подпути `/codda/`, как на GitHub Pages (проект `pages`). Проходит Golden Path и проверяет изоляцию Sandbox; внешняя сеть заблокирована |
-| `npx vitest run src/runtime/runner.test.ts` | Один файл тестов |
-| `npx vitest` | Тесты в watch-режиме |
+| `npm run test:e2e` | Собирает `packages/codda/dist/` и гоняет e2e на Playwright дважды: на dev-сервере (проект `dev`) и на собранном `dist/` из подпути `/codda/`, как на GitHub Pages (проект `pages`). Проходит Golden Path и проверяет изоляцию Sandbox; внешняя сеть заблокирована |
+| `npm test -- src/runtime/runner.test.ts` | Один файл тестов (путь от `packages/codda/`) |
+| `npm test -- --project cli` | Только тесты CLI (Node), без браузера |
 | `npm run typecheck` | Проверка типов TypeScript |
-| `npm run build` | Typecheck + production-сборка в `dist/` |
+| `npm run build` | Typecheck + production-сборка в `packages/codda/dist/` |
 | `npm run preview` | Отдать собранный `dist/` локально, чтобы проверить сборку |
-| `npm run build:deps` | Пересобрать Dependency Artifacts (`react`, `react/jsx-runtime`, `react-dom/client`) в `public/deps/` из `node_modules`; результат коммитится |
+| `npm run build:deps` | Пересобрать Dependency Artifacts (`react`, `react/jsx-runtime`, `react-dom/client`) в `packages/codda/public/deps/` из `node_modules`; результат коммитится |
 
 ## Тесты
 
 Тесты запускаются в настоящем браузере, а не в jsdom: Runtime нужны Web Worker, WebAssembly и iframe.
 
-- `src/runtime/runner.test.ts` — главный шов, `run({ source, tests }) → TestReport`: исходник студента и Lesson Tests на входе, Test Report на выходе.
-- `src/App.test.tsx` — основной сценарий через UI: Run → FAIL → исправление в редакторе → Run → PASS.
+- `packages/codda/src/runtime/runner.test.ts` — главный шов, `run({ source, tests }) → TestReport`: исходник студента и Lesson Tests на входе, Test Report на выходе.
+- `packages/codda/src/App.test.tsx` — основной сценарий через UI: Run → FAIL → исправление в редакторе → Run → PASS.
+- `packages/codda/cli/codda.test.ts` — CLI как его вызывает автор: `npx codda …` из корня и из `courses/`, коды выхода.
 - `e2e/` — Playwright против настоящего dev-сервера и собранного `dist/` из `/codda/` (`npm run test:e2e`). Тесты открывают страницу относительно `baseURL` (`page.goto("./")`), а не `"/"`. `golden-path.e2e.ts` проходит тот же сценарий на странице приложения. `sandbox-isolation.e2e.ts` подсовывает через редактор враждебный код студента: чтение parent/cookies/storage, поддельные сообщения, `fetch` в Internet. Фикстура `e2e/offline.ts` обрывает любой запрос не на localhost, печатает список всех запросов страницы и валит тест, если был хоть один внешний.
 
 На стадии PoC действует упрощённое правило: на каждом шаге — один happy-path тест, остальные случаи потом (см. раздел «Тесты» в [CLAUDE.md](CLAUDE.md)).
@@ -66,7 +76,7 @@ CodeMirror ──source──▶ Runner ──▶ Compiler (Web Worker, esbuild-
                    postMessage { type: "codda:report", runId, report } ──▶ UI: ✓/✗ и «N / M passed»
 ```
 
-| Файл | Роль |
+| Файл (в `packages/codda/`) | Роль |
 |---|---|
 | `src/lesson.ts` | Lesson «React: Counter»: `instructions`, `starter`, `solution`, `tests` — строковые константы |
 | `src/App.tsx`, `src/Editor.tsx` | Страница: Instructions, CodeMirror, кнопка Run, Test Report |
@@ -79,7 +89,7 @@ CodeMirror ──source──▶ Runner ──▶ Compiler (Web Worker, esbuild-
 
 ### Как поменять задание
 
-Всё задание лежит в `src/lesson.ts`. Lesson Tests импортируют `test`/`expect` из `@codda/test`, код студента — из `./App`, а React — как обычно, из `react` и `react-dom/client` (резолвится в Dependency Artifacts). Пример задания на чистом TypeScript:
+Всё задание лежит в `packages/codda/src/lesson.ts`. Lesson Tests импортируют `test`/`expect` из `@codda/test`, код студента — из `./App`, а React — как обычно, из `react` и `react-dom/client` (резолвится в Dependency Artifacts). Пример задания на чистом TypeScript:
 
 ```ts
 import { test, expect } from "@codda/test";
@@ -98,7 +108,7 @@ test("adds two positive numbers", () => {
 
 ## Известные ограничения на текущем этапе
 
-- Timeout (5 с) работает, только пока Sandbox живёт в отдельном процессе от страницы. Chrome так делает по умолчанию; Playwright-овский `chrome-headless-shell` — нет, поэтому тесты запускаются в полном Chromium (`channel: "chromium"` в `vite.config.ts`).
+- Timeout (5 с) работает, только пока Sandbox живёт в отдельном процессе от страницы. Chrome так делает по умолчанию; Playwright-овский `chrome-headless-shell` — нет, поэтому тесты запускаются в полном Chromium (`channel: "chromium"` в `packages/codda/vite.config.ts`).
 - Если исключение вылетает из асинхронного кода уже во время выполнения тестов, весь Run показывается как runtime-ошибка, а не как упавший тест.
 - Импортировать можно только `react` (именованные экспорты, без `import React from "react"`), `react/jsx-runtime` и `react-dom/client`. Артефакты — development-сборка React: `act` в production-сборке не работает.
 - Sandbox не закрыт от сети: `fetch` из кода студента уходит наружу (с `Origin: null`, ответ отрезает CORS). В e2e такие запросы блокирует сам тест; CSP и отдельный origin для Sandbox — этап Security после PoC. Подробности — в [тикете 04](.scratch/golden-path-poc/issues/04-offline-isolation-e2e.md).
@@ -107,8 +117,8 @@ test("adds two positive numbers", () => {
 ## Если что-то не работает
 
 - **`npm test` ругается, что не найден браузер** — выполните `npx playwright install chromium`.
-- **Тест с бесконечным циклом висит дольше 20 с, а Vitest не может его прервать** — тесты запущены в `chrome-headless-shell`, где Sandbox делит процесс со страницей. Проверьте `launchOptions.channel` в `vite.config.ts`.
-- **Vitest пишет «Vite unexpectedly reloaded a test»** или тест падает на первом прогоне после установки новой зависимости — добавьте её в `optimizeDeps.include` в `vite.config.ts`.
+- **Тест с бесконечным циклом висит дольше 20 с, а Vitest не может его прервать** — тесты запущены в `chrome-headless-shell`, где Sandbox делит процесс со страницей. Проверьте `launchOptions.channel` в `packages/codda/vite.config.ts`.
+- **Vitest пишет «Vite unexpectedly reloaded a test»** или тест падает на первом прогоне после установки новой зависимости — добавьте её в `optimizeDeps.include` в `packages/codda/vite.config.ts`.
 - **Run ничего не показывает** — откройте DevTools: ошибки esbuild-wasm видны в консоли Worker, ошибки кода студента — в консоли iframe.
 
 ## Документация

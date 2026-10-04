@@ -6,6 +6,8 @@ const pagesPort = 5180;
 // built dist/ is tested from one too. Tests navigate relative to baseURL
 // (`page.goto("./")`), never to "/".
 const pagesBase = "/codda/";
+// The tool's Vite project: its dev server and its built dist/.
+const toolDir = "packages/codda";
 
 export default defineConfig({
   testDir: "e2e",
@@ -24,17 +26,20 @@ export default defineConfig({
   },
   projects: [
     { name: "dev", use: { baseURL: `http://localhost:${devPort}/` } },
-    // The build GitHub Pages deploys: `npm run test:e2e` builds dist/ first.
+    // The build GitHub Pages deploys: `npm run test:e2e` builds packages/codda/dist/
+    // first.
     { name: "pages", use: { baseURL: `http://localhost:${pagesPort}${pagesBase}` } },
   ],
   webServer: [
     {
       command: `npx vite --port ${devPort} --strictPort`,
+      cwd: toolDir,
       url: `http://localhost:${devPort}`,
       reuseExistingServer: false,
     },
     {
       command: `npx vite preview --base ${pagesBase} --port ${pagesPort} --strictPort`,
+      cwd: toolDir,
       url: `http://localhost:${pagesPort}${pagesBase}`,
       reuseExistingServer: false,
     },

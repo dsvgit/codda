@@ -2,7 +2,7 @@
 // hostile student code through the editor and check what it can and cannot do.
 import type { Page } from "@playwright/test";
 import { expect, test } from "./offline";
-import { lesson } from "../src/lesson";
+import { lesson } from "../packages/codda/src/lesson";
 
 async function runStudentCode(page: Page, source: string) {
   await page.getByRole("textbox").fill(source);
