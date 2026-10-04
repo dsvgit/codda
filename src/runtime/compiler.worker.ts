@@ -15,8 +15,9 @@ import "./tests";
 runAll();
 `;
 
-const depsURL = new URL(`${import.meta.env.BASE_URL}deps/`, self.location.origin);
-
+// Absolute URL of public/deps/, ending with "/". Sent by the page with every
+// compile (compiler.ts): only the page knows where it is served from.
+let depsURL: string;
 let dependencies: Promise<Record<string, string>> | undefined;
 
 /** Import specifier → artifact text. Fetched once, then kept while the Worker lives. */
@@ -98,7 +99,10 @@ async function compile({ source, tests }: CompileInput): Promise<CompileResult> 
   }
 }
 
-self.onmessage = async (event: MessageEvent<{ id: number; input: CompileInput }>) => {
+self.onmessage = async (
+  event: MessageEvent<{ id: number; input: CompileInput; depsURL: string }>,
+) => {
   const { id, input } = event.data;
+  depsURL = event.data.depsURL;
   self.postMessage({ id, result: await compile(input) });
 };

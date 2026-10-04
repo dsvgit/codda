@@ -26,6 +26,8 @@ npm run dev
 
 Другие Lesson для ручного прогона — курс React Hooks в `courses/react-hooks/`: откройте `/?lesson=react-hooks/01-use-state` (id — ключи в `courses/index.ts`). Решение каждого — поле `solution` в файле Lesson.
 
+Пилот: [dsvgit.github.io/codda](https://dsvgit.github.io/codda/?lesson=react-hooks/01-use-state). Каждый push в `main` после зелёной проверки CI выкладывается туда (`.github/workflows/ci.yml`). Сборка использует относительные URL, поэтому работает из любого подпути.
+
 Первый Run занимает около секунды, потому что загружаются и инициализируются `esbuild.wasm` (~14 МБ) и Dependency Artifacts с React (~1.2 МБ). Последующие — около 0.5 с: React вшивается в бандл заново на каждый Run.
 
 ## Команды
@@ -34,7 +36,7 @@ npm run dev
 |---|---|
 | `npm run dev` | Dev-сервер Vite с hot reload |
 | `npm test` | Все тесты в headless Chromium (Vitest browser mode + Playwright) |
-| `npm run test:e2e` | e2e на Playwright: сам поднимает dev-сервер, проходит Golden Path и проверяет изоляцию Sandbox; внешняя сеть заблокирована |
+| `npm run test:e2e` | Собирает `dist/` и гоняет e2e на Playwright дважды: на dev-сервере (проект `dev`) и на собранном `dist/` из подпути `/codda/`, как на GitHub Pages (проект `pages`). Проходит Golden Path и проверяет изоляцию Sandbox; внешняя сеть заблокирована |
 | `npx vitest run src/runtime/runner.test.ts` | Один файл тестов |
 | `npx vitest` | Тесты в watch-режиме |
 | `npm run typecheck` | Проверка типов TypeScript |
@@ -48,7 +50,7 @@ npm run dev
 
 - `src/runtime/runner.test.ts` — главный шов, `run({ source, tests }) → TestReport`: исходник студента и Lesson Tests на входе, Test Report на выходе.
 - `src/App.test.tsx` — основной сценарий через UI: Run → FAIL → исправление в редакторе → Run → PASS.
-- `e2e/` — Playwright против настоящего dev-сервера (`npm run test:e2e`). `golden-path.e2e.ts` проходит тот же сценарий на странице приложения. `sandbox-isolation.e2e.ts` подсовывает через редактор враждебный код студента: чтение parent/cookies/storage, поддельные сообщения, `fetch` в Internet. Фикстура `e2e/offline.ts` обрывает любой запрос не на localhost, печатает список всех запросов страницы и валит тест, если был хоть один внешний.
+- `e2e/` — Playwright против настоящего dev-сервера и собранного `dist/` из `/codda/` (`npm run test:e2e`). Тесты открывают страницу относительно `baseURL` (`page.goto("./")`), а не `"/"`. `golden-path.e2e.ts` проходит тот же сценарий на странице приложения. `sandbox-isolation.e2e.ts` подсовывает через редактор враждебный код студента: чтение parent/cookies/storage, поддельные сообщения, `fetch` в Internet. Фикстура `e2e/offline.ts` обрывает любой запрос не на localhost, печатает список всех запросов страницы и валит тест, если был хоть один внешний.
 
 На стадии PoC действует упрощённое правило: на каждом шаге — один happy-path тест, остальные случаи потом (см. раздел «Тесты» в [CLAUDE.md](CLAUDE.md)).
 

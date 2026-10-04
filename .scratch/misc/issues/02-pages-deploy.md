@@ -10,13 +10,34 @@
 
 **Blocked by:** None (can start immediately). Pages уже включены: Source — GitHub Actions (`build_type: workflow`, проверено через `gh api repos/dsvgit/codda/pages` 2026-10-04).
 
-**Status:** ready-for-agent
+**Status:** ready-for-human
 
-- [ ] Сборка работает из любого подпути: `base: "./"`, `deps/`, `esbuild.wasm` и чанк воркера грузятся относительно страницы, а не от корня origin
-- [ ] e2e-тест открывает собранный `dist/` из подпути (например, `/codda/`) и проходит Golden Path: Lesson → Run tests → PASS. Тест входит в `npm run test:e2e` и идёт в `check`, так что выкладывается проверенная сборка
-- [ ] Проверено, что Golden Path в dev-сервере (`npm run dev`, существующие e2e) не сломался
-- [ ] `ci.yml`: `check` собирает `dist/` и загружает его как Pages-артефакт; job `deploy` (`needs: check`, `if` — push в `main`) выкладывает его; на `pull_request` выкладки нет
-- [ ] Документы: строка 4 в `docs/HOW-TO-PROCEED.md` (выкладка уже есть, `author-cli` меняет только команду сборки), строка 0 — ссылка на этот тикет; комментарий в шапке `ci.yml`
+- [x] Сборка работает из любого подпути: `base: "./"`, `deps/`, `esbuild.wasm` и чанк воркера грузятся относительно страницы, а не от корня origin
+- [x] e2e-тест открывает собранный `dist/` из подпути (например, `/codda/`) и проходит Golden Path: Lesson → Run tests → PASS. Тест входит в `npm run test:e2e` и идёт в `check`, так что выкладывается проверенная сборка
+- [x] Проверено, что Golden Path в dev-сервере (`npm run dev`, существующие e2e) не сломался
+- [x] `ci.yml`: `check` собирает `dist/` и загружает его как Pages-артефакт; job `deploy` (`needs: check`, `if` — push в `main`) выкладывает его; на `pull_request` выкладки нет
+- [x] Документы: строка 4 в `docs/HOW-TO-PROCEED.md` (выкладка уже есть, `author-cli` меняет только команду сборки), строка 0 — ссылка на этот тикет; комментарий в шапке `ci.yml`
 - [ ] Шаг для человека (`ready-for-human`): после merge открыть `https://dsvgit.github.io/codda/?lesson=<id>` в Chrome, нажать Run tests, увидеть PASS. Ссылка на run выкладки — в `## Comments`
 
 ## Comments
+
+- **2026-10-04, агент.** Сделано:
+  - `base: "./"` в `vite.config.ts`.
+  - Адрес `deps/` теперь вычисляет страница: `compiler.ts` берёт `BASE_URL` и разрешает его от `document.baseURI`, а Worker получает готовый адрес в каждом сообщении compile.
+  - Почему не в Worker: в сборке `BASE_URL` равен `"./"`. От origin он давал `/deps/`, от скрипта Worker — `/codda/assets/deps/`, и оба адреса неверны. Где отдаётся страница, знает только она сама.
+  - Чанк Worker и `esbuild.wasm` Vite и так грузит относительно `import.meta.url`.
+- **e2e.** В `playwright.config.ts` теперь два проекта:
+  - `dev` — dev-сервер, как раньше.
+  - `pages` — `vite preview --base /codda/` над `dist/`.
+  - Все e2e идут в обоих проектах и открывают страницу через `page.goto("./")`.
+  - `npm run test:e2e` теперь начинается с `npm run build`, поэтому `check` выкладывает ровно ту сборку, которую проверила.
+  - Red: до фикса пять тестов `pages` падали, страница с `/codda/` не грузилась. После фикса все 10/10 зелёные, ~27 с локально.
+  - В логе запросов `pages` worker, `esbuild.wasm` и `deps/*` идут из `/codda/`.
+- **Вне «What to build»:**
+  - e2e «student opens a course Lesson by its id»: прогон Lesson курса по `?lesson=<id>` — тот же адрес, что в шаге для человека.
+  - Ссылка на пилот и описание проектов e2e в `README.md`.
+- **Версии действий.** `actions/upload-pages-artifact@v5` и `actions/deploy-pages@v5` — последние релизы на 2026-10-04. Загрузка идёт на шаге внутри контейнерной `check` (`--user 1001`). Подтвердит её только первый push в `main`.
+- **Не протестировано (на отдельный проход):**
+  - Поведение при 404 на `deps/` из подпути. Обработка ошибки загрузки та же, что до тикета; её тестирование оставлено фиче `runtime-hardening`.
+  - Открытие по `/codda/index.html` и по `/codda` без слэша: Pages редиректит.
+  - Правила ветки в окружении `github-pages`: должны разрешать `main`, по умолчанию так и есть.

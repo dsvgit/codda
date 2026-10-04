@@ -10,7 +10,7 @@ async function runStudentCode(page: Page, source: string) {
 }
 
 test.beforeEach(async ({ page }) => {
-  await page.goto("/");
+  await page.goto("./");
 });
 
 test("student code cannot read the app's document, cookies or storage", async ({ page }) => {
