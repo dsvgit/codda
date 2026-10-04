@@ -116,5 +116,11 @@ self.onmessage = async (
 ) => {
   const { id, input } = event.data;
   depsURL = event.data.depsURL;
-  self.postMessage({ id, result: await compile(input) });
+  try {
+    self.postMessage({ id, result: await compile(input) });
+  } catch (err) {
+    // Not a build failure: esbuild.wasm did not load or initialize failed.
+    // The page terminates this Worker, so `ready` need not be retried here.
+    self.postMessage({ id, error: err instanceof Error ? err.message : String(err) });
+  }
 };

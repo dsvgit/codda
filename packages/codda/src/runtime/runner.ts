@@ -49,7 +49,13 @@ async function compileAndExecute(
   signal: AbortSignal,
   onConsole: (line: ConsoleLine) => void,
 ): Promise<TestReport> {
-  const compiled = await compile(input, signal);
+  let compiled;
+  try {
+    compiled = await compile(input, signal);
+  } catch (err) {
+    // The Compiler Worker failed; compile has already dropped it.
+    return { kind: "internal-error", message: (err as Error).message };
+  }
   if (!compiled.ok) return { kind: "compile-error", errors: compiled.errors };
   return executeInSandbox(compiled.code, signal, onConsole);
 }

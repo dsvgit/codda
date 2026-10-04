@@ -4,11 +4,20 @@
 
 **Blocked by:** 01
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Worker отвечает ошибкой на `compile`, бросивший вне esbuild; событие `error` Worker'а тоже обрабатывается; в обоих случаях Run → `{ kind: "internal-error", message }` сразу, без ожидания deadline, Worker уничтожен — тест на шве Runner (способ спровоцировать сбой без тестовых крючков в продуктовом коде — выбрать в тикете, решение в `## Comments`)
-- [ ] После `internal-error` следующий Run создаёт новый Worker и возвращает обычный Test Report — тест
-- [ ] e2e offline: `page.route` срывает загрузку `esbuild.wasm` → во вкладке «Тесты» «Внутренняя ошибка» быстрее deadline; маршрут снят → следующий Run даёт обычный результат без перезагрузки страницы
-- [ ] Экран Lesson: `internal-error` и новый текст `timeout` («бесконечный цикл, зависший промис или нехватка памяти») — UI-тест или e2e
-- [ ] Отмена (тикет 01) и timeout после этих изменений работают — существующие тесты зелёные
-- [ ] `npm run typecheck`, `npm test`, `npm run test:e2e` зелёные
+- [x] Worker отвечает ошибкой на `compile`, бросивший вне esbuild; событие `error` Worker'а тоже обрабатывается; в обоих случаях Run → `{ kind: "internal-error", message }` сразу, без ожидания deadline, Worker уничтожен — тест на шве Runner (способ спровоцировать сбой без тестовых крючков в продуктовом коде — выбрать в тикете, решение в `## Comments`)
+- [x] После `internal-error` следующий Run создаёт новый Worker и возвращает обычный Test Report — тест
+- [x] e2e offline: `page.route` срывает загрузку `esbuild.wasm` → во вкладке «Тесты» «Внутренняя ошибка» быстрее deadline; маршрут снят → следующий Run даёт обычный результат без перезагрузки страницы
+- [x] Экран Lesson: `internal-error` и новый текст `timeout` («бесконечный цикл, зависший промис или нехватка памяти») — UI-тест или e2e
+- [x] Отмена (тикет 01) и timeout после этих изменений работают — существующие тесты зелёные
+- [x] `npm run typecheck`, `npm test`, `npm run test:e2e` зелёные
+
+## Comments
+
+- **Как спровоцировать сбой без крючков в продуктовом коде.** Ломаем не Worker, а его сеть. В Vitest browser — две команды в `vite.config.ts` (`failRequests(pattern)` / `restoreRequests()`), они зовут `page.route(…).abort()` / `page.unrouteAll()` у страницы Playwright; Playwright в Chromium перехватывает и запросы dedicated Worker. Шаблон `esbuild\.wasm` даёт путь «Worker ответил `{ id, error }`» (`initialize` упал), шаблон `compiler\.worker` — событие `error` самого Worker (скрипт не загрузился). Тёплый Worker сначала сбрасывается через публичный API: Run, отменённый во время компиляции, делает `terminate()` (хелпер `coldCompiler` в `runner.test.ts`). В e2e — тот же `page.route` по `esbuild*.wasm` до `page.goto`.
+- **Устройство.** Worker оборачивает ответ в `try/catch` и шлёт `{ id, error: message }`; `compile()` в `compiler.ts` слушает ещё `error` Worker'а, в обоих случаях делает `terminate()`, забывает Worker и отклоняет промис; Runner превращает отказ в `{ kind: "internal-error", message }`. Таймер deadline снимается в `finally`, как раньше. Sandbox `internal-error` прислать не может: `isSandboxReport` его не принимает.
+- **Текст timeout:** заголовок «Тесты не завершились за N с», абзац «Возможные причины: бесконечный цикл, зависший промис или нехватка памяти.» (раньше «Превышено время: N с» и совет про цикл). `internal-error`: красный заголовок «Внутренняя ошибка» (класс `broken`, как у прочих сломанных Run), сообщение, «Запустите тесты ещё раз.»; счётчик на «Тесты» — красный `✗`, как у других отчётов без тестов.
+- `internal-error` на экране проверен e2e (сорванный `.wasm`, цвет заголовка, быстрее 5 с, следующий Run — PASS), UI-тест в `App.test.tsx` не добавлен: в общем файле Worker тёплый, а сбросить его через экран надёжно нельзя. Текст timeout — правка существующего UI-теста.
+- Ошибки загрузки артефакта (`deps/`) по-прежнему дают `compile-error` — это `dependency-artifacts/04` (договорённость 10).
+- Все тесты написаны до кода и увидены красными (Runner — ложный timeout, UI и e2e — нет текста).

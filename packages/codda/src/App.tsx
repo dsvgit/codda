@@ -194,14 +194,21 @@ function Report({ report }: { report: TestReport }) {
       );
     case "timeout":
       return (
-        <BrokenRun title={`Превышено время: ${report.ms / 1000} с`}>
-          <p>Выполнение остановлено. Проверьте, нет ли в коде бесконечного цикла.</p>
+        <BrokenRun title={`Тесты не завершились за ${report.ms / 1000} с`}>
+          <p>Возможные причины: бесконечный цикл, зависший промис или нехватка памяти.</p>
+        </BrokenRun>
+      );
+    case "internal-error":
+      return (
+        <BrokenRun title="Внутренняя ошибка">
+          <p>{report.message}</p>
+          <p>Запустите тесты ещё раз.</p>
         </BrokenRun>
       );
   }
 }
 
-/** A Run that produced no test results: compile error, runtime error or timeout. */
+/** A Run that produced no test results: compile, runtime or internal error, or timeout. */
 function BrokenRun({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section className="report broken" aria-label="Test Report">

@@ -240,16 +240,18 @@ test("a compile error in the Lesson Tests is shown without a line and underlines
   expect(underlined()).toHaveLength(0);
 });
 
-test("an infinite loop shows «Превышено время: 5 с» and a hint, counter ✗", { timeout: 30_000 }, async () => {
+test("an infinite loop shows «Тесты не завершились за 5 с» with the real causes, counter ✗", { timeout: 30_000 }, async () => {
   renderApp("add");
   await editor().fill("while (true) {}\n");
 
   await runTests().click();
 
   await expect
-    .element(report().getByText("Превышено время: 5 с"), { timeout: 15_000 })
+    .element(report().getByText("Тесты не завершились за 5 с"), { timeout: 15_000 })
     .toBeVisible();
-  await expect.element(report().getByText("бесконечного цикла", { exact: false })).toBeVisible();
+  await expect
+    .element(report().getByText("Возможные причины: бесконечный цикл, зависший промис или нехватка памяти."))
+    .toBeVisible();
   await expect.element(testsTab().getByText("✗")).toBeVisible();
 });
 

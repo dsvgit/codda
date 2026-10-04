@@ -1,4 +1,5 @@
 import { expect, test } from "vitest";
+import { commands } from "vitest/browser";
 import { run } from "./runner";
 import type { ConsoleLine } from "./types";
 
@@ -609,4 +610,52 @@ test("an error in a timer that fires after the last test does not change the rep
       { name: "adds again", status: "pass" },
     ],
   });
+});
+
+// Compiler Worker failures. The Worker cannot be broken from the page, so the
+// test breaks its network instead: Vitest commands (vite.config.ts) make the
+// Playwright page abort requests whose URL matches a pattern.
+declare module "vitest/browser" {
+  interface BrowserCommands {
+    failRequests: (pattern: string) => Promise<void>;
+    restoreRequests: () => Promise<void>;
+  }
+}
+
+/** Drops the warm Compiler Worker: a Run cancelled while compiling terminates it. */
+async function coldCompiler() {
+  const cancel = new AbortController();
+  const report = run({ source: addTask.solution, tests: addTask.tests }, { signal: cancel.signal });
+  cancel.abort();
+  await report;
+}
+
+async function expectInternalErrorBeforeDeadline(failing: string) {
+  await coldCompiler();
+  await commands.failRequests(failing);
+  try {
+    const started = performance.now();
+    const report = await run({ source: addTask.solution, tests: addTask.tests });
+
+    expect(report).toEqual({ kind: "internal-error", message: expect.any(String) });
+    expect(report.kind === "internal-error" && report.message).not.toBe("");
+    expect(performance.now() - started).toBeLessThan(5000);
+    expect(document.querySelector("iframe")).toBeNull();
+  } finally {
+    await commands.restoreRequests();
+  }
+}
+
+test("esbuild.wasm that fails to load gives internal-error before the deadline; the next Run loads it anew and works", async () => {
+  await expectInternalErrorBeforeDeadline("esbuild\\.wasm");
+
+  const next = await run({ source: addTask.solution, tests: addTask.tests });
+  expect(next.kind === "tests" && next.results.map((r) => r.status)).toEqual(["pass", "pass"]);
+});
+
+test("a Compiler Worker whose script fails to load gives internal-error before the deadline; the next Run works", async () => {
+  await expectInternalErrorBeforeDeadline("compiler\\.worker");
+
+  const next = await run({ source: addTask.solution, tests: addTask.tests });
+  expect(next.kind === "tests" && next.results.map((r) => r.status)).toEqual(["pass", "pass"]);
 });

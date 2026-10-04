@@ -11,7 +11,8 @@ export type TestReport =
   | { kind: "compile-error"; errors: CompileError[] }
   | { kind: "runtime-error"; message: string }
   | { kind: "timeout"; ms: number }
-  | { kind: "cancelled" };
+  | { kind: "cancelled" }
+  | { kind: "internal-error"; message: string };
 
 export type CompileInput = { source: string; tests: string };
 

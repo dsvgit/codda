@@ -67,6 +67,17 @@ export default defineConfig({
             // Run timeout.
             provider: playwright({ launchOptions: { channel: "chromium" } }),
             instances: [{ browser: "chromium" }],
+            // Tests of a Compiler Worker that cannot load esbuild.wasm or its
+            // own script (runner.test.ts): requests whose URL matches the
+            // pattern are aborted until restoreRequests.
+            commands: {
+              failRequests: async ({ page }, pattern: string) => {
+                await page.route(new RegExp(pattern), (route) => route.abort());
+              },
+              restoreRequests: async ({ page }) => {
+                await page.unrouteAll();
+              },
+            },
           },
         },
       },
