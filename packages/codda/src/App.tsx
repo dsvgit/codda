@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Editor, type EditorHandle } from "./Editor";
 import type { CourseData, LessonData } from "./course-data";
-import { run, type TestReport } from "./runtime/runner";
+import { run, type ConsoleLine, type TestReport } from "./runtime/runner";
 import type { TestResult } from "./runtime/types";
 import "./styles.css";
 
@@ -31,7 +31,8 @@ function Lesson({ course, lesson }: { course: CourseData; lesson: LessonData }) 
   const [source, setSource] = useState(lesson.workspace.starter);
   const [report, setReport] = useState<TestReport>();
   const [running, setRunning] = useState(false);
-  const [tab, setTab] = useState<"tests" | "solution">("tests");
+  const [consoleLines, setConsoleLines] = useState<ConsoleLine[]>([]);
+  const [tab, setTab] = useState<"tests" | "console" | "solution">("tests");
   const workspace = useRef<EditorHandle>(null);
   const cancel = useRef<AbortController>(null);
 
@@ -41,10 +42,14 @@ function Lesson({ course, lesson }: { course: CourseData; lesson: LessonData }) 
 
   const onRun = async () => {
     setTab("tests");
+    setConsoleLines([]);
     setRunning(true);
     cancel.current = new AbortController();
     try {
-      setReport(await run({ source, tests: lesson.tests }, { signal: cancel.current.signal }));
+      const onConsole = (line: ConsoleLine) => setConsoleLines((lines) => [...lines, line]);
+      setReport(await run({ source, tests: lesson.tests }, { signal: cancel.current.signal, onConsole }));
+      // The student may have opened «Console» while the Run went.
+      setTab("tests");
     } finally {
       setRunning(false);
     }
@@ -93,6 +98,10 @@ function Lesson({ course, lesson }: { course: CourseData; lesson: LessonData }) 
               Тесты
               {report && <Counter report={report} />}
             </button>
+            <button role="tab" aria-selected={tab === "console"} onClick={() => setTab("console")}>
+              Console
+              {consoleLines.length > 0 && <span className="badge count">{consoleLines.length}</span>}
+            </button>
             <button role="tab" aria-selected={tab === "solution"} onClick={() => setTab("solution")}>
               Решение
             </button>
@@ -100,6 +109,8 @@ function Lesson({ course, lesson }: { course: CourseData; lesson: LessonData }) 
           <div className="tab-body" role="tabpanel">
             {tab === "solution" ? (
               <Editor label="Решение" initialValue={lesson.solution} readOnly />
+            ) : tab === "console" ? (
+              <Console lines={consoleLines} />
             ) : report ? (
               <Report report={report} />
             ) : (
@@ -124,6 +135,20 @@ function Counter({ report }: { report: TestReport }) {
     <span className={`badge ${ok ? "ok" : "bad"}`}>
       {passed}/{report.results.length}
     </span>
+  );
+}
+
+/** The Console of the last Run: lines from the Sandbox, shown as text. */
+function Console({ lines }: { lines: ConsoleLine[] }) {
+  if (lines.length === 0) return <p className="muted">Нет вывода</p>;
+  return (
+    <ul className="console" aria-label="Console">
+      {lines.map((line, i) => (
+        <li key={i} className={line.level}>
+          {line.text}
+        </li>
+      ))}
+    </ul>
   );
 }
 

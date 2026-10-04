@@ -1,8 +1,17 @@
 // Test Harness: compiled into every bundle as the `@codda/test` module and
 // executed inside the Sandbox. Lesson Tests import `test` and `expect` from it.
-import type { ReportMessage, TestReport, TestResult } from "./types";
+import type {
+  ConsoleLevel,
+  ConsoleLine,
+  ConsoleMessage,
+  ReportMessage,
+  TestReport,
+  TestResult,
+} from "./types";
 
 declare const __coddaRunId: string;
+/** The Sandbox's end of the channel to the Runner (runner.ts). */
+declare const __coddaPort: MessagePort;
 
 type TestFn = () => void | Promise<void>;
 
@@ -19,13 +28,47 @@ addEventListener("error", (event) => {
   });
 });
 
+// The Console: every console.* call in the Sandbox (the student's code, the
+// Lesson Tests, React's warnings) goes to the parent as soon as it is made.
+// After MAX_CONSOLE_LINES one warn line says the rest is dropped, and the
+// Console goes silent: a loop printing forever must not flood the parent.
+// The Runner keeps the same limit on its side (runner.ts): this module is
+// compiled from source into the bundle, so it cannot share the constants.
+const MAX_CONSOLE_LINES = 1000;
+const MAX_LINE_LENGTH = 10_000;
+const DROPPED_LINE: ConsoleLine = {
+  level: "warn",
+  text: "Console: показаны первые 1000 строк, остальное отброшено",
+};
+let printed = 0;
+for (const level of ["log", "info", "warn", "error", "debug"] satisfies ConsoleLevel[]) {
+  console[level] = (...args: unknown[]) => {
+    if (printed > MAX_CONSOLE_LINES) return;
+    printed++;
+    const line: ConsoleLine =
+      printed > MAX_CONSOLE_LINES
+        ? DROPPED_LINE
+        : {
+            level,
+            text: args
+              .map((arg) =>
+                typeof arg === "string" ? arg : arg instanceof Error ? String(arg) : format(arg),
+              )
+              .join(" ")
+              .slice(0, MAX_LINE_LENGTH),
+          };
+    const message: ConsoleMessage = { type: "codda:console", runId: __coddaRunId, ...line };
+    __coddaPort.postMessage(message);
+  };
+}
+
 let reported = false;
 
 function sendReport(report: TestReport): void {
   if (reported) return;
   reported = true;
   const message: ReportMessage = { type: "codda:report", runId: __coddaRunId, report };
-  parent.postMessage(message, "*");
+  __coddaPort.postMessage(message);
 }
 
 export function test(name: string, fn: TestFn): void {

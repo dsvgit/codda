@@ -19,9 +19,17 @@ export type CompileResult =
   | { ok: true; code: string }
   | { ok: false; errors: CompileError[] };
 
-/** The single message a Sandbox sends to its parent. */
+export type ConsoleLevel = "log" | "info" | "warn" | "error" | "debug";
+
+/** One line of the Console: one `console.*` call inside the Sandbox. */
+export type ConsoleLine = { level: ConsoleLevel; text: string };
+
+/** The Test Report of a Run, sent by the Sandbox once. */
 export type ReportMessage = {
   type: "codda:report";
   runId: string;
   report: TestReport;
 };
+
+/** A line of the Console, sent by the Sandbox as soon as it is printed. */
+export type ConsoleMessage = { type: "codda:console"; runId: string } & ConsoleLine;

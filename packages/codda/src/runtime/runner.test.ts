@@ -1,5 +1,6 @@
 import { expect, test } from "vitest";
 import { run } from "./runner";
+import type { ConsoleLine } from "./types";
 
 // A React task: the Runner bundles React from the Dependency Artifacts, and
 // Lesson Tests import the student's Workspace as "./main".
@@ -269,4 +270,182 @@ test("cancelling after the report has come changes nothing", async () => {
   });
   const next = await run({ source: addTask.solution, tests: addTask.tests });
   expect(next.kind === "tests" && next.results.map((r) => r.status)).toEqual(["pass", "pass"]);
+});
+
+// Console: what the Sandbox prints reaches `onConsole`, line by line.
+function collectConsole() {
+  const lines: ConsoleLine[] = [];
+  return { lines, onConsole: (line: ConsoleLine) => lines.push(line) };
+}
+
+test("console lines of the student's code reach onConsole with their level, formatted like expect messages", async () => {
+  const source = `console.log("a", 1, { x: [1] });
+console.warn("careful");
+console.error(new Error("boom"));
+console.log(new Error("boom"));
+export const add = (a: number, b: number) => a + b;
+`;
+  const { lines, onConsole } = collectConsole();
+
+  await run({ source, tests: addTask.tests }, { onConsole });
+
+  expect(lines).toEqual([
+    { level: "log", text: 'a 1 {"x":[1]}' },
+    { level: "warn", text: "careful" },
+    { level: "error", text: "Error: boom" },
+    { level: "log", text: "Error: boom" },
+  ]);
+});
+
+test("lines of the Lesson Tests reach onConsole too, all in the order they were printed", async () => {
+  const source = `console.info("module");
+export const add = (a: number, b: number) => { console.debug("add", a, b); return a + b; };
+`;
+  const tests = `import { test, expect } from "@codda/test";
+import { add } from "./main";
+
+console.log("tests module");
+test("one", () => {
+  console.log("before");
+  expect(add(1, 2)).toBe(3);
+  console.log("after");
+});
+`;
+  const { lines, onConsole } = collectConsole();
+
+  await run({ source, tests }, { onConsole });
+
+  expect(lines).toEqual([
+    { level: "info", text: "module" },
+    { level: "log", text: "tests module" },
+    { level: "log", text: "before" },
+    { level: "debug", text: "add 1 2" },
+    { level: "log", text: "after" },
+  ]);
+});
+
+test("lines printed before a timeout stay, the report is timeout", { timeout: 20_000 }, async () => {
+  const source = `console.log("start");
+while (true) {}
+export const add = (a: number, b: number) => a + b;
+`;
+  const { lines, onConsole } = collectConsole();
+
+  const report = await run({ source, tests: addTask.tests }, { onConsole });
+
+  expect(report).toEqual({ kind: "timeout", ms: 5000 });
+  expect(lines).toEqual([{ level: "log", text: "start" }]);
+});
+
+const DROPPED = { level: "warn", text: "Console: показаны первые 1000 строк, остальное отброшено" };
+
+test("console.log in an infinite loop gives the first 1000 lines, one warn line, then timeout; the page stays responsive", { timeout: 20_000 }, async () => {
+  const source = `while (true) console.log(1);
+export const add = (a: number, b: number) => a + b;
+`;
+  const { lines, onConsole } = collectConsole();
+
+  const report = run({ source, tests: addTask.tests }, { onConsole });
+  await expect.poll(() => lines.length, { timeout: 4000 }).toBe(1001);
+  const asked = performance.now();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  expect(performance.now() - asked).toBeLessThan(200);
+
+  expect(await report).toEqual({ kind: "timeout", ms: 5000 });
+  expect(lines.slice(0, 1000)).toEqual(Array(1000).fill({ level: "log", text: "1" }));
+  expect(lines.slice(1000)).toEqual([DROPPED]);
+});
+
+// Student code reaches what the Test Harness uses: the Runner does not trust it.
+const sandboxGlobals = `declare const __coddaRunId: string;
+declare const __coddaPort: MessagePort;
+`;
+
+test("the Runner keeps the 1000-line limit itself when the Sandbox bypasses the harness", async () => {
+  const source = `${sandboxGlobals}
+for (let i = 0; i < 1500; i++) {
+  __coddaPort.postMessage({ type: "codda:console", runId: __coddaRunId, level: "log", text: "x" });
+}
+export const add = (a: number, b: number) => a + b;
+`;
+  const { lines, onConsole } = collectConsole();
+
+  await run({ source, tests: addTask.tests }, { onConsole });
+
+  expect(lines.slice(0, 1000)).toEqual(Array(1000).fill({ level: "log", text: "x" }));
+  expect(lines.slice(1000)).toEqual([DROPPED]);
+});
+
+test("a line longer than 10 000 characters is cut to 10 000", async () => {
+  const source = `console.log("a".repeat(12_000));
+export const add = (a: number, b: number) => a + b;
+`;
+  const { lines, onConsole } = collectConsole();
+
+  await run({ source, tests: addTask.tests }, { onConsole });
+
+  expect(lines).toEqual([{ level: "log", text: "a".repeat(10_000) }]);
+});
+
+test("the Runner cuts a line to 10 000 characters itself when the Sandbox bypasses the harness", async () => {
+  const source = `${sandboxGlobals}
+__coddaPort.postMessage({ type: "codda:console", runId: __coddaRunId, level: "log", text: "b".repeat(12_000) });
+export const add = (a: number, b: number) => a + b;
+`;
+  const { lines, onConsole } = collectConsole();
+
+  await run({ source, tests: addTask.tests }, { onConsole });
+
+  expect(lines).toEqual([{ level: "log", text: "b".repeat(10_000) }]);
+});
+
+test("console messages of a wrong form or with another runId do not reach onConsole", async () => {
+  const source = `${sandboxGlobals}
+const line = { type: "codda:console", runId: __coddaRunId, level: "log", text: "ok" };
+__coddaPort.postMessage({ ...line, text: 42 });
+__coddaPort.postMessage({ ...line, text: { toString: "x" } });
+__coddaPort.postMessage({ ...line, level: "table" });
+__coddaPort.postMessage({ ...line, level: undefined });
+__coddaPort.postMessage({ ...line, runId: "another run" });
+__coddaPort.postMessage(null);
+__coddaPort.postMessage("codda:console");
+parent.postMessage({ ...line, text: "through the window" }, "*");
+__coddaPort.postMessage(line);
+export const add = (a: number, b: number) => a + b;
+`;
+  const { lines, onConsole } = collectConsole();
+
+  const report = await run({ source, tests: addTask.tests }, { onConsole });
+
+  expect(report.kind).toBe("tests");
+  expect(lines).toEqual([{ level: "log", text: "ok" }]);
+});
+
+test("lines printed after the report do not reach onConsole", async () => {
+  const source = `export const add = (a: number, b: number) => {
+  setTimeout(() => console.log("late"), 0);
+  return a + b;
+};
+`;
+  const { lines, onConsole } = collectConsole();
+
+  await run({ source, tests: addTask.tests }, { onConsole });
+  await new Promise((resolve) => setTimeout(resolve, 300));
+
+  expect(lines).toEqual([]);
+});
+
+test("overlapping runs each get only their own console lines", async () => {
+  const printing = (word: string) =>
+    `export const add = (a: number, b: number) => { console.log("${word}"); return a + b; };`;
+  const first = collectConsole();
+  const second = collectConsole();
+
+  await Promise.all([
+    run({ source: printing("first"), tests: addTask.tests }, { onConsole: first.onConsole }),
+    run({ source: printing("second"), tests: addTask.tests }, { onConsole: second.onConsole }),
+  ]);
+
+  expect(first.lines).toEqual(Array(2).fill({ level: "log", text: "first" }));
+  expect(second.lines).toEqual(Array(2).fill({ level: "log", text: "second" }));
 });
