@@ -423,14 +423,15 @@ export const add = (a: number, b: number) => a + b;
 
 test("lines printed after the report do not reach onConsole", async () => {
   const source = `export const add = (a: number, b: number) => {
-  setTimeout(() => console.log("late"), 0);
+  // Past the window of the test (R8), which takes zero-delay timers in.
+  setTimeout(() => console.log("late"), 100);
   return a + b;
 };
 `;
   const { lines, onConsole } = collectConsole();
 
   await run({ source, tests: addTask.tests }, { onConsole });
-  await new Promise((resolve) => setTimeout(resolve, 300));
+  await new Promise((resolve) => setTimeout(resolve, 400));
 
   expect(lines).toEqual([]);
 });
@@ -448,4 +449,150 @@ test("overlapping runs each get only their own console lines", async () => {
 
   expect(first.lines).toEqual(Array(2).fill({ level: "log", text: "first" }));
   expect(second.lines).toEqual(Array(2).fill({ level: "log", text: "second" }));
+});
+
+// R8: an error the student's code throws asynchronously while a test runs
+// fails that test; the other tests still run and stay in the Test Report.
+const asyncTests = `import { test, expect } from "@codda/test";
+import { add } from "./main";
+
+test("adds once", () => {
+  expect(add(2, 3)).toBe(5);
+});
+
+test("adds again", () => {
+  expect(add(1, 1)).toBe(2);
+});
+`;
+
+test("an exception in a zero-delay timer fails the test it happened in, the next tests run and pass", async () => {
+  const source = `let calls = 0;
+export const add = (a: number, b: number) => {
+  if (++calls === 1) setTimeout(() => { throw new Error("timer boom"); }, 0);
+  return a + b;
+};
+`;
+
+  const report = await run({ source, tests: asyncTests });
+
+  expect(report).toEqual({
+    kind: "tests",
+    results: [
+      { name: "adds once", status: "fail", error: "timer boom" },
+      { name: "adds again", status: "pass" },
+    ],
+  });
+});
+
+test("an unhandled rejection with an Error fails the test it happened in with the error's message", async () => {
+  const source = `let calls = 0;
+export const add = (a: number, b: number) => {
+  if (++calls === 1) Promise.reject(new Error("x"));
+  return a + b;
+};
+`;
+
+  const report = await run({ source, tests: asyncTests });
+
+  expect(report).toEqual({
+    kind: "tests",
+    results: [
+      { name: "adds once", status: "fail", error: "x" },
+      { name: "adds again", status: "pass" },
+    ],
+  });
+});
+
+test("an unhandled rejection with a non-Error fails the test with the value as text", async () => {
+  const source = `let calls = 0;
+export const add = (a: number, b: number) => {
+  if (++calls === 1) Promise.reject("oops");
+  return a + b;
+};
+`;
+
+  const report = await run({ source, tests: asyncTests });
+
+  expect(report).toEqual({
+    kind: "tests",
+    results: [
+      { name: "adds once", status: "fail", error: "oops" },
+      { name: "adds again", status: "pass" },
+    ],
+  });
+});
+
+test("a delayed timer that throws while an async test still awaits fails that test, not its neighbours", async () => {
+  const tests = `import { test, expect } from "@codda/test";
+import { add, startTimer } from "./main";
+
+test("before", () => {
+  expect(add(1, 1)).toBe(2);
+});
+
+test("waits", async () => {
+  startTimer();
+  await new Promise((resolve) => setTimeout(resolve, 100));
+  expect(add(2, 2)).toBe(4);
+});
+
+test("after", () => {
+  expect(add(3, 3)).toBe(6);
+});
+`;
+  const source = `export const add = (a: number, b: number) => a + b;
+export const startTimer = () => setTimeout(() => { throw new Error("late boom"); }, 30);
+`;
+
+  const report = await run({ source, tests });
+
+  expect(report).toEqual({
+    kind: "tests",
+    results: [
+      { name: "before", status: "pass" },
+      { name: "waits", status: "fail", error: "late boom" },
+      { name: "after", status: "pass" },
+    ],
+  });
+});
+
+test("a test that already failed on expect keeps that first error when an async one comes later", async () => {
+  const source = `let calls = 0;
+export const add = (a: number, b: number) => {
+  if (++calls === 1) {
+    setTimeout(() => { throw new Error("timer boom"); }, 0);
+    return a - b;
+  }
+  return a + b;
+};
+`;
+
+  const report = await run({ source, tests: asyncTests });
+
+  expect(report).toEqual({
+    kind: "tests",
+    results: [
+      { name: "adds once", status: "fail", error: "expected 5, got -1" },
+      { name: "adds again", status: "pass" },
+    ],
+  });
+});
+
+test("an error in a timer that fires after the last test does not change the report", async () => {
+  const source = `export const add = (a: number, b: number) => {
+  setTimeout(() => { throw new Error("too late"); }, 1000);
+  return a + b;
+};
+`;
+
+  const report = await run({ source, tests: asyncTests });
+  await new Promise((resolve) => setTimeout(resolve, 1200));
+
+  expect(report).toEqual({
+    kind: "tests",
+    results: [
+      { name: "adds once", status: "pass" },
+      { name: "adds again", status: "pass" },
+    ],
+  });
 });

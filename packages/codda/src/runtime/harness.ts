@@ -17,16 +17,28 @@ type TestFn = () => void | Promise<void>;
 
 const registered: { name: string; fn: TestFn }[] = [];
 
+/** The test that is running: from its call until shortly after its end. */
+let currentTest: { error?: string } | undefined;
+let started = false;
+
 // This module is evaluated before the Lesson Tests and the student's code, so
-// an exception thrown at their top level lands here and runAll never starts.
+// an exception thrown at their top level lands here and runAll never starts:
+// a runtime error. Once runAll has started, an uncaught error or an unhandled
+// rejection belongs to the test that is running (R8): it fails that test, and
+// the other tests still run. Between and after the tests it is not seen.
 addEventListener("error", (event) => {
-  const err: unknown = event.error;
+  const err: unknown = event.error ?? event.message;
+  if (started) {
+    failCurrentTest(err);
+    return;
+  }
   sendReport({
     kind: "runtime-error",
-    message: String(err ?? event.message),
+    message: String(err),
     stack: err instanceof Error ? err.stack : undefined,
   });
 });
+addEventListener("unhandledrejection", (event) => failCurrentTest(event.reason));
 
 // The Console: every console.* call in the Sandbox (the student's code, the
 // Lesson Tests, React's warnings) goes to the parent as soon as it is made.
@@ -116,16 +128,37 @@ export function expect(actual: unknown) {
   };
 }
 
+function messageOf(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}
+
+// A test keeps the first error it got, whether from expect or asynchronous.
+function failCurrentTest(err: unknown): void {
+  if (currentTest) currentTest.error ??= messageOf(err);
+}
+
+function nextMacrotask(): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, 0));
+}
+
 export async function runAll(): Promise<void> {
+  started = true;
   const results: TestResult[] = [];
   for (const { name, fn } of registered) {
+    currentTest = {};
     try {
       await fn();
-      results.push({ name, status: "pass" });
     } catch (err) {
-      const error = err instanceof Error ? err.message : String(err);
-      results.push({ name, status: "fail", error });
+      failCurrentTest(err);
     }
+    // Two macrotasks more, so that zero-delay timers and rejections left after
+    // the test's microtasks still land on this test: Chrome reports an
+    // unhandled rejection in a task of its own, queued after the first timer.
+    await nextMacrotask();
+    await nextMacrotask();
+    const { error } = currentTest;
+    currentTest = undefined;
+    results.push(error === undefined ? { name, status: "pass" } : { name, status: "fail", error });
   }
   sendReport({ kind: "tests", results });
 }

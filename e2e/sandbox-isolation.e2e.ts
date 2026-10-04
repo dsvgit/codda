@@ -83,7 +83,8 @@ test.describe(() => {
     // report, and if that beats the abort, Playwright never emits the event.
     const request = page.waitForRequest("https://example.com/");
 
-    await runStudentCode(page, `fetch("https://example.com/");\n\n${starter}`);
+    // The rejection is caught: unhandled, it would fail the running test (R8).
+    await runStudentCode(page, `fetch("https://example.com/").catch(() => {});\n\n${starter}`);
 
     await request;
     await expect(page.getByText("FAIL · 2 / 3")).toBeVisible();
