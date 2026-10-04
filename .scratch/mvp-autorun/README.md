@@ -145,6 +145,7 @@ Slug фичи — имя папки без номера: `lesson-manifest/02` = 
 - 2026-10-04 — dependency-artifacts/01 — коммит: `codda build` собирает Dependency Artifact в `deps/<hash>/` (точки входа из импортов Lesson, `npm ci` без `node_modules`, один esbuild со splitting, CJS-обёртки, `importmap.json` с `integrity`), `"deps"` в `course.json`; Compiler грузит файлы по `importmap.json` один раз за Worker; `package.json`/`package-lock.json` у React Hooks, курс-фикстура Runner-тестов; PoC `build-deps.mjs`, `build:deps`, `public/deps/` удалены
 - 2026-10-04 — dependency-artifacts/02 — коммит: кэш артефакта в `.codda/deps/<hash>/` (временная папка + `rename`), строка «Зависимости: deps/<hash> — собраны за N с / из кэша», правило npm по `node_modules/.package-lock.json` (одинаково при `CI=true`), ошибка `npm ci` с префиксом и подсказкой, точные версии в `dependencies`, нет `package.json`/`package-lock.json` — ошибка
 - 2026-10-04 — dependency-artifacts/03 — коммит: ошибки сборки артефакта — пакет не объявлен в `dependencies` (Lesson, файл, specifier, все сразу), пакет импортирует Node built-in (имя пакета, где импорт), CJS падает при `require()`, subpath вне `exports` — с файлом Lesson; артефакта при ошибке нет
+- 2026-10-04 — dependency-artifacts/04 — коммит: ошибки Run из-за артефакта — «Импорт "<specifier>" не предусмотрен заданием» на строке импорта (и при `deps: null`), 404 на `importmap.json`/файл — «Курс обновился, перезагрузите страницу», прочий сбой и `integrity` — «Не удалось загрузить зависимости курса: …», код студента не исполняется, следующий Run грузит заново
 
 ## Журнал допущений
 
@@ -215,6 +216,9 @@ Slug фичи — имя папки без номера: `lesson-manifest/02` = 
 - dependency-artifacts/03 — строка «не объявлен»: `<lesson>/<файл>: импорт "<specifier>": пакет не объявлен в dependencies package.json Course`, без номера строки, по строке на файл — формат в спеке не задан
 - dependency-artifacts/03 — `node:fs`/`fs` в Lesson — ошибка «пакет не объявлен», а не «встроенный модуль Node» — критерий тикета
 - dependency-artifacts/03 — ошибка разрешения точки входа (subpath вне `exports`) — текст esbuild без его заметок: `build.resolve` даёт только совет «mark as external»
+- dependency-artifacts/04 — 404 под `integrity` Chrome отдаёт как `Failed to fetch`, поэтому после провала загрузки Worker спрашивает `HEAD` без `integrity`: 404 — «Курс обновился…» — правило 6, без своей проверки hash
+- dependency-artifacts/04 — причина в «Не удалось загрузить зависимости курса: …» — путь файла и сообщение браузера; сеть и `integrity` Chrome не различает — формат в спеке не задан
+- dependency-artifacts/04 — при ошибке загрузки Run даёт одну compile-error без строки, прочие ошибки esbuild отбрасываются — иначе одна причина повторяется на каждом импорте
 
 ## Отложенные проблемы
 

@@ -264,6 +264,17 @@ test("the underline goes away when the next Run starts", async () => {
   await expect.poll(() => underlined().length).toBeGreaterThan(0);
 });
 
+test("an import the task does not provide is a compile error on its line, underlined", async () => {
+  renderApp("add");
+  await editor().fill('import "lodash";\nexport function add(a: number, b: number) {\n  return a + b;\n}\n');
+
+  await runTests().click();
+
+  await expect.element(report().getByText("Ошибка компиляции")).toBeVisible();
+  await expect.element(report().getByText('Строка 1:8 — Импорт "lodash" не предусмотрен заданием')).toBeVisible();
+  await expect.poll(() => underlined().map((el) => el.textContent).join("")).toBe('"lodash";');
+});
+
 test("a compile error in the Lesson Tests is shown without a line and underlines nothing", async () => {
   renderApp("add");
   await editor().fill("export function sum(a: number, b: number) {\n  return a + b;\n}\n");

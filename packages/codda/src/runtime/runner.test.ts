@@ -666,7 +666,7 @@ test("an error in a timer that fires after the last test does not change the rep
 // Playwright page abort requests whose URL matches a pattern.
 declare module "vitest/browser" {
   interface BrowserCommands {
-    failRequests: (pattern: string) => Promise<void>;
+    failRequests: (pattern: string, response?: { status: number; body?: string }) => Promise<void>;
     restoreRequests: () => Promise<void>;
   }
 }
@@ -707,4 +707,98 @@ test("a Compiler Worker whose script fails to load gives internal-error before t
 
   const next = await run({ source: addTask.solution, tests: addTask.tests });
   expect(next.kind === "tests" && next.results.map((r) => r.status)).toEqual(["pass", "pass"]);
+});
+
+// Errors of the Dependency Artifact (dependency-artifacts/04).
+
+/** The student's code imports `specifier` on line 2 of a Workspace that would pass. */
+const importing = (specifier: string) => `export const add = (a: number, b: number) => a + b;
+import "${specifier}";
+`;
+const notInTask = (specifier: string) => ({
+  kind: "compile-error",
+  errors: [{ message: `Импорт "${specifier}" не предусмотрен заданием`, line: 2, column: 8 }],
+});
+
+test("an import of a package the artifact lacks is a compile error on the import's line", async () => {
+  const report = await run({ source: importing("lodash"), tests: addTask.tests, importMap });
+
+  expect(report).toEqual(notInTask("lodash"));
+});
+
+test("an import of a subpath of an installed package that is not an entry point is the same compile error", async () => {
+  const report = await run({ source: importing("react-dom/server"), tests: addTask.tests, importMap });
+
+  expect(report).toEqual(notInTask("react-dom/server"));
+});
+
+test("a bare import in a Course without an artifact is the same compile error", async () => {
+  const report = await run({ source: importing("react"), tests: addTask.tests });
+
+  expect(report).toEqual(notInTask("react"));
+});
+
+/**
+ * Runs the React task on a cold Compiler (the artifact is not loaded yet)
+ * while requests matching `pattern` get `response` (or are aborted).
+ */
+async function runWithBrokenArtifact(
+  pattern: string,
+  response?: { status: number; body?: string },
+  source = reactTask.solution,
+) {
+  await coldCompiler();
+  await commands.failRequests(pattern, response);
+  try {
+    return await run({ source, tests: reactTask.tests, importMap });
+  } finally {
+    await commands.restoreRequests();
+  }
+}
+
+const courseUpdated = { kind: "compile-error", errors: [{ message: "Курс обновился, перезагрузите страницу" }] };
+
+test("404 on importmap.json is «Курс обновился, перезагрузите страницу» without a line", async () => {
+  expect(await runWithBrokenArtifact("importmap\\.json", { status: 404 })).toEqual(courseUpdated);
+});
+
+test("404 on a chunk of the artifact is the same compile error", async () => {
+  expect(await runWithBrokenArtifact("/chunk-[^/]*\\.js", { status: 404 })).toEqual(courseUpdated);
+});
+
+test("a tampered file of the artifact fails its integrity: a load error, and the student's code never runs", async () => {
+  const { lines, onConsole } = collectConsole();
+  await coldCompiler();
+  await commands.failRequests("/react-[A-Z0-9]+\\.js", { status: 200, body: "export const tampered = 1;" });
+  let report;
+  try {
+    report = await run(
+      { source: `console.log("student code ran");\n${reactTask.solution}`, tests: reactTask.tests, importMap },
+      { onConsole },
+    );
+  } finally {
+    await commands.restoreRequests();
+  }
+
+  expect(report).toEqual({
+    kind: "compile-error",
+    errors: [{ message: expect.stringMatching(/^Не удалось загрузить зависимости курса: .+/) }],
+  });
+  await new Promise((resolve) => setTimeout(resolve, 300));
+  expect(lines).toEqual([]);
+  expect(document.querySelector("iframe")).toBeNull();
+});
+
+test("after a load error the next Run loads the artifact anew, without a page reload, and passes", async () => {
+  const failed = await runWithBrokenArtifact("/chunk-[^/]*\\.js");
+  expect(failed).toEqual({
+    kind: "compile-error",
+    errors: [{ message: expect.stringMatching(/^Не удалось загрузить зависимости курса: .+/) }],
+  });
+
+  const next = await run({ source: reactTask.solution, tests: reactTask.tests, importMap });
+  expect(next).toEqual({
+    kind: "tests",
+    results: [{ name: "is off at first, on after a click", status: "pass" }],
+  });
 });

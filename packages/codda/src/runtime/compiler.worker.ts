@@ -52,9 +52,28 @@ function loadArtifact(importMap: string): Promise<Artifact> {
   return loaded;
 }
 
+/** A file of the artifact is gone: a new deployment replaced deps/<hash>/. */
+const COURSE_UPDATED = "Курс обновился, перезагрузите страницу";
+
+/** Fetches `url`; fails with the text the student sees in the Test Report. */
 async function fetchOk(url: string, integrity?: string): Promise<Response> {
-  const response = await fetch(url, { integrity });
-  if (!response.ok) throw new Error(`Failed to load ${new URL(url).pathname}: HTTP ${response.status}`);
+  const path = new URL(url).pathname;
+  let response: Response;
+  try {
+    response = await fetch(url, { integrity });
+  } catch (err) {
+    // The network failed or the file does not match its integrity. Chrome
+    // rejects a 404 with `integrity` the same way (its body does not match),
+    // so a second request without it tells a gone file apart.
+    const gone = await fetch(url, { method: "HEAD", cache: "no-store" }).then(
+      (r) => r.status === 404,
+      () => false,
+    );
+    if (gone) throw new Error(COURSE_UPDATED);
+    throw new Error(`Не удалось загрузить зависимости курса: ${path}: ${(err as Error).message}`);
+  }
+  if (response.status === 404) throw new Error(COURSE_UPDATED);
+  if (!response.ok) throw new Error(`Не удалось загрузить зависимости курса: ${path}: HTTP ${response.status}`);
   return response;
 }
 
@@ -70,6 +89,19 @@ async function compile({ source, tests, importMap }: CompileInput): Promise<Comp
     "codda:entry": ENTRY,
     "@codda/test": harnessSource,
     "./tests": tests,
+  };
+
+  // A failed load of the artifact: the only error of the Run, without a line.
+  let loadError: string | undefined;
+  /** The artifact's address of `specifier`; none if the task does not provide it. */
+  const resolveDependency = async (specifier: string) => {
+    if (!importMap) return undefined;
+    try {
+      return (await loadArtifact(importMap)).imports[specifier];
+    } catch (err) {
+      loadError = (err as Error).message;
+      return undefined;
+    }
   };
 
   await ready;
@@ -93,9 +125,9 @@ async function compile({ source, tests, importMap }: CompileInput): Promise<Comp
               if (args.namespace === "dependency") {
                 return { path: new URL(args.path, args.importer).href, namespace: "dependency" };
               }
-              const url = importMap && (await loadArtifact(importMap)).imports[args.path];
+              const url = await resolveDependency(args.path);
               if (url) return { path: url, namespace: "dependency" };
-              return { errors: [{ text: `Cannot resolve "${args.path}"` }] };
+              return { errors: [{ text: loadError ?? `Импорт "${args.path}" не предусмотрен заданием` }] };
             });
             build.onLoad({ filter: /.*/, namespace: "file" }, () => {
               return { contents: source, loader: "tsx" };
@@ -112,6 +144,8 @@ async function compile({ source, tests, importMap }: CompileInput): Promise<Comp
     });
     return { ok: true, code: result.outputFiles[0].text };
   } catch (err) {
+    // The student's code is not run either way.
+    if (loadError) return { ok: false, errors: [{ message: loadError }] };
     const { errors } = err as esbuild.BuildFailure;
     return {
       ok: false,
