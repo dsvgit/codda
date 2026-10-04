@@ -4,6 +4,9 @@ import { playwright } from "@vitest/browser-playwright";
 
 export default defineConfig({
   plugins: [react()],
+  // Relative URLs: the build works from any subpath, e.g. the pilot on GitHub
+  // Pages at /codda/ (.scratch/misc/issues/02-pages-deploy.md).
+  base: "./",
   optimizeDeps: {
     include: ["esbuild-wasm", "react", "react-dom/client", "codemirror", "@codemirror/lang-javascript"],
   },

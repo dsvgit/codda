@@ -1,6 +1,11 @@
 import { defineConfig, devices } from "@playwright/test";
 
-const port = 5179;
+const devPort = 5179;
+const pagesPort = 5180;
+// The pilot is served from a subpath (https://dsvgit.github.io/codda/), so the
+// built dist/ is tested from one too. Tests navigate relative to baseURL
+// (`page.goto("./")`), never to "/".
+const pagesBase = "/codda/";
 
 export default defineConfig({
   testDir: "e2e",
@@ -14,13 +19,24 @@ export default defineConfig({
   expect: { timeout: 10_000 },
   use: {
     ...devices["Desktop Chrome"],
-    baseURL: `http://localhost:${port}`,
     // Full Chromium, not chrome-headless-shell: see vite.config.ts.
     channel: "chromium",
   },
-  webServer: {
-    command: `npx vite --port ${port} --strictPort`,
-    url: `http://localhost:${port}`,
-    reuseExistingServer: false,
-  },
+  projects: [
+    { name: "dev", use: { baseURL: `http://localhost:${devPort}/` } },
+    // The build GitHub Pages deploys: `npm run test:e2e` builds dist/ first.
+    { name: "pages", use: { baseURL: `http://localhost:${pagesPort}${pagesBase}` } },
+  ],
+  webServer: [
+    {
+      command: `npx vite --port ${devPort} --strictPort`,
+      url: `http://localhost:${devPort}`,
+      reuseExistingServer: false,
+    },
+    {
+      command: `npx vite preview --base ${pagesBase} --port ${pagesPort} --strictPort`,
+      url: `http://localhost:${pagesPort}${pagesBase}`,
+      reuseExistingServer: false,
+    },
+  ],
 });
