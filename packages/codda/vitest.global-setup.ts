@@ -1,6 +1,7 @@
 // Global setup of the browser tests: builds the Dependency Artifact of
-// fixtures/react-course with the code of `codda build` (npm ci from the default
-// registry when its node_modules are missing). The test server serves the
+// fixtures/react-course with the code of `codda build`: from its .codda/ cache
+// when the hash matches, otherwise with npm ci from the default registry when
+// its node_modules are missing or stale. The test server serves the
 // build root at FIXTURE_BUILD_PATH (vite.config.ts); the tests get the path of
 // its importmap.json with inject("importMap").
 import { rmSync } from "node:fs";

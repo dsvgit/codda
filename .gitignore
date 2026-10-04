@@ -7,3 +7,4 @@ dist-tool/
 test-results/
 playwright-report/
 .claude/worktrees/
+.codda/

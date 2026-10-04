@@ -143,6 +143,7 @@ Slug фичи — имя папки без номера: `lesson-manifest/02` = 
 - 2026-10-04 — runtime-hardening — /code-review (Standards: 0 жёстких; Spec: 7). Исправлено: колонка ошибки в байтах (кириллица), падение экрана при правке во время Run, ложный чекбокс 01, тест «Run from «Решение»» возвращён (переставлен до тестов с бесконечным циклом). Остальное — в «Отложенные проблемы»
 - 2026-10-04 — runtime-hardening — push, `check` зелёный (прогон 37210868217); фича закрыта
 - 2026-10-04 — dependency-artifacts/01 — коммит: `codda build` собирает Dependency Artifact в `deps/<hash>/` (точки входа из импортов Lesson, `npm ci` без `node_modules`, один esbuild со splitting, CJS-обёртки, `importmap.json` с `integrity`), `"deps"` в `course.json`; Compiler грузит файлы по `importmap.json` один раз за Worker; `package.json`/`package-lock.json` у React Hooks, курс-фикстура Runner-тестов; PoC `build-deps.mjs`, `build:deps`, `public/deps/` удалены
+- 2026-10-04 — dependency-artifacts/02 — коммит: кэш артефакта в `.codda/deps/<hash>/` (временная папка + `rename`), строка «Зависимости: deps/<hash> — собраны за N с / из кэша», правило npm по `node_modules/.package-lock.json` (одинаково при `CI=true`), ошибка `npm ci` с префиксом и подсказкой, точные версии в `dependencies`, нет `package.json`/`package-lock.json` — ошибка
 
 ## Журнал допущений
 
@@ -205,6 +206,11 @@ Slug фичи — имя папки без номера: `lesson-manifest/02` = 
 - dependency-artifacts/01 — курс-фикстура Runner-тестов — `packages/codda/fixtures/react-course/`, global setup `vitest.global-setup.ts` + `provide("importMap")`, сервер тестов раздаёт `/fixture-build/`; `fixtures/` вне скана `boundary.test.ts` — Vite трансформирует `.js` из корня и `publicDir` кэширует список файлов на старте
 - dependency-artifacts/01 — «CJS без `__esModule`» в Runner проверен на `react`, а не на поддельном пакете — поддельный пакет в браузерной фикстуре был бы `file:`-зависимостью, не точной версией
 - dependency-artifacts/01 — Lesson `alpha` фикстуры `build.test.ts` без JSX — иначе ему нужен объявленный `react`
+- dependency-artifacts/02 — «совпадает по версиям» — множество «путь@версия» из `packages` `node_modules/.package-lock.json` и `package-lock.json` (без корня `""`) — в спеке не уточнено
+- dependency-artifacts/02 — проверки `package.json`/`package-lock.json` только у Course с импортами пакетов — Course без пакетов строится без них (user story 17)
+- dependency-artifacts/02 — тест ошибки `npm ci` идёт с `npm_config_offline=true` — npm 11 сверяет `package.json` с lockfile через registry, а не до него, как предполагала спека
+- dependency-artifacts/02 — вызов npm в тестах ловит поддельный `npm` первым в `PATH` — без тестовых крючков в сборщике
+- dependency-artifacts/02 — подсказка у диапазона версий: «запустите `npm install <пакет>@<версия> --save-exact`» — текст в спеке не задан
 
 ## Отложенные проблемы
 
@@ -215,3 +221,4 @@ Slug фичи — имя папки без номера: `lesson-manifest/02` = 
 - runtime-hardening (review) — окно теста R8 — два macrotask, в спеке один; текст timeout разбит на заголовок и «Возможные причины» — поправить букву спеки
 - runtime-hardening (review) — два Run компилируются в одном Worker, Worker падает: первый получает `internal-error`, второй — ложный timeout. Обход: при падении отклонять все ожидающие `compile` (`compiler.ts`)
 - runtime-hardening (review) — косметика: лимиты Console продублированы в `harness.ts` и `runner.ts` («1000» зашито в текст), имя `started` в `harness.ts`
+- dependency-artifacts/02 — optional-пакеты, которые npm не ставит на этой платформе, есть в `package-lock.json`, но не в `node_modules/.package-lock.json`: такой Course запускает `npm ci` при каждом промахе кэша. Пилот (React) не задет. Обход: не считать отсутствующие записи с `optional: true` расхождением
