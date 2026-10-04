@@ -129,6 +129,7 @@ Slug фичи — имя папки без номера: `lesson-manifest/02` = 
 - 2026-10-04 — lesson-manifest/01b — коммит: UI грузит `course.json` и выбирает Lesson по `#/<id>`, Compiler отдаёт `./main`, middleware `course.json` в `npm run dev`, e2e и выкладка на Course Build `codda build courses/react-hooks`, PoC-формат удалён
 - 2026-10-04 — lesson-manifest/01b — агент прерывался на лимите сессии, дошёл до коммита после сброса; оркестратор перепроверил: typecheck, 38 unit, 11 e2e зелёные. Пауза на границе тикета до «продолжай mvp-autorun»
 - 2026-10-04 — lesson-manifest/02 — коммит: все ошибки Course за один запуск (схема, кросс-файловые правила, файлы Lesson), сообщения Zod и YAML по-русски, номер строки YAML через `LineCounter`
+- 2026-10-04 — lesson-manifest/03 — коммит: экран Lesson — тулбар, вкладки «Тесты» и «Решение», Test Report на русском с баннером PASS и счётчиком, Reset одной транзакцией с отменой `Mod-z`; e2e на русских надписях
 
 ## Журнал допущений
 
@@ -152,3 +153,7 @@ Slug фичи — имя папки без номера: `lesson-manifest/02` = 
 - lesson-manifest/02 — при ошибке схемы `course.yaml` Lesson всё равно проверяются по сырому списку `modules[].lessons` — иначе «все ошибки за один запуск» не выполняется; при синтаксической ошибке `course.yaml` Lesson не проверяются
 - lesson-manifest/02 — свои русские тексты для частых issue Zod («обязательное поле», «ожидается строка», «не может быть пустым», «неизвестное поле») и для кодов ошибок `yaml` — локаль `ru` пишет типы по-английски, `yaml` — целиком по-английски
 - lesson-manifest/02 — ошибки файлов Lesson пишутся как `<id>/: нет main.ts или main.tsx`, неуказанная папка — `<id>/lesson.md: урок <id> не указан в course.yaml`; при пустом списке Lesson эта проверка не идёт — формат строки для не-полей в тикете не задан
+- lesson-manifest/03 — undo Reset — `Mod-z` CodeMirror (`Cmd+Z` на macOS, `Ctrl+Z` на остальных), тест жмёт модификатор своей платформы — `Ctrl+Z` на macOS не отменяет нигде в системе; «`Ctrl/Cmd+Z`» спеки читается так
+- lesson-manifest/03 — транзакция Reset помечена `userEvent: "reset"` — иначе история CodeMirror склеивает её с набором последних 500 мс и undo откатывает лишнее; без новой зависимости `@codemirror/commands`
+- lesson-manifest/03 — пока идёт Run, на «Тесты» виден прошлый Test Report — критериями не задано, лишнего состояния не нужно
+- lesson-manifest/03 — редакторы подписаны `aria-label` (имя файла Workspace, «Решение») — при открытой вкладке «Решение» на странице два `textbox`

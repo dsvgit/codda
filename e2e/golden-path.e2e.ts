@@ -9,14 +9,15 @@ test("student opens the Course, runs the starter, fixes it and sees every test p
 
   await page.goto("./");
   await expect(page.getByRole("heading", { name: "React Hooks · useState" })).toBeVisible();
-  const runTests = page.getByRole("button", { name: "Run tests" });
+  const runTests = page.getByRole("button", { name: "▶ Запустить тесты" });
 
   await runTests.click();
-  await expect(page.getByText("2 / 3 passed")).toBeVisible();
+  await expect(page.getByText("FAIL · 2 / 3")).toBeVisible();
   await expect(page.getByText("✗ opens on click", { exact: false })).toBeVisible();
 
-  await page.getByRole("textbox").fill(useState.solution);
+  await page.getByRole("textbox", { name: "main.tsx" }).fill(useState.solution);
   await runTests.click();
 
-  await expect(page.getByText("3 / 3 passed")).toBeVisible();
+  await expect(page.getByText("PASS · 3 / 3")).toBeVisible();
+  await expect(page.getByText("Все тесты пройдены")).toBeVisible();
 });

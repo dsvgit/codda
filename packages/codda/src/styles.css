@@ -1,33 +1,153 @@
+/* The Lesson screen: prototype of ticket 04, variant A, without the Course tree. */
+* {
+  box-sizing: border-box;
+}
 body {
   margin: 0;
   font-family: system-ui, sans-serif;
+  font-size: 14px;
   background: #fff;
   color: #1a1a1a;
 }
 .lesson {
-  max-width: 1100px;
-  margin: 0 auto;
-  padding: 16px;
-}
-.panes {
   display: grid;
-  grid-template-columns: 1fr 2fr;
-  gap: 16px;
+  grid-template-columns: minmax(260px, 1fr) 2fr;
+  grid-template-rows: auto 1fr;
+  height: 100vh;
+}
+.lesson > h1 {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: 8px 16px;
+  font-size: 16px;
+  border-bottom: 1px solid #e3e3e3;
+}
+.instructions {
+  padding: 16px 20px;
+  overflow: auto;
+  border-right: 1px solid #e3e3e3;
+  min-height: 0;
+}
+.instructions h2 {
+  font-size: 18px;
+  margin-top: 0;
+}
+/* Instructions are plain text until lesson-manifest/04 renders Markdown. */
+.instructions p {
+  white-space: pre-wrap;
+  line-height: 1.55;
+}
+.work {
+  display: grid;
+  grid-template-rows: auto 1fr 38%;
+  min-width: 0;
+  min-height: 0;
+}
+.toolbar {
+  display: flex;
+  gap: 6px;
+  padding: 8px;
+  border-bottom: 1px solid #e3e3e3;
+  background: #fafafa;
+}
+.btn {
+  font: inherit;
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  background: #fff;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.btn:hover:not(:disabled) {
+  background: #f3f3f3;
+}
+.btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.btn.primary {
+  background: #1f6feb;
+  border-color: #1f6feb;
+  color: #fff;
+}
+.btn.primary:hover:not(:disabled) {
+  background: #1a5fd0;
+}
+.workspace {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  min-height: 0;
+  min-width: 0;
+}
+.file {
+  margin: 0;
+  font-size: 12px;
+  font-weight: normal;
+  padding: 4px 10px;
+  background: #f0f0f0;
+  color: #555;
+  font-family: ui-monospace, monospace;
 }
 .editor {
-  border: 1px solid #ccc;
-  min-height: 200px;
+  overflow: auto;
+  min-height: 0;
 }
-.run {
-  display: block;
-  margin: 16px auto;
-  padding: 8px 24px;
-  font-size: 16px;
+.editor .cm-editor {
+  height: 100%;
+}
+.panel {
+  border-top: 1px solid #ccc;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  min-height: 0;
+}
+.tabs {
+  display: flex;
+  background: #f6f7f9;
+  border-bottom: 1px solid #e3e3e3;
+}
+.tabs button {
+  border: none;
+  background: none;
+  padding: 7px 14px;
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  border-bottom: 2px solid transparent;
+}
+.tabs button[aria-selected="true"] {
+  border-bottom-color: #1f6feb;
+  font-weight: 600;
+}
+.badge {
+  margin-left: 6px;
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 9px;
+  color: #fff;
+}
+.badge.ok {
+  background: #1a7f37;
+}
+.badge.bad {
+  background: #cf222e;
+}
+.tab-body {
+  padding: 10px 14px;
+  overflow: auto;
+  min-height: 0;
 }
 .report ul {
   list-style: none;
+  margin: 0;
   padding: 0;
   font-family: ui-monospace, monospace;
+  font-size: 13px;
+}
+.report li {
+  padding: 3px 0;
+  white-space: pre-wrap;
 }
 .report .pass {
   color: #1a7f37;
@@ -35,24 +155,40 @@ body {
 .report .fail {
   color: #cf222e;
 }
-.summary {
-  text-align: right;
+.banner {
+  margin: 0 0 10px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 15px;
   font-weight: 600;
+  background: #dafbe1;
+  color: #116329;
 }
-.report.broken {
-  border-left: 4px solid #cf222e;
-  padding-left: 12px;
+.summary {
+  font-weight: 600;
+  margin: 8px 0 0;
+}
+.summary.ok {
+  color: #1a7f37;
+}
+.summary.bad {
+  color: #cf222e;
 }
 .report.broken h2 {
   color: #cf222e;
+  margin: 0 0 6px;
+  font-size: 15px;
 }
 .report pre {
   white-space: pre-wrap;
   font-family: ui-monospace, monospace;
+  font-size: 12px;
+  background: #fff5f5;
+  padding: 8px;
+  margin: 0;
 }
-/* Instructions are plain text until lesson-manifest/04 renders Markdown. */
-.instructions p {
-  white-space: pre-wrap;
+.muted {
+  color: #777;
 }
 .status {
   padding: 16px;

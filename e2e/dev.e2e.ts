@@ -8,8 +8,8 @@ test("npm run dev opens the first Lesson, and its Solution passes", async ({ pag
   await page.goto("./");
   await expect(page.getByRole("heading", { name: "React Hooks · useState" })).toBeVisible();
 
-  await page.getByRole("textbox").fill(course.modules[0].lessons[0].solution);
-  await page.getByRole("button", { name: "Run tests" }).click();
+  await page.getByRole("textbox", { name: "main.tsx" }).fill(course.modules[0].lessons[0].solution);
+  await page.getByRole("button", { name: "▶ Запустить тесты" }).click();
 
-  await expect(page.getByText("3 / 3 passed")).toBeVisible();
+  await expect(page.getByText("PASS · 3 / 3")).toBeVisible();
 });

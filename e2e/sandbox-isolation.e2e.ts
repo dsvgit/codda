@@ -8,8 +8,8 @@ import type { CourseData } from "../packages/codda/src/course-data";
 let starter: string;
 
 async function runStudentCode(page: Page, source: string) {
-  await page.getByRole("textbox").fill(source);
-  await page.getByRole("button", { name: "Run tests" }).click();
+  await page.getByRole("textbox", { name: "main.tsx" }).fill(source);
+  await page.getByRole("button", { name: "▶ Запустить тесты" }).click();
 }
 
 test.beforeEach(async ({ page }) => {
@@ -45,7 +45,7 @@ throw new Error(
   );
 
   const report = page.getByRole("region", { name: "Test Report" });
-  await expect(report).toContainText("Runtime error");
+  await expect(report).toContainText("Ошибка выполнения");
   await expect(report).toContainText("parent.document threw SecurityError");
   await expect(report).toContainText("document.cookie threw SecurityError");
   await expect(report).toContainText("localStorage threw SecurityError");
@@ -70,7 +70,7 @@ ${starter}`,
   );
 
   const report = page.getByRole("region", { name: "Test Report" });
-  await expect(report).toContainText("2 / 3 passed");
+  await expect(report).toContainText("FAIL · 2 / 3");
   await expect(report).not.toContainText("forged");
 });
 
@@ -86,6 +86,6 @@ test.describe(() => {
     await runStudentCode(page, `fetch("https://example.com/");\n\n${starter}`);
 
     await request;
-    await expect(page.getByText("2 / 3 passed")).toBeVisible();
+    await expect(page.getByText("FAIL · 2 / 3")).toBeVisible();
   });
 });

@@ -1,5 +1,5 @@
-import { useEffect, useState, type ReactNode } from "react";
-import { Editor } from "./Editor";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Editor, type EditorHandle } from "./Editor";
 import type { CourseData, LessonData } from "./course-data";
 import { run, type TestReport } from "./runtime/runner";
 import type { TestResult } from "./runtime/types";
@@ -31,12 +31,15 @@ function Lesson({ course, lesson }: { course: CourseData; lesson: LessonData }) 
   const [source, setSource] = useState(lesson.workspace.starter);
   const [report, setReport] = useState<TestReport>();
   const [running, setRunning] = useState(false);
+  const [tab, setTab] = useState<"tests" | "solution">("tests");
+  const workspace = useRef<EditorHandle>(null);
 
   useEffect(() => {
     document.title = `${lesson.title} — ${course.title}`;
   }, [lesson.title, course.title]);
 
   const onRun = async () => {
+    setTab("tests");
     setRunning(true);
     try {
       setReport(await run({ source, tests: lesson.tests }));
@@ -50,21 +53,67 @@ function Lesson({ course, lesson }: { course: CourseData; lesson: LessonData }) 
       <h1>
         {course.title} · {lesson.title}
       </h1>
-      <div className="panes">
-        <section className="instructions">
-          <h2>Instructions</h2>
-          <p>{lesson.instructions}</p>
-        </section>
-        <section>
-          <h2>{lesson.workspace.name}</h2>
-          <Editor initialValue={lesson.workspace.starter} onChange={setSource} />
-        </section>
-      </div>
-      <button className="run" onClick={onRun} disabled={running}>
-        {running ? "Running…" : "Run tests"}
-      </button>
-      {report && <Report report={report} />}
+      <section className="instructions">
+        <h2>Instructions</h2>
+        <p>{lesson.instructions}</p>
+      </section>
+      <section className="work">
+        <div className="toolbar">
+          <button className="btn primary" onClick={onRun} disabled={running}>
+            {running ? "Выполняется…" : "▶ Запустить тесты"}
+          </button>
+          <button className="btn" onClick={() => workspace.current!.replaceAll(lesson.workspace.starter)}>
+            ↺ Сбросить
+          </button>
+          <button className="btn" onClick={() => setTab("solution")}>
+            Показать решение
+          </button>
+        </div>
+        <div className="workspace">
+          <h2 className="file">{lesson.workspace.name}</h2>
+          <Editor
+            ref={workspace}
+            label={lesson.workspace.name}
+            initialValue={lesson.workspace.starter}
+            onChange={setSource}
+          />
+        </div>
+        <div className="panel">
+          <div className="tabs" role="tablist">
+            <button role="tab" aria-selected={tab === "tests"} onClick={() => setTab("tests")}>
+              Тесты
+              {report && <Counter report={report} />}
+            </button>
+            <button role="tab" aria-selected={tab === "solution"} onClick={() => setTab("solution")}>
+              Решение
+            </button>
+          </div>
+          <div className="tab-body" role="tabpanel">
+            {tab === "solution" ? (
+              <Editor label="Решение" initialValue={lesson.solution} readOnly />
+            ) : report ? (
+              <Report report={report} />
+            ) : (
+              <p className="muted">Нажмите „Запустить тесты“</p>
+            )}
+          </div>
+        </div>
+      </section>
     </main>
+  );
+}
+
+const passedOf = (results: TestResult[]) => results.filter((r) => r.status === "pass").length;
+
+/** The result of the last Run on the «Тесты» tab, seen from any tab. */
+function Counter({ report }: { report: TestReport }) {
+  if (report.kind !== "tests") return <span className="badge bad">✗</span>;
+  const passed = passedOf(report.results);
+  const ok = passed === report.results.length;
+  return (
+    <span className={`badge ${ok ? "ok" : "bad"}`}>
+      {passed}/{report.results.length}
+    </span>
   );
 }
 
@@ -74,11 +123,11 @@ function Report({ report }: { report: TestReport }) {
       return <TestResults results={report.results} />;
     case "compile-error":
       return (
-        <BrokenRun title="Compile error">
+        <BrokenRun title="Ошибка компиляции">
           <ul>
             {report.errors.map((e, i) => (
               <li key={i}>
-                {e.line !== undefined && `Line ${e.line}, column ${e.column}: `}
+                {e.line !== undefined && `Строка ${e.line}:${e.column} — `}
                 {e.message}
               </li>
             ))}
@@ -87,18 +136,14 @@ function Report({ report }: { report: TestReport }) {
       );
     case "runtime-error":
       return (
-        <BrokenRun title="Runtime error">
-          <p>An uncaught exception stopped the Run before the tests could finish.</p>
+        <BrokenRun title="Ошибка выполнения">
           <pre>{report.stack ?? report.message}</pre>
         </BrokenRun>
       );
     case "timeout":
       return (
-        <BrokenRun title="Timed out">
-          <p>
-            The Run did not finish in {report.ms / 1000} s and was stopped. Look for an
-            infinite loop.
-          </p>
+        <BrokenRun title={`Превышено время: ${report.ms / 1000} с`}>
+          <p>Выполнение остановлено. Проверьте, нет ли в коде бесконечного цикла.</p>
         </BrokenRun>
       );
   }
@@ -115,19 +160,21 @@ function BrokenRun({ title, children }: { title: string; children: ReactNode }) 
 }
 
 function TestResults({ results }: { results: TestResult[] }) {
-  const passed = results.filter((r) => r.status === "pass").length;
+  const passed = passedOf(results);
+  const ok = passed === results.length;
   return (
     <section className="report" aria-label="Test Report">
+      {ok && <p className="banner">Все тесты пройдены</p>}
       <ul>
         {results.map((r, i) => (
           <li key={i} className={r.status}>
             {r.status === "pass" ? "✓" : "✗"} {r.name}
-            {r.error && <span className="error"> — {r.error}</span>}
+            {r.error && ` — ${r.error}`}
           </li>
         ))}
       </ul>
-      <p className="summary">
-        {passed} / {results.length} passed
+      <p className={`summary ${ok ? "ok" : "bad"}`}>
+        {ok ? "PASS" : "FAIL"} · {passed} / {results.length}
       </p>
     </section>
   );

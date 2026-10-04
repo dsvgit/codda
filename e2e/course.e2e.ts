@@ -23,10 +23,10 @@ test("Solution of every Lesson in course.json passes all its tests, offline", as
       await expect(page.getByRole("heading", { name: `React Hooks · ${lesson.title}` })).toBeVisible();
       await expect(page.getByRole("region", { name: "Test Report" })).toHaveCount(0);
 
-      await page.getByRole("textbox").fill(lesson.solution);
-      await page.getByRole("button", { name: "Run tests" }).click();
+      await page.getByRole("textbox", { name: "main.tsx" }).fill(lesson.solution);
+      await page.getByRole("button", { name: "▶ Запустить тесты" }).click();
 
-      await expect(page.getByText(/^(\d+) \/ \1 passed$/)).toBeVisible();
+      await expect(page.getByText(/^PASS · (\d+) \/ \1$/)).toBeVisible();
     });
   }
 });
@@ -38,6 +38,29 @@ test("#/use-effect opens that Lesson, with its titles and Workspace", async ({ p
   await expect(page).toHaveTitle("useEffect — React Hooks");
   await expect(page.getByRole("heading", { name: "main.tsx" })).toBeVisible();
   await expect(page.getByText("Компонент `ClickTitle` уже считает клики.", { exact: false })).toBeVisible();
+});
+
+test("another fragment resets the editor, the Test Report and the tab to «Тесты»", async ({ page }) => {
+  const course: CourseData = await (await page.request.get("course.json")).json();
+  const useEffect = course.modules.flatMap((m) => m.lessons).find((l) => l.id === "use-effect")!;
+  await page.goto("./#/use-state");
+  await page.getByRole("textbox", { name: "main.tsx" }).fill("export const edited = 1;\n");
+  await page.getByRole("button", { name: "▶ Запустить тесты" }).click();
+  await expect(page.getByRole("region", { name: "Test Report" })).toBeVisible();
+  await page.getByRole("button", { name: "Показать решение" }).click();
+  await expect(page.getByRole("tab", { name: "Решение" })).toHaveAttribute("aria-selected", "true");
+
+  await page.goto("./#/use-effect");
+
+  await expect(page.getByRole("heading", { name: "React Hooks · useEffect" })).toBeVisible();
+  // CodeMirror draws a line per element: textContent has no line breaks.
+  await expect(page.getByRole("textbox", { name: "main.tsx" })).toHaveText(
+    useEffect.workspace.starter.replaceAll("\n", ""),
+  );
+  await expect(page.getByRole("tab", { name: "Тесты" })).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByRole("tab", { name: "Тесты" })).toHaveText("Тесты");
+  await expect(page.getByRole("region", { name: "Test Report" })).toHaveCount(0);
+  await expect(page.getByText("Нажмите „Запустить тесты“")).toBeVisible();
 });
 
 test("an unknown Lesson id shows a message with a link to the first Lesson", async ({ page }) => {
@@ -70,7 +93,7 @@ test("404 on course.json shows that the Course did not load", async ({ page }) =
   await page.goto("./");
 
   await expect(page.getByText("Не удалось загрузить курс")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Run tests" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "▶ Запустить тесты" })).toHaveCount(0);
 });
 
 test("after a network failure, «Обновить» loads the Course again", async ({ page }) => {

@@ -1,6 +1,6 @@
 # codda
 
-Платформа интерактивных курсов по программированию. Студент читает задание, правит код в браузере, жмёт **Run tests** и получает PASS/FAIL. Код студента компилируется и исполняется **прямо в браузере**, на собственном Runtime, без обращения к внешним сервисам.
+Платформа интерактивных курсов по программированию. Студент читает задание, правит код в браузере, жмёт **▶ Запустить тесты** и получает PASS/FAIL. Код студента компилируется и исполняется **прямо в браузере**, на собственном Runtime, без обращения к внешним сервисам.
 
 Сейчас это **Golden Path PoC** (завершён, решение GO — [PoC Report](docs/poc-report.md)): одна страница, один захардкоженный Lesson, один редактируемый файл. Цель — проверить техническую гипотезу, а не сделать продукт. Подробности — в [спеке PoC](.scratch/golden-path-poc/spec.md).
 
@@ -20,9 +20,9 @@ npm run dev
 
 `npm run dev` открывает курс React Hooks из `courses/react-hooks/`: `course.json` на каждый запрос собирает из файлов курса middleware Vite (`packages/codda/vite.config.ts`, курс задаёт переменная `CODDA_COURSE` в корневом скрипте). Правка UI видна сразу, правка курса — после перезагрузки страницы. Откройте адрес, который напечатает Vite (обычно http://localhost:5173), и пройдите сценарий:
 
-1. Нажмите **Run tests** — увидите `2 / 3 passed` и `✗ opens on click — …`.
+1. Нажмите **▶ Запустить тесты** — увидите `FAIL · 2 / 3` и `✗ opens on click — …`.
 2. В редакторе допишите `Spoiler` (готовое решение — `courses/react-hooks/use-state/solution.tsx`).
-3. Снова **Run tests** — `3 / 3 passed`.
+3. Снова **▶ Запустить тесты** — `PASS · 3 / 3` и баннер «Все тесты пройдены». **↺ Сбросить** возвращает Starter (`Ctrl/Cmd+Z` отменяет), **Показать решение** открывает Solution во вкладке «Решение».
 
 Другой Lesson открывается фрагментом `#/<id Lesson>`, например `/#/use-effect`; без фрагмента — первый Lesson курса.
 
@@ -58,7 +58,7 @@ CLI `codda` запускается без сборки (TypeScript в Node 24): 
 Тесты запускаются в настоящем браузере, а не в jsdom: Runtime нужны Web Worker, WebAssembly и iframe.
 
 - `packages/codda/src/runtime/runner.test.ts` — главный шов, `run({ source, tests }) → TestReport`: исходник студента и Lesson Tests на входе, Test Report на выходе.
-- `packages/codda/src/App.test.tsx` — экран Lesson на Course-литерале: Run → FAIL → исправление → PASS, заголовки, неизвестный id, смена Lesson.
+- `packages/codda/src/App.test.tsx` — экран Lesson на Course-литерале: Test Report (FAIL, PASS, ошибка компиляции, runtime-ошибка, timeout), вкладки «Тесты» и «Решение», Reset и его отмена, раскладка на 1280×800, заголовки, неизвестный id, смена Lesson.
 - `packages/codda/cli/codda.test.ts` — CLI как его вызывает автор: `npx codda …` из корня и из `courses/`, коды выхода.
 - `packages/codda/cli/build.test.ts` — `codda build` процессом на временном Course, который пишет сам тест: содержимое сборки, ошибки Course, коды выхода.
 - `packages/codda/cli/dev-server.test.ts` — настоящий dev-сервер Vite отдаёт `course.json` временного Course, ошибки Course — ответ 500.
@@ -75,14 +75,14 @@ CodeMirror ──source──▶ Runner ──▶ Compiler (Web Worker, esbuild-
                      Sandbox: новый <iframe sandbox="allow-scripts"> на каждый Run
                          │ Test Harness выполняет тесты
                          ▼
-                   postMessage { type: "codda:report", runId, report } ──▶ UI: ✓/✗ и «N / M passed»
+                   postMessage { type: "codda:report", runId, report } ──▶ UI: ✓/✗ и «PASS/FAIL · N / M»
 ```
 
 | Файл (в `packages/codda/`) | Роль |
 |---|---|
 | `src/main.tsx` | Загрузка `course.json` и выбор Lesson по `#/<id>` |
 | `src/course-data.ts` | Тип `course.json` — граница курса и инструмента (ADR-0006, ADR-0008) |
-| `src/App.tsx`, `src/Editor.tsx` | Экран Lesson: Instructions, CodeMirror, кнопка Run, Test Report |
+| `src/App.tsx`, `src/Editor.tsx` | Экран Lesson: Instructions, тулбар, CodeMirror, вкладки «Тесты» и «Решение», Test Report |
 | `src/runtime/runner.ts` | Runner: компиляция → новый Sandbox → ожидание отчёта; проверяет `event.source`, `type`, `runId` и форму отчёта |
 | `src/runtime/compiler.ts` | Клиент Compiler в основном потоке: держит Worker «тёплым» между Run |
 | `src/runtime/compiler.worker.ts` | Compiler: esbuild-wasm с виртуальным резолвером, всё собирается из памяти; JSX — automatic runtime |
