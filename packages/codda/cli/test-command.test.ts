@@ -133,19 +133,19 @@ test("a Lesson path checks only that Lesson; errors of other Lessons are not pri
   expect(status).toBe(0);
 });
 
-// Flaky under load: the foreign request reaches Node after the Run has ended —
-// .scratch/mvp-autorun/README.md, «Отложенные проблемы» (author-cli/04).
-test.skip("from a Lesson folder: only that Lesson, course.yaml errors printed, a foreign request is its error", LONG, () => {
+test("from a Lesson folder: only that Lesson, course.yaml errors printed, a foreign request is its error", LONG, () => {
   const course = tsCourse();
   writeFiles(course, {
     "course.yaml": "id: demo\ntitle: Демо\nmodules:\n  - title: Основы\n    lessons: [sum, fetches, bad-md, bad-md]\n",
     "bad-md/lesson.md": "Нет frontmatter.\n",
     "fetches/lesson.md": "---\ntitle: Сеть\n---\nЗадание.\n",
-    "fetches/main.ts": "export function sum(a: number, b: number): number {\n  return 0;\n}\n",
+    "fetches/main.ts": "export async function sum(a: number, b: number): Promise<number> {\n  return 0;\n}\n",
     "fetches/solution.ts":
-      'export function sum(a: number, b: number): number {\n  fetch("https://example.com/").catch(() => {});\n  return a + b;\n}\n',
+      // Awaited: a request still in flight when the Run ends may go unseen
+      // (.scratch/mvp-autorun/README.md, «Отложенные проблемы»).
+      'export async function sum(a: number, b: number): Promise<number> {\n  await fetch("https://example.com/").catch(() => {});\n  return a + b;\n}\n',
     "fetches/lesson.test.ts":
-      'import { test, expect } from "@codda/test";\nimport { sum } from "./main";\n\ntest("складывает", () => {\n  expect(sum(1, 2)).toBe(3);\n});\n',
+      'import { test, expect } from "@codda/test";\nimport { sum } from "./main";\n\ntest("складывает", async () => {\n  expect(await sum(1, 2)).toBe(3);\n});\n',
   });
 
   const { status, stdout, stderr } = runCodda(join(course, "fetches"), ["test"]);

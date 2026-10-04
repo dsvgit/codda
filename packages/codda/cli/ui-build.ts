@@ -39,7 +39,7 @@ export function uiIsFresh(uiDir: string): boolean {
 
 /** Builds the UI into `uiDir` with Vite. Returns Vite's output on failure, otherwise null. */
 export function buildUi(uiDir: string): string | null {
-  const vite = spawnSync("npx", ["vite", "build", "--outDir", uiDir, "--emptyOutDir"], { cwd: packageDir, encoding: "utf8" });
+  const vite = spawnSync("npx", ["--no-install", "vite", "build", "--outDir", uiDir, "--emptyOutDir"], { cwd: packageDir, encoding: "utf8" });
   if (vite.status === 0) return null;
   return `${vite.stdout ?? ""}${vite.stderr ?? ""}${vite.error ? String(vite.error) : ""}`;
 }

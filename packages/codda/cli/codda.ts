@@ -74,11 +74,11 @@ const options = {
 /** Flags that belong to one command only. */
 const COMMAND_OF: Record<string, string> = { out: "build", port: "dev", module: "lesson", tsx: "lesson", ci: "init" };
 
-// The tool's built UI (`npm run build`, ADR-0008). CODDA_UI_DIR replaces it in
-// the CLI's own tests, which run before the UI is built.
 /** The templates of a Course and of a Lesson (`ts`, `tsx`), next to the CLI. */
 const templatesDir = fileURLToPath(new URL("../templates", import.meta.url));
 
+// The tool's built UI (`npm run build`, ADR-0008). CODDA_UI_DIR replaces it in
+// the CLI's own tests, which run before the UI is built.
 const uiDir = process.env.CODDA_UI_DIR ?? fileURLToPath(new URL("../dist-tool", import.meta.url));
 
 /** `codda init --ci <kind>`: the template in templates/ci/ and where it goes in the Course. */
@@ -267,7 +267,9 @@ async function test(): Promise<number> {
     browser = await chromium.launch({ channel: "chromium" });
     const context = await browser.newContext();
     // Every request of the page, its Worker and Sandbox included (as in
-    // e2e/offline.ts); WebSockets are not routed.
+    // e2e/offline.ts); WebSockets are not routed. A request the Run awaited is
+    // always caught: the route handler runs before the fetch rejects. One left
+    // in flight when the Run ends may be cancelled with the Sandbox unseen.
     const origin = new URL(server.url).origin;
     const foreign: string[] = [];
     await context.route("**/*", (route) => {
@@ -528,11 +530,11 @@ function lesson(): number {
   });
   if (listed.includes(id)) return error(`урок ${id} уже указан в course.yaml`);
   if (existsSync(join(root, id))) return error(`папка ${id}/ уже есть`);
-  const title = typeof values.module === "string" ? values.module : undefined;
-  const module = title === undefined ? items.at(-1) : items.find((item) => item.get("title") === title);
+  const moduleTitle = typeof values.module === "string" ? values.module : undefined;
+  const module = moduleTitle === undefined ? items.at(-1) : items.find((item) => item.get("title") === moduleTitle);
   if (module === undefined) {
     const titles = items.map((item) => `«${item.get("title")}»`).join(", ");
-    return error(title === undefined ? "в course.yaml нет ни одного модуля" : `в course.yaml нет модуля «${title}»; модули: ${titles}`);
+    return error(moduleTitle === undefined ? "в course.yaml нет ни одного модуля" : `в course.yaml нет модуля «${moduleTitle}»; модули: ${titles}`);
   }
   const lessons = module.get("lessons");
   if (!isSeq(lessons)) return error(`у модуля «${module.get("title")}» в course.yaml нет списка lessons`);
