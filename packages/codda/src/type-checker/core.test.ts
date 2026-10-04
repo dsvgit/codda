@@ -112,6 +112,18 @@ test("another Starter's extension drops the old file: its globals do not clash w
   expect(errorsOf("main.tsx", `const count = 3;\nexport const n: number = "";\n`, env)).toMatchObject([{ code: 2322 }]);
 });
 
+test("setFiles: Lesson Tests see the Solution as ./main; the next Lesson's set drops both old files", () => {
+  const env = createTypeEnvironment(ts, lib);
+  env.setFiles({ "main.ts": "export const a = 1;\n", "lesson.test.ts": 'import { a } from "./main";\nexport const s: string = a;\n' });
+
+  expect(env.errors("lesson.test.ts")).toMatchObject([{ line: 2, code: 2322 }]);
+
+  // If main.ts were left, "./main" would resolve to it, and it has no `b`.
+  env.setFiles({ "main.tsx": "export const b = 1;\n", "lesson.test.tsx": 'import { b } from "./main";\nexport const n: number = b;\n' });
+  expect(env.errors("main.tsx")).toEqual([]);
+  expect(env.errors("lesson.test.tsx")).toEqual([]);
+});
+
 /** Completions where `|` stands in `text` (the marker is taken out). */
 function completionsAt(file: string, text: string, env = createTypeEnvironment(ts, { ...lib, ...types })) {
   const pos = text.indexOf("|");

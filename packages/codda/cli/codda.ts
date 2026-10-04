@@ -20,6 +20,7 @@ import { findCourse } from "./find-course.ts";
 import { KEBAB_CASE, readCourse } from "./read-course.ts";
 import { formatLesson, formatSummary, type LessonResult } from "./report.ts";
 import { serveFolder } from "./static-server.ts";
+import { lessonTypeChecker } from "./type-check.ts";
 import { isMap, isScalar, isSeq, parseDocument } from "yaml";
 import { buildUi, UI_HASH_FILE, uiIsFresh } from "./ui-build.ts";
 import { verdict } from "./verdict.ts";
@@ -38,8 +39,10 @@ const HELP = `Использование: codda [флаги]
                  курс — путь или папка с course.yaml выше текущей
   test           проверить курс в Chromium: Solution каждого урока проходит
                  его тесты, а Starter — нет; запросы на чужие адреса — ошибка
-                 урока. Путь — папка курса или папка урока (тогда, как и при
-                 запуске из неё, проверяется только этот урок). Коды выхода:
+                 урока; ошибка типов в Solution или тестах — ошибка урока, в
+                 Starter — предупреждение. Путь — папка курса или папка урока
+                 (тогда, как и при запуске из неё, проверяется только этот
+                 урок). Коды выхода:
                  0 — всё прошло, 1 — ошибки курса, 2 — окружение или вызов
                  (например, не установлен Chromium)
   dev            локальный сервер курса на 127.0.0.1 (порт 4173, --port 0 —
@@ -205,7 +208,9 @@ function replaceFolder(out: string, staging: string) {
  * manifest errors gets ✗ and no Run; the others are still checked. A path in a
  * Lesson folder checks only that Lesson: the errors of course.yaml are printed,
  * those of other Lessons are not. A request to another origin than the server
- * is aborted and becomes an error of the Run it happened in.
+ * is aborted and becomes an error of the Run it happened in. Then the types of
+ * each Lesson that has no manifest errors are checked (cli/type-check.ts),
+ * whatever its Runs gave: errors of Solution and Lesson Tests, warnings of Starter.
  */
 async function test(): Promise<number> {
   if (args.length > 1) fail(`лишний аргумент ${args[1]}`);
@@ -258,6 +263,8 @@ async function test(): Promise<number> {
   process.stdout.write(artifact.deps === null ? "Зависимости: нет\n" : `${artifact.log}\n`);
 
   const results: LessonResult[] = [];
+  // Types are checked after the artifact is built, against its types.json; never in `dev` or `build`.
+  const typeCheck = lessonTypeChecker(artifact.deps === null ? {} : JSON.parse(readFileSync(join(built, artifact.deps, "types.json"), "utf8")));
 
   // Imported only now: without node_modules, the npm step above installs it.
   const { chromium } = await import("playwright");
@@ -296,6 +303,7 @@ async function test(): Promise<number> {
     for (const id of ids) {
       const lesson = lessons.get(id);
       let errors = lessonErrors.get(id) ?? [];
+      let warnings: string[] = [];
       if (lesson && !("errors" in lesson) && errors.length === 0) {
         const solution = await runIn(lesson, "solution");
         errors = [...verdict(lesson, solution.report), ...solution.foreign];
@@ -303,8 +311,12 @@ async function test(): Promise<number> {
           const starter = await runIn(lesson, "starter");
           errors = [...verdict(lesson, solution.report, starter.report), ...starter.foreign];
         }
+        // Whatever the Runs gave: type errors go with the Run errors of the Lesson.
+        const types = typeCheck(lesson);
+        errors = [...errors, ...types.errors];
+        warnings = types.warnings;
       }
-      results.push({ id, errors, warnings: [] });
+      results.push({ id, errors, warnings });
       process.stdout.write(formatLesson(results.at(-1)!, color));
     }
   } catch (error) {

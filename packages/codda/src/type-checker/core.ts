@@ -22,6 +22,11 @@ export type TypeEnvironment = {
    * student's one file: another name (another Lesson's Starter) drops the old one.
    */
   setFile: (name: string, text: string) => void;
+  /**
+   * The files are exactly `files` (name → text), e.g. a Solution as "main.ts"
+   * with its Lesson Tests for `codda test`: files of the previous set are dropped.
+   */
+  setFiles: (files: Record<string, string>) => void;
   /** Syntactic and semantic errors of the file; warnings and suggestions are left out. */
   errors: (name: string) => TypeError[];
   /** Completions at offset `pos` of the file: none inside a string or a comment, no auto-import. */
@@ -74,25 +79,30 @@ type Internals = {
 export function createTypeEnvironment(ts: typeof TS, files: Record<string, string>): TypeEnvironment {
   const { options } = ts.convertCompilerOptionsFromJson(TS_COMPILER_OPTIONS, "/");
   const fsMap = new Map(Object.entries(files));
-  // The environment needs its root file at creation: it is made with the first file.
+  // The environment needs its root files at creation: it is made with the first ones.
   let env: VirtualTypeScriptEnvironment | undefined;
-  let current: string | undefined;
+  let current: string[] = [];
+
+  const setFiles = (files: Record<string, string>) => {
+    const paths = Object.keys(files).map((name) => `/${name}`);
+    if (!env) {
+      for (const name in files) fsMap.set(`/${name}`, files[name]);
+      // vfs is typed against the bare "typescript" (TS 7 types); it gets TS 6.
+      env = createVirtualTypeScriptEnvironment(createSystem(fsMap), paths, ts as never, options as never);
+    } else {
+      for (const path of current) if (!paths.includes(path)) env.deleteFile(path);
+      for (const name in files) {
+        const path = `/${name}`;
+        if (current.includes(path)) env.updateFile(path, files[name]);
+        else env.createFile(path, files[name]);
+      }
+    }
+    current = paths;
+  };
 
   return {
-    setFile(name, text) {
-      const path = `/${name}`;
-      if (!env) {
-        fsMap.set(path, text);
-        // vfs is typed against the bare "typescript" (TS 7 types); it gets TS 6.
-        env = createVirtualTypeScriptEnvironment(createSystem(fsMap), [path], ts as never, options as never);
-      } else if (path === current) {
-        env.updateFile(path, text);
-      } else {
-        env.deleteFile(current!);
-        env.createFile(path, text);
-      }
-      current = path;
-    },
+    setFile: (name, text) => setFiles({ [name]: text }),
+    setFiles,
     errors(name) {
       const path = `/${name}`;
       const service = env!.languageService;

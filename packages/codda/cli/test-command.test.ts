@@ -81,12 +81,14 @@ test("broken Lessons: ✗ with the errors under it, the rest are still checked, 
   ]);
   expect(lines[11]).toMatch(/^ {2}broken\/main\.ts: строка 2: ошибка компиляции: .+/);
   expect(lines.slice(12)).toEqual([
+    // The Starter's syntax error is also a type error: a warning under the Run's error.
+    "  broken/main.ts:2:13 — Expression expected. (TS1109)",
     "✗ bad-md",
     "  bad-md/lesson.md: нет frontmatter между строками ---",
     "✓ greet",
     "✗ loop",
     "  loop/solution.ts: тесты не завершились за 5 с",
-    "2 из 9 Lesson прошли",
+    "2 из 9 Lesson прошли, 1 предупреждение",
     "",
   ]);
   expect(status).toBe(1);
@@ -94,14 +96,124 @@ test("broken Lessons: ✗ with the errors under it, the rest are still checked, 
   expect(Date.now() - started).toBeLessThan(60_000);
 });
 
-test("the Dependency Artifact fails: its errors, no Lesson lines, code 1", () => {
+const SUM_TEST = 'import { test, expect } from "@codda/test";\nimport { sum } from "./main";\n\ntest("складывает", () => {\n  expect(sum(1, 2)).toBe(3);\n});\n';
+const GOOD_SUM = "export function sum(a: number, b: number): number {\n  return a + b;\n}\n";
+const BAD_SUM = "export function sum(a: number, b: number): number {\n  return 0;\n}\n";
+const STRING_SUM = 'export function sum(a: number, b: number): number {\n  return "0";\n}\n';
+const lessonMd = (title: string) => `---\ntitle: ${title}\n---\nЗадание.\n`;
+
+test("type errors in Solution or Lesson Tests are errors (✗), in Starter warnings; Run errors and type errors at once; code 1", LONG, () => {
   const course = tsCourse();
-  writeFiles(course, { "sum/solution.ts": 'import pad from "left-pad";\nexport const sum = (a: number, b: number) => pad(a + b);\n' });
+  writeFiles(course, {
+    "course.yaml": "id: demo\ntitle: Демо\nmodules:\n  - title: Основы\n    lessons: [sum, greet, sol-type, tests-type, both, bad-md]\n",
+    ...Object.fromEntries(["sol-type", "tests-type", "both"].map((id) => [`${id}/lesson.md`, lessonMd(id)])),
+    // Passes its tests, but is not well typed.
+    "sol-type/main.ts": BAD_SUM,
+    "sol-type/solution.ts": "export function sum(a: number, b: number): number {\n  const total: string = a + b;\n  return a + b;\n}\n",
+    "sol-type/lesson.test.ts": SUM_TEST,
+    "tests-type/main.ts": BAD_SUM,
+    "tests-type/solution.ts": GOOD_SUM,
+    "tests-type/lesson.test.ts":
+      'import { test, expect } from "@codda/test";\nimport { sum } from "./main";\n\ntest("складывает", () => {\n  const three: string = sum(1, 2);\n  expect(Number(three)).toBe(3);\n});\n',
+    // The Solution fails its tests (no Starter Run), and all three kinds of lines show.
+    "both/main.ts": STRING_SUM,
+    "both/solution.ts": "export function sum(a: number, b: number): number {\n  return a - b + c;\n}\n",
+    "both/lesson.test.ts": SUM_TEST,
+    // A manifest error: no type check of its files.
+    "bad-md/lesson.md": "Нет frontmatter.\n",
+    "bad-md/main.ts": STRING_SUM,
+    "bad-md/solution.ts": STRING_SUM,
+    "bad-md/lesson.test.ts": SUM_TEST,
+  });
 
   const { status, stdout, stderr } = runCodda(course, ["test"]);
 
+  expect(stderr).toBe("");
+  expect(report(stdout)).toBe(
+    [
+      "Зависимости: нет",
+      "✓ sum",
+      "✓ greet",
+      "✗ sol-type",
+      "  sol-type/solution.ts:2:9 — Type 'number' is not assignable to type 'string'. (TS2322)",
+      "✗ tests-type",
+      "  tests-type/lesson.test.ts:5:9 — Type 'number' is not assignable to type 'string'. (TS2322)",
+      "✗ both",
+      "  both/solution.ts: тест «складывает» не прошёл: c is not defined",
+      "  both/solution.ts:2:18 — Cannot find name 'c'. (TS2304)",
+      "  both/main.ts:2:3 — Type 'string' is not assignable to type 'number'. (TS2322)",
+      "✗ bad-md",
+      "  bad-md/lesson.md: нет frontmatter между строками ---",
+      "2 из 6 Lesson прошли, 1 предупреждение",
+      "",
+    ].join("\n"),
+  );
+  expect(status).toBe(1);
+});
+
+test("a type error only in Starter: ⚠ with its line, code 0; an unused variable is no warning", LONG, () => {
+  const course = tsCourse();
+  writeFiles(course, {
+    "course.yaml": "id: demo\ntitle: Демо\nmodules:\n  - title: Основы\n    lessons: [sum, greet, starter-type, unused]\n",
+    "starter-type/lesson.md": lessonMd("Starter"),
+    "starter-type/main.ts": STRING_SUM,
+    "starter-type/solution.ts": GOOD_SUM,
+    "starter-type/lesson.test.ts": SUM_TEST,
+    "unused/lesson.md": lessonMd("Unused"),
+    "unused/main.ts": "export function sum(a: number, b: number): number {\n  const unused = 1;\n  return 0;\n}\n",
+    "unused/solution.ts": GOOD_SUM,
+    "unused/lesson.test.ts": SUM_TEST,
+  });
+
+  const { status, stdout, stderr } = runCodda(course, ["test"]);
+
+  expect(stderr).toBe("");
+  expect(report(stdout)).toBe(
+    "Зависимости: нет\n✓ sum\n✓ greet\n⚠ starter-type\n" +
+      "  starter-type/main.ts:2:3 — Type 'string' is not assignable to type 'number'. (TS2322)\n" +
+      "✓ unused\n4 из 4 Lesson прошли, 1 предупреждение\n",
+  );
+  expect(status).toBe(0);
+});
+
+test("a package without types is `any` in the type check, not a type error", LONG, () => {
+  const course = tsCourse();
+  const lock = {
+    name: "demo",
+    lockfileVersion: 3,
+    requires: true,
+    packages: { "": { name: "demo", dependencies: { "plain-pkg": "1.0.0" } }, "node_modules/plain-pkg": { version: "1.0.0" } },
+  };
+  writeFiles(course, {
+    "package.json": JSON.stringify({ name: "demo", dependencies: { "plain-pkg": "1.0.0" } }),
+    "package-lock.json": JSON.stringify(lock),
+    "node_modules/.package-lock.json": JSON.stringify(lock),
+    "node_modules/plain-pkg/package.json": JSON.stringify({ name: "plain-pkg", version: "1.0.0", main: "index.js" }),
+    "node_modules/plain-pkg/index.js": "exports.zero = 0;\n",
+    "sum/main.ts": 'import { zero } from "plain-pkg";\nexport function sum(a: number, b: number): number {\n  return zero.whatever ?? 0;\n}\n',
+    "sum/solution.ts": 'import { zero } from "plain-pkg";\nexport function sum(a: number, b: number): number {\n  return a + b + zero;\n}\n',
+  });
+
+  const { status, stdout, stderr } = runCodda(course, ["test"]);
+
+  expect(stderr).toMatch(/^у пакета `plain-pkg` нет типов/);
+  expect(report(stdout)).toMatch(/^Зависимости: deps\/\S+ — .+\n✓ sum\n✓ greet\n2 из 2 Lesson прошли, 1 предупреждение\n$/);
+  expect(status).toBe(0);
+});
+
+test("the Dependency Artifact fails: its errors, no Lesson lines, code 1", () => {
+  const course = tsCourse();
+  writeFiles(course, {
+    "sum/solution.ts": 'import pad from "left-pad";\nexport const sum = (a: number, b: number) => pad(a + b);\n',
+    "greet/solution.ts": "export const greet = (name: string): number => name;\n",
+  });
+
+  const { status, stdout, stderr } = runCodda(course, ["test"]);
+
+  // No type check without the artifact: no TS errors anywhere.
   expect(report(stdout)).toBe("");
   expect(stderr).toMatch(/package\.json/);
+  expect(stderr).not.toMatch(/TS\d+/);
   expect(status).toBe(1);
 });
 
@@ -123,6 +235,8 @@ test("a Lesson path checks only that Lesson; errors of other Lessons are not pri
   writeFiles(course, {
     "course.yaml": "id: demo\ntitle: Демо\nmodules:\n  - title: Основы\n    lessons: [sum, greet, bad-md]\n",
     "bad-md/lesson.md": "Нет frontmatter.\n",
+    // Another Lesson's type error is not checked either.
+    "greet/solution.ts": "export function greet(name: string): number {\n  return name;\n}\n",
   });
 
   const { status, stdout, stderr } = runCodda(course, ["test", "sum"]);

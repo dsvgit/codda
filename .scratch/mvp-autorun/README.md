@@ -162,6 +162,7 @@ Slug фичи — имя папки без номера: `lesson-manifest/02` = 
 - 2026-10-05 — ts-tooling/01 — коммит: Type Checker в редакторе Workspace — модуль конфига TS (ADR-0009), Compiler на нём и loader по расширению (`testsName` в `course.json`), lib-файлы `typescript-6` одним JSON с hash (`codda-ts-lib`), ядро на `@typescript/vfs`, отдельный Worker на сессию, второй `linter` (300 мс) рядом с ошибкой компиляции; заглушка `any` в `types.json` — `declare module` (`PIPELINE_VERSION` = 3). Агент прерывался на лимите, доделано следующей сессией
 - 2026-10-05 — ts-tooling/02 — коммит: вкладка «Проблемы» (счётчик `…`/N/без числа, список `строка:колонка — сообщение (TSxxxx)`, клик ставит курсор), статус Type Checker `loading | ready | unavailable` (ответ `ready`, `error` у Worker посреди сессии, подчёркивания снимаются), смена расширения Starter удаляет старый файл из окружения
 - 2026-10-05 — ts-tooling/03 — коммит: autocomplete от TS — `completions` в ядре (без auto-import, пусто в строке и комментарии, `kind` → `type`, `alias` по сигнатуре, `detail` — первая строка сигнатуры), запрос `completions` у Worker и клиента, `autocompletion({ override })` единственным источником в редакторе Workspace, у read-only — без источников; `@codemirror/autocomplete` явной зависимостью
+- 2026-10-05 — ts-tooling/04 — коммит: проверка типов в `codda test` — `cli/type-check.ts` на ядре Type Checker (TS 6, lib из `typescript-6`, `types.json` свежего артефакта): Solution под именем Starter + Lesson Tests + объявление `@codda/test` — ошибки Lesson (`✗`), Starter один — предупреждения (`⚠`); при любом исходе Run, без Lesson с ошибкой манифеста; `setFiles` в ядре; `src/runtime/codda-test.d.ts` сверяется с Test Harness в `npm run typecheck`; React Hooks — 5 из 5 ✓
 
 ## Журнал допущений
 
@@ -286,6 +287,10 @@ Slug фичи — имя папки без номера: `lesson-manifest/02` = 
 - ts-tooling/03 — «внутри строки и комментария» — внутренние `ts.isInString`/`ts.isInComment` модуля `typescript-6` (версия точная, unit-тест ловит поломку); тип импортированного имени (`alias`) — по первому ключевому слову сигнатуры
 - ts-tooling/03 — Ctrl/Cmd+Space — `Ctrl-Space` CodeMirror на всех ОС; Cmd+Space в macOS занят Spotlight, отдельной привязки нет
 - ts-tooling/03 — редактор без Type Checker (read-only «Решение», компонентный тест) — `autocompletion({ override: [] })`: подсказок нет вовсе, keyword/local completion `lang-javascript` отключены и там
+- ts-tooling/04 — многострочная цепочка сообщения TS в выводе `codda test` склеена в одну строку через пробел — иначе строка `путь:строка:колонка — сообщение (TSxxxx)` разрывается без отступа
+- ts-tooling/04 — порядок строк Lesson: ошибки Run, ошибки типов Solution, затем Lesson Tests, предупреждения Starter последними (`report.ts`) — в спеке не задан
+- ts-tooling/04 — два окружения ядра на весь прогон (Solution + Lesson Tests + `@codda/test`; Starter один), а не новое на каждый Lesson — lib разбираются один раз; для этого в ядро добавлен `setFiles`
+- ts-tooling/04 — сверка объявления `@codda/test` с Test Harness — `src/runtime/codda-test.check.ts` (присваивание в обе стороны), отдельного теста нет: ловит `npm run typecheck`
 
 ## Отложенные проблемы
 
