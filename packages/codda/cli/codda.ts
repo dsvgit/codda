@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 // codda CLI. Runs as TypeScript directly in Node 24, without a build step
-// (.scratch/mvp/issues/05-codda-cli-commands.md). So far `build` and `test`;
-// the commands init/lesson/dev come with the rest of the author-cli feature.
+// (.scratch/mvp/issues/05-codda-cli-commands.md). So far `build`, `test` and
+// `dev`; the commands init/lesson come with the rest of the author-cli feature.
 //
 // Exit codes: 0 — success, 1 — errors in the Course, 2 — environment or
 // invocation (unknown command or flag, no course.yaml, the UI build failed,
-// --out that is not a codda build).
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
+// --out that is not a codda build, a busy port).
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, renameSync, rmSync, statSync, watch, writeFileSync } from "node:fs";
 import { basename, dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
@@ -24,6 +24,7 @@ import { verdict } from "./verdict.ts";
 const HELP = `Использование: codda [флаги]
        codda build [путь] [--out <папка>]
        codda test [путь]
+       codda dev [путь] [--port <n>]
 
 Инструмент автора курсов codda.
 
@@ -36,6 +37,10 @@ const HELP = `Использование: codda [флаги]
                  запуске из неё, проверяется только этот урок). Коды выхода:
                  0 — всё прошло, 1 — ошибки курса, 2 — окружение или вызов
                  (например, не установлен Chromium)
+  dev            локальный сервер курса на 127.0.0.1 (порт 4173, --port 0 —
+                 любой свободный); после правки файла курса страница
+                 перезагружается, ошибки курса видны в браузере и в терминале.
+                 Ctrl+C — остановить
 
 Флаги:
   -h, --help     показать эту справку
@@ -46,7 +51,11 @@ const options = {
   help: { type: "boolean", short: "h" },
   version: { type: "boolean", short: "v" },
   out: { type: "string" },
+  port: { type: "string" },
 } as const;
+
+/** Flags that belong to one command only. */
+const COMMAND_OF: Record<string, string> = { out: "build", port: "dev" };
 
 // The tool's built UI (`npm run build`, ADR-0008). CODDA_UI_DIR replaces it in
 // the CLI's own tests, which run before the UI is built.
@@ -65,10 +74,10 @@ function fail(message: string): never {
 const { values, positionals, tokens } = parseArgs({ options, strict: false, allowPositionals: true, tokens: true });
 const [command, ...args] = positionals;
 
-if (command !== undefined && command !== "build" && command !== "test") fail(`неизвестная команда ${command}`);
+if (command !== undefined && !["build", "test", "dev"].includes(command)) fail(`неизвестная команда ${command}`);
 for (const token of tokens) {
   if (token.kind !== "option") continue;
-  if (!(token.name in options) || (token.name === "out" && command !== "build")) fail(`неизвестный флаг ${token.rawName}`);
+  if (!(token.name in options) || (token.name in COMMAND_OF && COMMAND_OF[token.name] !== command)) fail(`неизвестный флаг ${token.rawName}`);
   const takesValue = options[token.name as keyof typeof options].type === "string";
   if (takesValue && token.value === undefined) fail(`флагу ${token.rawName} нужно значение`);
   if (!takesValue && token.value !== undefined) fail(`флаг ${token.rawName} не принимает значение`);
@@ -77,6 +86,7 @@ for (const token of tokens) {
 if (values.help) process.stdout.write(HELP);
 else if (command === "build") process.exitCode = await build();
 else if (command === "test") process.exitCode = await test();
+else if (command === "dev") await dev();
 else if (values.version) process.stdout.write(`${pkg.version}\n`);
 else process.stdout.write(HELP);
 
@@ -136,7 +146,7 @@ function ensureUi() {
  * warnings of the artifact go to stderr.
  */
 async function assemble(root: string, course: Omit<CourseData, "deps">, staging: string) {
-  const lessonIds = course.modules.flatMap((module) => module.lessons.map((lesson) => lesson.id));
+  const lessonIds = course.modules.flatMap((module) => module.lessons.filter((lesson) => !("errors" in lesson)).map((lesson) => lesson.id));
   const artifact = await buildDependencyArtifact(root, lessonIds, staging);
   if ("errors" in artifact) {
     process.stderr.write(artifact.errors.map((line) => `${line}\n`).join(""));
@@ -198,10 +208,14 @@ async function test(): Promise<number> {
   }
   const ids = lessonId === undefined ? listed : [lessonId];
   const courseErrors = allCourseErrors.filter(relevant);
-  // Only the Lessons to check go into the build, and so into the Dependency Artifact.
+  // Only the Lessons to check go into the build, and so into the Dependency
+  // Artifact; never a Lesson with errors (BrokenLesson is for `codda dev`).
   const course = {
     ...wholeCourse,
-    modules: wholeCourse.modules.map((module) => ({ ...module, lessons: module.lessons.filter((lesson) => ids.includes(lesson.id)) })),
+    modules: wholeCourse.modules.map((module) => ({
+      ...module,
+      lessons: module.lessons.filter((lesson) => ids.includes(lesson.id) && !("errors" in lesson)),
+    })),
   };
   process.stdout.write(courseErrors.map((line) => `${line}\n`).join(""));
 
@@ -255,7 +269,7 @@ async function test(): Promise<number> {
     for (const id of ids) {
       const lesson = lessons.get(id);
       let errors = lessonErrors.get(id) ?? [];
-      if (lesson && errors.length === 0) {
+      if (lesson && !("errors" in lesson) && errors.length === 0) {
         const solution = await runIn(lesson, "solution");
         errors = [...verdict(lesson, solution.report), ...solution.foreign];
         if (errors.length === 0) {
@@ -282,4 +296,105 @@ async function test(): Promise<number> {
   const warnings = artifact.deps === null ? 0 : artifact.warnings.length;
   process.stdout.write(formatSummary(results, warnings));
   return courseErrors.length > 0 || results.some((r) => r.errors.length > 0) ? 1 : 0;
+}
+
+/**
+ * `codda dev`: the Course is built into `.codda/dev/` and served at `/` on
+ * 127.0.0.1 with the reload script (static-server.ts). `fs.watch` over the
+ * Course root (without node_modules/, .codda/, dist/): the events of ~100 ms
+ * make one rebuild, then one `reload`. Every rebuild goes through the
+ * Dependency Artifact: its cache makes an edit to a Lesson cheap, an edit to
+ * package*.json misses the cache and runs its npm step before the reload.
+ * Manifest errors do not stop it: they go into course.json (`errors`) and to
+ * the terminal in the format of `codda test`. Runs until SIGINT, code 0.
+ */
+async function dev(): Promise<void> {
+  if (args.length > 1) fail(`лишний аргумент ${args[1]}`);
+  const port = typeof values.port === "string" ? Number(values.port) : 4173;
+  if (!Number.isInteger(port) || port < 0 || port > 65535) fail(`неверный порт ${values.port}`);
+  const found = findCourse(args[0] ?? ".");
+  if (found === null) fail(`здесь нет курса: ${resolve(args[0] ?? ".")}`);
+  const { root } = found;
+  ensureUi();
+
+  const served = join(root, ".codda", "dev");
+  mkdirSync(served, { recursive: true });
+  let server;
+  try {
+    server = await serveFolder(served, "/", { port, live: true });
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "EADDRINUSE") throw error;
+    fail(`порт ${port} занят: укажите другой, например --port 0`);
+  }
+
+  await devBuild(root, served);
+
+  // One rebuild at a time; events during it make one more after it.
+  let timer: NodeJS.Timeout | undefined;
+  let building: Promise<void> | undefined;
+  let again = false;
+  const rebuild = async () => {
+    if (building) {
+      again = true;
+      return;
+    }
+    building = devBuild(root, served).then(() => server.reload());
+    await building;
+    building = undefined;
+    if (again) {
+      again = false;
+      await rebuild();
+    }
+  };
+  const ignored = new Set(["node_modules", ".codda", "dist"]);
+  const watcher = watch(root, { recursive: true }, (_, file) => {
+    if (file !== null && ignored.has(file.split(/[\\/]/)[0])) return;
+    clearTimeout(timer);
+    timer = setTimeout(rebuild, 100);
+  });
+
+  process.once("SIGINT", async () => {
+    watcher.close();
+    clearTimeout(timer);
+    await server.close();
+    process.exit(0);
+  });
+  // Last: a test starts working with the server as soon as it sees the URL.
+  process.stdout.write(`Курс: ${server.url}\nCtrl+C — остановить\n`);
+}
+
+/**
+ * Builds the Course into `served` for `codda dev`, whatever its errors: a
+ * Lesson with manifest errors is a BrokenLesson in course.json, errors of
+ * course.yaml or of the whole Course (and of the Dependency Artifact) are its
+ * top-level `errors`. The errors are printed as `codda test` prints them.
+ */
+async function devBuild(root: string, served: string): Promise<void> {
+  const result = readCourse(root);
+  let course: Omit<CourseData, "deps">;
+  if ("course" in result) {
+    course = result.course;
+  } else if (result.partial) {
+    const { course: partial, lessonErrors, courseErrors } = result.partial;
+    process.stdout.write(courseErrors.map((line) => `${line}\n`).join(""));
+    for (const [id, errors] of lessonErrors) {
+      if (errors.length > 0) process.stdout.write(formatLesson({ id, errors, warnings: [] }));
+    }
+    course = courseErrors.length > 0 ? { ...partial, errors: result.errors } : partial;
+  } else {
+    process.stderr.write(result.errors.map((line) => `${line}\n`).join(""));
+    course = { id: "", title: "", modules: [], errors: result.errors };
+  }
+
+  mkdirSync(join(root, ".codda"), { recursive: true });
+  const staging = mkdtempSync(join(root, ".codda", "dev-"));
+  try {
+    const artifact = await assemble(root, course, staging);
+    // No Lessons, so no artifact: the page shows its errors full-screen.
+    if ("errors" in artifact) await assemble(root, { ...course, modules: [], errors: [...(course.errors ?? []), ...artifact.errors] }, staging);
+    replaceFolder(served, staging);
+  } finally {
+    rmSync(staging, { recursive: true, force: true });
+  }
+  if (!("errors" in result)) process.stdout.write("Курс собран без ошибок\n");
 }

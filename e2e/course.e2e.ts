@@ -1,12 +1,13 @@
 // The UI on a Course Build: loading course.json, choosing a Lesson by
 // `#/<lesson id>`, and every Solution of the Course passing its Lesson Tests.
 import { expect, test } from "./offline";
-import type { CourseData } from "../packages/codda/src/course-data";
+// The Course Build of `codda build`: no Lesson in it has `errors` (BrokenLesson).
+import type { CourseData, LessonData } from "../packages/codda/src/course-data";
 
 test("Solution of every Lesson in course.json passes all its tests, offline", async ({ page }) => {
   test.setTimeout(90_000);
   const course: CourseData = await (await page.request.get("course.json")).json();
-  const lessons = course.modules.flatMap((m) => m.lessons);
+  const lessons = course.modules.flatMap((m) => m.lessons) as LessonData[];
   expect(lessons.map((l) => l.id)).toEqual([
     "use-state",
     "use-effect",
@@ -52,7 +53,7 @@ test("Instructions of use-state are shown formatted, without the frontmatter", a
 
 test("another fragment resets the editor, the Test Report and the tab to «Тесты»", async ({ page }) => {
   const course: CourseData = await (await page.request.get("course.json")).json();
-  const useEffect = course.modules.flatMap((m) => m.lessons).find((l) => l.id === "use-effect")!;
+  const useEffect = course.modules.flatMap((m) => m.lessons).find((l) => l.id === "use-effect") as LessonData;
   await page.goto("./#/use-state");
   await page.getByRole("textbox", { name: "main.tsx" }).fill("export const edited = 1;\n");
   await page.getByRole("button", { name: "▶ Запустить тесты" }).click();

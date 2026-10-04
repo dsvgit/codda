@@ -2,7 +2,8 @@
 // Run ends at once with «Внутренняя ошибка», and the next Run works without
 // reloading the page.
 import { expect, test } from "./offline";
-import type { CourseData } from "../packages/codda/src/course-data";
+// The Course Build of `codda build`: no Lesson in it has `errors` (BrokenLesson).
+import type { CourseData, LessonData } from "../packages/codda/src/course-data";
 
 const RED = "rgb(207, 34, 46)";
 
@@ -10,7 +11,7 @@ test("esbuild.wasm that fails to load gives «Внутренняя ошибка�
   page,
 }) => {
   const course: CourseData = await (await page.request.get("course.json")).json();
-  const useState = course.modules[0].lessons[0];
+  const useState = course.modules[0].lessons[0] as LessonData;
   await page.route(/esbuild.*\.wasm/, (route) => route.abort());
   await page.goto("./");
   await page.getByRole("textbox", { name: "main.tsx" }).fill(useState.solution);

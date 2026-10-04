@@ -1,5 +1,6 @@
 import { expect, test } from "./offline";
-import type { CourseData } from "../packages/codda/src/course-data";
+// The Course Build of `codda build`: no Lesson in it has `errors` (BrokenLesson).
+import type { CourseData, LessonData } from "../packages/codda/src/course-data";
 
 test("student opens the Course, runs the starter, fixes it and sees every test pass, offline", async ({
   page,
@@ -7,7 +8,7 @@ test("student opens the Course, runs the starter, fixes it and sees every test p
   baseURL,
 }) => {
   const course: CourseData = await (await page.request.get("course.json")).json();
-  const useState = course.modules[0].lessons[0];
+  const useState = course.modules[0].lessons[0] as LessonData;
   // The Dependency Artifact: fetched by the Compiler Worker from our origin on
   // the first Run, once.
   expect(course.deps).toMatch(/^deps\/[0-9a-f]{16}\/$/);

@@ -5,7 +5,7 @@ import { App } from "./App";
 import type { CourseData } from "./course-data";
 
 // The Course comes as a literal, as the UI gets it from course.json.
-const course: CourseData = {
+const course = {
   id: "demo",
   title: "Демо",
   deps: null,
@@ -57,7 +57,7 @@ test("greets", () => {
       ],
     },
   ],
-};
+} satisfies CourseData;
 
 let root: Root | undefined;
 
@@ -67,13 +67,13 @@ afterEach(() => {
   document.body.innerHTML = "";
 });
 
-function renderApp(lessonId?: string) {
+function renderApp(lessonId?: string, of: CourseData = course) {
   if (!root) {
     const container = document.createElement("div");
     document.body.append(container);
     root = createRoot(container);
   }
-  root.render(<App course={course} lessonId={lessonId} />);
+  root.render(<App course={of} lessonId={lessonId} />);
 }
 
 const editor = () => page.getByRole("textbox", { name: /^main\.tsx?$/ });
@@ -395,6 +395,33 @@ test("an unknown Lesson id shows a message and a link to the first Lesson", asyn
     .element(page.getByRole("link", { name: "Сложение" }))
     .toHaveAttribute("href", "#/add");
   await expect.element(runTests()).not.toBeInTheDocument();
+});
+
+test("`codda dev`: a Lesson with `errors` shows «Ошибки в Lesson» with its lines, the other Lessons open as usual", async () => {
+  const broken: CourseData = {
+    ...course,
+    modules: [
+      { title: "Первый", lessons: [{ id: "add", title: "add", errors: ["add/lesson.md: нет frontmatter между строками ---", "add/: нет solution.ts — расширение как у main.ts"] }] },
+      course.modules[1],
+    ],
+  };
+  renderApp("add", broken);
+
+  await expect.element(page.getByRole("heading", { name: "Ошибки в Lesson add" })).toBeVisible();
+  const items = page.getByRole("listitem");
+  await expect.element(items.nth(0)).toHaveTextContent("add/lesson.md: нет frontmatter между строками ---");
+  await expect.element(items.nth(1)).toHaveTextContent("add/: нет solution.ts — расширение как у main.ts");
+  await expect.element(runTests()).not.toBeInTheDocument();
+
+  renderApp("greet", broken);
+  await expect.element(page.getByRole("heading", { name: "Демо · Приветствие" })).toBeVisible();
+});
+
+test("`codda dev`: top-level `errors` are shown full-screen", async () => {
+  renderApp("add", { id: "", title: "", deps: null, modules: [], errors: ["course.yaml: title: обязательное поле"] });
+
+  await expect.element(page.getByRole("heading", { name: "Ошибки в курсе" })).toBeVisible();
+  await expect.element(page.getByRole("listitem")).toHaveTextContent("course.yaml: title: обязательное поле");
 });
 
 test("another Lesson opens from a clean slate: its Starter, no Test Report", async () => {

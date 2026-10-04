@@ -1,7 +1,7 @@
 // Course folder → course.json data, or the Course errors as lines
 // `<file from the Course root>: <field path>: <message>` in Russian, all of
 // them in one run: course.yaml first, then the Lessons in course.yaml order.
-// Used by `codda build` and the tool's dev server (vite.config.ts).
+// Used by `codda build`, `test`, `dev` and the tool's dev server (vite.config.ts).
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { Marked, Renderer } from "marked";
@@ -51,7 +51,7 @@ type Course = Omit<CourseData, "deps">;
 
 /**
  * With errors, `partial` is there when course.yaml itself is valid: the Course
- * with only the Lessons that have no errors, the errors of every listed Lesson
+ * where each Lesson with errors is a BrokenLesson, the errors of every listed Lesson
  * (course.yaml order, none for a valid one) and the errors of no Lesson. `codda test` checks the
  * valid Lessons anyway.
  */
@@ -228,7 +228,8 @@ export function readCourse(root: string): Result {
     title: yaml.title,
     modules: yaml.modules.map((module) => ({
       title: module.title,
-      lessons: module.lessons.map((id) => lessons.get(id)).filter((lesson) => lesson !== undefined),
+      // A Lesson with errors stays in its place as a BrokenLesson (for `codda dev`).
+      lessons: module.lessons.map((id) => lessons.get(id) ?? { id, title: id, errors: lessonErrors.get(id)! }),
     })),
   };
   if (errors.length === 0) return { course };

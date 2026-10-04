@@ -22,6 +22,8 @@ export function runLesson(course: CourseData, lesson: LessonData, source: string
  * Lesson of the first Module. Another id opens that Lesson from a clean slate.
  */
 export function App({ course, lessonId }: { course: CourseData; lessonId?: string }) {
+  // Only in the course.json of `codda dev`: course.yaml or the Course is broken.
+  if (course.errors) return <Errors title="Ошибки в курсе" errors={course.errors} />;
   const lessons = course.modules.flatMap((m) => m.lessons);
   const first = lessons[0];
   const lesson = lessonId === undefined ? first : lessons.find((l) => l.id === lessonId);
@@ -36,7 +38,23 @@ export function App({ course, lessonId }: { course: CourseData; lessonId?: strin
       </main>
     );
   }
+  if ("errors" in lesson) return <Errors title={`Ошибки в Lesson ${lesson.id}`} errors={lesson.errors} />;
   return <Lesson key={lesson.id} course={course} lesson={lesson} />;
+}
+
+/** `codda dev`: the manifest errors in place of a Lesson or of the whole Course. */
+function Errors({ title, errors }: { title: string; errors: string[] }) {
+  return (
+    <main className="errors">
+      <h1>{title}</h1>
+      <ul>
+        {errors.map((line, i) => (
+          <li key={i}>{line}</li>
+        ))}
+      </ul>
+      <p className="muted">Исправьте файлы курса — страница обновится сама.</p>
+    </main>
+  );
 }
 
 function Lesson({ course, lesson }: { course: CourseData; lesson: LessonData }) {

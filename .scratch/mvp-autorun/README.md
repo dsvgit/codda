@@ -154,6 +154,7 @@ Slug фичи — имя папки без номера: `lesson-manifest/02` = 
 - 2026-10-04 — author-cli/02 — коммит: `codda test` по всему Course — сборка в `.codda/test/`, статический сервер `127.0.0.1` с подпутём `/<course id>/`, полный Chromium на служебной странице `#/__codda-test` (`warmUp`, `run`), вердикт Lesson и отчёт `✓/✗/⚠` с итогом, Lesson с ошибкой манифеста — `✗` без Run; `playwright` в `dependencies` пакета; React Hooks — 5 из 5 ✓
 - 2026-10-04 — author-cli/03 — коммит: `codda test` по одному Lesson (путь или папка Lesson; ошибки только `course.yaml` и этого Lesson; папка не из `course.yaml` — код `1`), запросы на чужой origin отменяются и становятся ошибкой Run, «Chromium не найден…» с кодом `2`, цвет знаков только в TTY без `NO_COLOR`, `--help` главнее команды
 - 2026-10-04 — author-cli/02 — ранний push: `check` красный дважды — ложный timeout (отложенный флейк) в `test-command.test.ts`, затем в e2e `sandbox-isolation`. Обход по правилу 7: повторы тестов только в CI
+- 2026-10-04 — author-cli/04 — коммит: `codda dev [путь] [--port <n>]` — сервер `127.0.0.1` (порт `4173`, `--port 0`, занятый — код `2`) на `static-server.ts` с SSE `/__codda/events` и вставкой скрипта перезагрузки в `index.html`, `fs.watch` с `recursive` и debounce 100 мс, пересборка в `.codda/dev/` (артефакт через кэш, правка `package*.json` — с шагом npm), `course.json` с `errors` у Lesson и верхнего уровня, страницы «Ошибки в Lesson» и «Ошибки в курсе», SIGINT — код `0`; флейк `codda test` (чужой запрос) — `test.skip`
 
 ## Журнал допущений
 
@@ -248,6 +249,12 @@ Slug фичи — имя папки без номера: `lesson-manifest/02` = 
 - author-cli/03 — чужой запрос — ошибка файла Run: `<lesson>/solution.ts: запрос на чужой адрес: <url>` (у Starter — `main.ts`), после ошибок вердикта; блокируются только `http(s)`/`ws(s)`, запросы до первого Run отбрасываются, WebSocket не ловится (route его не видит) — по спеке «путь файла от корня Course»
 - author-cli/03 — «нет Chromium» распознаётся по подстроке `Executable doesn't exist` в ошибке Playwright; в тесте — `PLAYWRIGHT_BROWSERS_PATH` на пустую папку (критерий тикета)
 - author-cli/03 — цвет только у знака `✓/✗/⚠`; `NO_COLOR` отключает цвет, если не пуст (no-color.org); `--help` печатает справку при любой команде — в спеке не задано
+- author-cli/04 — `codda dev` раздаёт сборку с `/`, а не с `/<course id>/` — при сломанном `course.yaml` id неизвестен; URL `http://127.0.0.1:<порт>/`
+- author-cli/04 — каждая пересборка `dev` проходит через Dependency Artifact (кэш `.codda/deps/`), а не только правка `package*.json` — новый импорт пакета в Lesson иначе ломал бы Run; правка Lesson стоит попадания в кэш
+- author-cli/04 — Lesson с ошибками — `BrokenLesson` `{ id, title: id, errors }` прямо в `partial.course` `readCourse`; `codda test` и `assemble` их отбрасывают — один источник порядка Lesson
+- author-cli/04 — верхний `errors` в dev — и при ошибках курса целиком с валидным `course.yaml` (повтор id, папка вне `course.yaml`), и при ошибке Dependency Artifact (`modules: []`) — `build` на них падает, в браузере они видны на весь экран; в спеке только «сломанный `course.yaml`»
+- author-cli/04 — вывод `dev`: `Курс: <url>` и `Ctrl+C — остановить`, после чистой пересборки `Курс собран без ошибок`; ошибки — в потоках `codda test` (Lesson и курс — stdout, `course.yaml` и артефакт — stderr) — формат в спеке не задан
+- author-cli/04 — SSE `/__codda/events`, скрипт — перед `</head>` или в конец `index.html`; `.codda/dev/` заменяется целиком на каждую пересборку (копия UI) — грубо, но просто
 
 ## Отложенные проблемы
 
@@ -264,3 +271,5 @@ Slug фичи — имя папки без номера: `lesson-manifest/02` = 
 - dependency-artifacts (review) — «прочие ошибки esbuild» выводятся без specifier/Lesson (спека просит с ними); `pkg` и `pkg/index.js`, разрешённые в один ESM-файл, дают один ключ — specifier пропадает из `imports`
 - dependency-artifacts (review) — буква спеки: проверка `package.json`/lockfile только у курса с пакетами; в CI `npm ci` курса делает сам `codda` (корневой `npm ci` курсы не ставит, кэша `.codda/` нет); dev-сервер собирает артефакт, хотя Out of Scope отдаёт это `author-cli`
 - dependency-artifacts (review) — косметика: `package.json` читается дважды в `dependency-artifact.ts`; augmentation `ProvidedContext` в двух местах; `vitest.global-setup.ts` импортирует константы из `vite.config.ts`; `setTimeout(300)` в `runner.test.ts` — кандидат во флейки
+- author-cli/04 — `cli/test-command.test.ts` «from a Lesson folder… a foreign request is its error» (author-cli/03) локально под нагрузкой полного `npm test` падает ~1 из 3: `✓ fetches` вместо ошибки «запрос на чужой адрес». Гипотеза: событие `route` приходит в Node после конца Run (оговорено в Comments 03). Обход: после Run дождаться обработки route (например, `page.evaluate` с пустой задачей) перед `foreign.splice`. Тест — `test.skip`
+- author-cli/04 — `codda dev`: запрос в окне между `rmSync` и `rename` `.codda/dev/` получает 404 (перезагрузка идёт после замены, на практике не видно); `fs.watch` по Linux следит и за `.codda/` (события фильтруются по первому сегменту пути) — не проверено в CI до push

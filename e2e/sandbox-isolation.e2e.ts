@@ -2,7 +2,8 @@
 // hostile student code through the editor and check what it can and cannot do.
 import type { Page } from "@playwright/test";
 import { expect, test } from "./offline";
-import type { CourseData } from "../packages/codda/src/course-data";
+// The Course Build of `codda build`: no Lesson in it has `errors` (BrokenLesson).
+import type { CourseData, LessonData } from "../packages/codda/src/course-data";
 
 // The first Lesson, use-state; its Starter passes 2 of 3 tests: the button does nothing.
 let starter: string;
@@ -14,7 +15,7 @@ async function runStudentCode(page: Page, source: string) {
 
 test.beforeEach(async ({ page }) => {
   const course: CourseData = await (await page.request.get("course.json")).json();
-  starter = course.modules[0].lessons[0].workspace.starter;
+  starter = (course.modules[0].lessons[0] as LessonData).workspace.starter;
   await page.goto("./");
 });
 

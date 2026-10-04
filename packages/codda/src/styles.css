@@ -233,3 +233,18 @@ body {
 .status {
   padding: 16px;
 }
+
+/* `codda dev`: manifest errors in place of a Lesson or of the Course. */
+.errors {
+  max-width: 900px;
+  padding: 16px 24px;
+}
+.errors h1 {
+  font-size: 18px;
+  color: #cf222e;
+}
+.errors li {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  white-space: pre-wrap;
+  margin-bottom: 4px;
+}

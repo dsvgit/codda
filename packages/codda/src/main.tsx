@@ -1,7 +1,7 @@
 import { StrictMode, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { App, runLesson } from "./App";
-import type { CourseData } from "./course-data";
+import type { CourseData, LessonData } from "./course-data";
 import { run } from "./runtime/runner";
 
 /**
@@ -20,7 +20,8 @@ function installTestPage(course: CourseData) {
         await run({ source: "", tests: "" });
       },
       run: (lessonId: string, which: "solution" | "starter") => {
-        const lesson = lessons.find((l) => l.id === lessonId)!;
+        // `codda test` never builds a BrokenLesson.
+        const lesson = lessons.find((l) => l.id === lessonId) as LessonData;
         return runLesson(course, lesson, which === "solution" ? lesson.solution : lesson.workspace.starter);
       },
     },
