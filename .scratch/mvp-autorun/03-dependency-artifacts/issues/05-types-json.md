@@ -4,11 +4,22 @@
 
 **Blocked by:** 01
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Тест CLI: фикстура с пакетом со своими типами — в `types.json` его `package.json` и все `.d.ts`/`.d.mts`/`.d.cts`, JS-файлов нет
-- [ ] Тест CLI: пакет без типов + объявленный `@types/<имя>` — в `types.json` файлы `/node_modules/@types/<имя>/…` и их транзитивная зависимость с типами (как `csstype` у `@types/react`); предупреждения нет
-- [ ] Тест CLI: пакет без типов, `@types/<имя>` не объявлен — предупреждение «у пакета `<имя>` нет типов: объявите `@types/<имя>` в dependencies, если он есть, иначе в редакторе он будет `any`», код `0`; в `types.json` заглушка `/node_modules/@types/<имя>/…d.ts` на каждую точку входа этого пакета (включая subpath)
-- [ ] Тест CLI: scoped-пакет без типов — заглушка по правилу имён `@types` (`@scope/pkg` → `@types/scope__pkg`)
-- [ ] Пилотный Course: в `types.json` есть `/node_modules/@types/react/index.d.ts`, `/node_modules/@types/react-dom/client.d.ts` и `/node_modules/csstype/index.d.ts`
-- [ ] Повышена константа версии пайплайна, так что артефакты в `.codda/deps/`, собранные до этого тикета без `types.json`, пересобираются
+- [x] Тест CLI: фикстура с пакетом со своими типами — в `types.json` его `package.json` и все `.d.ts`/`.d.mts`/`.d.cts`, JS-файлов нет
+- [x] Тест CLI: пакет без типов + объявленный `@types/<имя>` — в `types.json` файлы `/node_modules/@types/<имя>/…` и их транзитивная зависимость с типами (как `csstype` у `@types/react`); предупреждения нет
+- [x] Тест CLI: пакет без типов, `@types/<имя>` не объявлен — предупреждение «у пакета `<имя>` нет типов: объявите `@types/<имя>` в dependencies, если он есть, иначе в редакторе он будет `any`», код `0`; в `types.json` заглушка `/node_modules/@types/<имя>/…d.ts` на каждую точку входа этого пакета (включая subpath)
+- [x] Тест CLI: scoped-пакет без типов — заглушка по правилу имён `@types` (`@scope/pkg` → `@types/scope__pkg`)
+- [x] Пилотный Course: в `types.json` есть `/node_modules/@types/react/index.d.ts`, `/node_modules/@types/react-dom/client.d.ts` и `/node_modules/csstype/index.d.ts`
+- [x] Повышена константа версии пайплайна, так что артефакты в `.codda/deps/`, собранные до этого тикета без `types.json`, пересобираются
+
+## Comments
+
+- Сборщик (`packages/codda/cli/dependency-artifact.ts`, функция `types`) пишет `types.json` во временную папку артефакта перед `rename`, поэтому в кэше `.codda/deps/<hash>/` он есть всегда. Обход: от каждого пакета `dependencies` по `dependencies`/`peerDependencies` (сначала `node_modules` пакета, потом Course), в файл попадают `package.json` и все `.d.ts`/`.d.mts`/`.d.cts` пакета, если они есть. Вложенные `node_modules` при сканировании файлов пакета пропускаются: они идут отдельными пакетами по своему пути. Ключи отсортированы.
+- «Есть свои типы» значит, что в папке пакета есть хотя бы один файл декларации. Поле `types` и `exports` не читаются: если они указывают на `.d.ts`, этот файл и так лежит в пакете.
+- Пакет без типов (ни своих, ни объявленного `@types/<имя>`) — заглушка `declare const m: any; export = m;` на каждую точку входа: `pkg` → `@types/<имя>/index.d.ts`, `pkg/sub` → `@types/<имя>/sub.d.ts`. Пакет без точек входа заглушки не получает. Подходит ли текст заглушки для default- и именованных импортов на TS 6, проверяет `ts-tooling` (Q4); если нет, меняется только `ANY_STUB`.
+- Предупреждение выводится в stderr, код `0`. Его выводят из заглушек `types.json`, поэтому оно повторяется и при попадании в кэш, когда `node_modules` не читаются. `@scope__pkg` обратно превращается в `@scope/pkg`.
+- `PIPELINE_VERSION` поднят до `2`. Hash меняется, так что артефакты без `types.json` пересобираются. Отдельного теста на это нет: критерий проверяется по коду.
+- Базовая фикстура `deps.test.ts` теперь с типами: у `esm-pkg` свои `.d.ts`/`.d.mts`/`.d.cts`, у `cjs-pkg` есть `@types/cjs-pkg`, который зависит от `shape-types` (как `csstype`). Иначе первый тест, ожидающий пустой stderr, получил бы предупреждения.
+- Тесты написаны до кода, red увиден: 4 в `deps.test.ts` и проверка пилотного Course в `build.test.ts` (`types.json` React Hooks — 31 файл, около 1,4 МБ).
+- Вне тикета: `types.json` пилотного Course весит около 1,4 МБ, сжатия нет. Type Checker грузит его один раз, это вопрос `ts-tooling`.

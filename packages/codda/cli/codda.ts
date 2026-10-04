@@ -82,7 +82,10 @@ async function build() {
     process.exit(1);
   }
 
-  if (artifact.deps !== null) process.stdout.write(`${artifact.log}\n`);
+  if (artifact.deps !== null) {
+    process.stdout.write(`${artifact.log}\n`);
+    process.stderr.write(artifact.warnings.map((line) => `${line}\n`).join(""));
+  }
   mkdirSync(out, { recursive: true });
   cpSync(uiDir, out, { recursive: true });
   writeFileSync(join(out, "course.json"), JSON.stringify({ ...result.course, deps: artifact.deps }));

@@ -146,6 +146,7 @@ Slug фичи — имя папки без номера: `lesson-manifest/02` = 
 - 2026-10-04 — dependency-artifacts/02 — коммит: кэш артефакта в `.codda/deps/<hash>/` (временная папка + `rename`), строка «Зависимости: deps/<hash> — собраны за N с / из кэша», правило npm по `node_modules/.package-lock.json` (одинаково при `CI=true`), ошибка `npm ci` с префиксом и подсказкой, точные версии в `dependencies`, нет `package.json`/`package-lock.json` — ошибка
 - 2026-10-04 — dependency-artifacts/03 — коммит: ошибки сборки артефакта — пакет не объявлен в `dependencies` (Lesson, файл, specifier, все сразу), пакет импортирует Node built-in (имя пакета, где импорт), CJS падает при `require()`, subpath вне `exports` — с файлом Lesson; артефакта при ошибке нет
 - 2026-10-04 — dependency-artifacts/04 — коммит: ошибки Run из-за артефакта — «Импорт "<specifier>" не предусмотрен заданием» на строке импорта (и при `deps: null`), 404 на `importmap.json`/файл — «Курс обновился, перезагрузите страницу», прочий сбой и `integrity` — «Не удалось загрузить зависимости курса: …», код студента не исполняется, следующий Run грузит заново
+- 2026-10-04 — dependency-artifacts/05 — коммит: `types.json` в `deps/<hash>/` — `package.json` и `.d.ts`/`.d.mts`/`.d.cts` пакетов `dependencies` и их транзитивных `dependencies`/`peerDependencies` с типами; у пакета без типов и без `@types` — предупреждение и заглушка `any` в `@types/<имя>` на каждую точку входа; `PIPELINE_VERSION` = 2
 
 ## Журнал допущений
 
@@ -219,6 +220,10 @@ Slug фичи — имя папки без номера: `lesson-manifest/02` = 
 - dependency-artifacts/04 — 404 под `integrity` Chrome отдаёт как `Failed to fetch`, поэтому после провала загрузки Worker спрашивает `HEAD` без `integrity`: 404 — «Курс обновился…» — правило 6, без своей проверки hash
 - dependency-artifacts/04 — причина в «Не удалось загрузить зависимости курса: …» — путь файла и сообщение браузера; сеть и `integrity` Chrome не различает — формат в спеке не задан
 - dependency-artifacts/04 — при ошибке загрузки Run даёт одну compile-error без строки, прочие ошибки esbuild отбрасываются — иначе одна причина повторяется на каждом импорте
+- dependency-artifacts/05 — «у пакета есть типы» = в его папке есть хотя бы один `.d.ts`/`.d.mts`/`.d.cts`; поля `types`/`exports` не читаются — грубо, но надёжно для пилота
+- dependency-artifacts/05 — заглушка `any` — `declare const m: any; export = m;`; пакет без точек входа заглушки не получает — текст заглушки проверит `ts-tooling` (Q4)
+- dependency-artifacts/05 — предупреждение о пакете без типов идёт в stderr, код `0`, и повторяется при попадании в кэш (выводится из заглушек `types.json`) — поток и поведение при кэше в спеке не заданы
+- dependency-artifacts/05 — базовая фикстура `deps.test.ts` получила типы (`@types/cjs-pkg` → `shape-types`, `.d.ts` у `esm-pkg`) — иначе предупреждение ломало бы ожидание пустого stderr
 
 ## Отложенные проблемы
 

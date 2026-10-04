@@ -15,7 +15,7 @@ import { basename, dirname, extname, join, relative, sep } from "node:path";
 import * as esbuild from "esbuild";
 
 /** Raised by hand on any change of what the artifact contains or how it is laid out. */
-const PIPELINE_VERSION = 1;
+const PIPELINE_VERSION = 2; // 2: types.json
 
 const BUILD_OPTIONS = {
   bundle: true,
@@ -30,12 +30,13 @@ const BUILD_OPTIONS = {
   chunkNames: "chunk-[hash]",
 } satisfies esbuild.BuildOptions;
 
-type Result = { deps: null } | { deps: string; log: string } | { errors: string[] };
+type Result = { deps: null } | { deps: string; log: string; warnings: string[] } | { errors: string[] };
 
 /**
  * Builds the artifact of the Course at `courseRoot` with Lessons `lessonIds` into
  * `<out>/deps/<hash>/`. `deps` is that folder relative to `out`, or null if
- * no Lesson imports a package; `log` is the one line about it for the Author.
+ * no Lesson imports a package; `log` is the one line about it for the Author,
+ * `warnings` are about packages without types.
  *
  * The artifact is cached in `.codda/deps/<hash>/` of the Course: a hit runs
  * neither npm nor esbuild. A build goes into a temporary folder next to it and
@@ -79,11 +80,69 @@ export async function buildDependencyArtifact(courseRoot: string, lessonIds: str
       rmSync(tmp, { recursive: true, force: true });
       return built;
     }
+    writeFileSync(join(tmp, "types.json"), JSON.stringify(types(root, entries)) + "\n");
     renameSync(tmp, cached);
     log = `Зависимости: deps/${hash} — собраны за ${((performance.now() - started) / 1000).toFixed(1)} с`;
   }
   cpSync(cached, join(out, deps), { recursive: true });
-  return { deps, log };
+  return { deps, log, warnings: untypedWarnings(join(cached, "types.json")) };
+}
+
+/** What `types.json` has for a package without types: the module is `any`. */
+const ANY_STUB = "declare const m: any;\nexport = m;\n";
+
+/**
+ * types.json: the slice of node_modules with types the Type Checker needs, as
+ * `/node_modules/<package>/<file>` → text. `package.json` and the declaration
+ * files of each package of `dependencies` and of their `dependencies` and
+ * `peerDependencies`, transitively, that have any. A declared package without
+ * types and without a declared `@types` package gets an `any` stub in
+ * `@types/<name>` for each of its entry points, where TS looks it up.
+ */
+function types(root: string, entries: string[]): Record<string, string> {
+  const { dependencies = {} } = JSON.parse(readFileSync(join(root, "package.json"), "utf8")) as { dependencies?: Record<string, string> };
+  const files: Record<string, string> = {};
+  const seen = new Set<string>();
+  const visit = (dir: string) => {
+    if (seen.has(dir) || !existsSync(join(dir, "package.json"))) return;
+    seen.add(dir);
+    const declarations = (readdirSync(dir, { recursive: true }) as string[])
+      .map((path) => path.split(sep).join("/"))
+      .filter((path) => /\.d\.[mc]?ts$/.test(path) && !path.split("/").includes("node_modules"));
+    const pkg = JSON.parse(readFileSync(join(dir, "package.json"), "utf8")) as { dependencies?: object; peerDependencies?: object };
+    if (declarations.length > 0) {
+      const at = `/${relative(root, dir).split(sep).join("/")}/`;
+      for (const path of ["package.json", ...declarations]) files[at + path] = readFileSync(join(dir, path), "utf8");
+    }
+    for (const name of Object.keys({ ...pkg.dependencies, ...pkg.peerDependencies })) {
+      // Node's lookup: node_modules of the package first, then up to the Course's.
+      const nested = join(dir, "node_modules", name);
+      visit(existsSync(nested) ? nested : join(root, "node_modules", name));
+    }
+  };
+  for (const name of Object.keys(dependencies)) visit(join(root, "node_modules", name));
+
+  for (const name of Object.keys(dependencies)) {
+    const typesName = `@types/${name.replace(/^@/, "").replace("/", "__")}`;
+    const own = Object.keys(files).some((path) => path.startsWith(`/node_modules/${name}/`));
+    if (name.startsWith("@types/") || own || Object.hasOwn(dependencies, typesName)) continue;
+    for (const entry of entries.filter((specifier) => packageName(specifier) === name)) {
+      const subpath = entry.slice(name.length + 1) || "index";
+      files[`/node_modules/${typesName}/${subpath}.d.ts`] = ANY_STUB;
+    }
+  }
+  return sortKeys(files);
+}
+
+/** The warnings for the packages types.json has `any` stubs of: told on a cache hit too. */
+function untypedWarnings(typesJson: string): string[] {
+  const stubbed = Object.entries(JSON.parse(readFileSync(typesJson, "utf8")) as Record<string, string>)
+    .filter(([, text]) => text === ANY_STUB)
+    .map(([path]) => /^\/node_modules\/@types\/([^/]+)\//.exec(path)![1]);
+  return [...new Set(stubbed)].map((typesName) => {
+    const name = typesName.includes("__") ? `@${typesName.replace("__", "/")}` : typesName;
+    return `у пакета \`${name}\` нет типов: объявите \`@types/${typesName}\` в dependencies, если он есть, иначе в редакторе он будет \`any\``;
+  });
 }
 
 /** An exact semver version, a prerelease allowed: what `save-exact` writes. */

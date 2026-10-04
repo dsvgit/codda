@@ -200,6 +200,12 @@ test("`codda build courses/react-hooks` takes the five Lessons from the Course f
     expect(lesson.tests).toBe(readFileSync(join(dir, "lesson.test.tsx"), "utf8"));
   }
   expect(lessons[0].title).toBe("useState");
+
+  // The types of the Course's packages for the Type Checker (ts-tooling).
+  const types = readJson(join(out, course.deps, "types.json"));
+  expect(Object.keys(types)).toEqual(
+    expect.arrayContaining(["/node_modules/@types/react/index.d.ts", "/node_modules/@types/react-dom/client.d.ts", "/node_modules/csstype/index.d.ts"]),
+  );
 });
 
 describe("Course errors: one line each, all in one run, exit 1, no build", () => {

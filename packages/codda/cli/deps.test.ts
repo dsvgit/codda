@@ -39,16 +39,22 @@ function codda(args: string[], env: Record<string, string> = {}) {
 const readJson = (path: string) => JSON.parse(readFileSync(path, "utf8"));
 const sha384 = (path: string) => `sha384-${createHash("sha384").update(readFileSync(path)).digest("base64")}`;
 
+const dependencies = { "@types/cjs-pkg": "1.0.0", "cjs-pkg": "1.0.0", "esm-pkg": "2.0.0" };
 const lockPackages = {
-  "": { name: "demo", dependencies: { "cjs-pkg": "1.0.0", "esm-pkg": "2.0.0" } },
+  "": { name: "demo", dependencies },
+  "node_modules/@types/cjs-pkg": { version: "1.0.0", dependencies: { "shape-types": "^1.0.0" } },
   "node_modules/cjs-pkg": { version: "1.0.0" },
   "node_modules/esm-pkg": { version: "2.0.0" },
+  "node_modules/shape-types": { version: "1.0.0" },
 };
 
 /**
  * A Course of two Lessons: one imports a CommonJS package (named exports and
  * the default one), the other an ES module package; both import "./main".
- * node_modules match package-lock.json, as after `npm ci`.
+ * node_modules match package-lock.json, as after `npm ci`. The ES module
+ * package ships its own types; the CommonJS one has none, but its
+ * `@types/cjs-pkg` is declared and depends on a types-only package, as
+ * `@types/react` on `csstype`.
  */
 function writeCourse(dir: string) {
   writeFiles(dir, {
@@ -61,13 +67,21 @@ function writeCourse(dir: string) {
     "count/main.ts": 'import { start } from "esm-pkg";\nexport const count = start;\n',
     "count/solution.ts": 'import { start } from "esm-pkg";\nexport const count = start + 1;\n',
     "count/lesson.test.ts": 'import type { Shape } from "types-only";\nimport { count } from "./main";\nexport const c: Shape = count;\n',
-    "package.json": JSON.stringify({ name: "demo", dependencies: { "cjs-pkg": "1.0.0", "esm-pkg": "2.0.0" } }),
+    "package.json": JSON.stringify({ name: "demo", dependencies }),
     "package-lock.json": JSON.stringify({ name: "demo", lockfileVersion: 3, requires: true, packages: lockPackages }),
     "node_modules/.package-lock.json": JSON.stringify({ name: "demo", lockfileVersion: 3, requires: true, packages: lockPackages }),
     "node_modules/cjs-pkg/package.json": JSON.stringify({ name: "cjs-pkg", version: "1.0.0", main: "index.js" }),
     "node_modules/cjs-pkg/index.js": 'exports.greet = (name) => `привет, ${name}`;\nexports.answer = 42;\n',
     "node_modules/esm-pkg/package.json": JSON.stringify({ name: "esm-pkg", version: "2.0.0", type: "module", main: "index.js" }),
     "node_modules/esm-pkg/index.js": "export const start = 10;\n",
+    "node_modules/esm-pkg/index.d.ts": "export declare const start: number;\n",
+    "node_modules/esm-pkg/lib/extra.d.mts": "export declare const extra: number;\n",
+    "node_modules/esm-pkg/lib/extra.d.cts": "export declare const extra: number;\n",
+    "node_modules/esm-pkg/lib/extra.js": "export const extra = 1;\n",
+    "node_modules/@types/cjs-pkg/package.json": JSON.stringify({ name: "@types/cjs-pkg", version: "1.0.0", types: "index.d.ts", dependencies: { "shape-types": "^1.0.0" } }),
+    "node_modules/@types/cjs-pkg/index.d.ts": 'import type { Shape } from "shape-types";\nexport declare function greet(name: string): string;\nexport declare const answer: number;\nexport declare const shape: Shape;\n',
+    "node_modules/shape-types/package.json": JSON.stringify({ name: "shape-types", version: "1.0.0", types: "index.d.ts" }),
+    "node_modules/shape-types/index.d.ts": "export type Shape = { side: number };\n",
   });
 }
 
@@ -236,7 +250,7 @@ test("an npm ci failure shows npm's lines with the npm ci: prefix, then one hint
   // package.json asks for a version package-lock.json does not have. npm then
   // looks the package up in the registry; offline mode (standard npm config)
   // makes that fail at once, without network.
-  writeFiles(course, { "package.json": JSON.stringify({ name: "demo", dependencies: { "cjs-pkg": "1.0.1", "esm-pkg": "2.0.0" } }) });
+  writeFiles(course, { "package.json": JSON.stringify({ name: "demo", dependencies: { ...dependencies, "cjs-pkg": "1.0.1" } }) });
   const out = join(tmp, "site");
 
   const { status, stderr } = codda(["build", course, "--out", out], { npm_config_offline: "true" });
@@ -280,7 +294,7 @@ test("a range in devDependencies is not an error, and a devDependencies package 
   const course = join(tmp, "course");
   writeCourse(course);
   writeFiles(course, {
-    "package.json": JSON.stringify({ name: "demo", dependencies: { "cjs-pkg": "1.0.0", "esm-pkg": "2.0.0" }, devDependencies: { "dev-tool": "^3.0.0" } }),
+    "package.json": JSON.stringify({ name: "demo", dependencies, devDependencies: { "dev-tool": "^3.0.0" } }),
     "node_modules/dev-tool/package.json": JSON.stringify({ name: "dev-tool", version: "3.1.0", main: "index.js" }),
     "node_modules/dev-tool/index.js": "exports.tool = 1;\n",
   });
@@ -474,4 +488,101 @@ test("a subpath missing from the package's exports is esbuild's error with the L
   expect(lines).toHaveLength(1);
   expect(lines[0]).toBe('count/solution.ts: импорт "esm-pkg/extra": Could not resolve "esm-pkg/extra"');
   expectNoArtifact(course, out);
+});
+
+/** types.json of the artifact `codda build` put into `out`. */
+function typesOf(out: string): Record<string, string> {
+  const { deps } = readJson(join(out, "course.json"));
+  return readJson(join(out, deps, "types.json"));
+}
+
+test("types.json has package.json and every .d.ts, .d.mts and .d.cts of a package with its own types, and no JS", () => {
+  const course = join(tmp, "course");
+  writeCourse(course);
+  const out = join(tmp, "site");
+
+  const { status } = codda(["build", course, "--out", out]);
+
+  expect(status).toBe(0);
+  const types = typesOf(out);
+  const esm = Object.keys(types).filter((path) => path.startsWith("/node_modules/esm-pkg/")).sort();
+  expect(esm).toEqual([
+    "/node_modules/esm-pkg/index.d.ts",
+    "/node_modules/esm-pkg/lib/extra.d.cts",
+    "/node_modules/esm-pkg/lib/extra.d.mts",
+    "/node_modules/esm-pkg/package.json",
+  ]);
+  expect(types["/node_modules/esm-pkg/index.d.ts"]).toBe(readFileSync(join(course, "node_modules/esm-pkg/index.d.ts"), "utf8"));
+  expect(types["/node_modules/esm-pkg/package.json"]).toBe(readFileSync(join(course, "node_modules/esm-pkg/package.json"), "utf8"));
+  expect(Object.keys(types).every((path) => /(\.d\.[mc]?ts|\/package\.json)$/.test(path))).toBe(true);
+});
+
+test("types.json has a declared @types package and its dependency with types; the package without types gets no warning", () => {
+  const course = join(tmp, "course");
+  writeCourse(course);
+  const out = join(tmp, "site");
+
+  const { status, stderr } = codda(["build", course, "--out", out]);
+
+  expect(status).toBe(0);
+  expect(stderr).toBe("");
+  const types = typesOf(out);
+  expect(Object.keys(types)).toEqual(
+    expect.arrayContaining([
+      "/node_modules/@types/cjs-pkg/package.json",
+      "/node_modules/@types/cjs-pkg/index.d.ts",
+      "/node_modules/shape-types/package.json",
+      "/node_modules/shape-types/index.d.ts",
+    ]),
+  );
+  // A package without types is not there: its package.json would tell TS nothing.
+  expect(Object.keys(types).some((path) => path.startsWith("/node_modules/cjs-pkg/"))).toBe(false);
+});
+
+test("a package without types and without a declared @types: a warning, exit 0, an any stub per entry point in types.json", () => {
+  const course = join(tmp, "course");
+  writeCourse(course);
+  addPackages(course, {
+    "plain-pkg": {
+      files: {
+        "package.json": JSON.stringify({ name: "plain-pkg", version: "1.0.0", main: "index.js" }),
+        "index.js": "exports.plain = 1;\n",
+        "sub.js": "exports.sub = 2;\n",
+      },
+    },
+  });
+  writeFiles(course, {
+    "greet/main.ts": 'import { greet } from "cjs-pkg";\nimport plain from "plain-pkg";\nimport { sub } from "plain-pkg/sub";\nexport const hi = () => greet(String([plain, sub]));\n',
+  });
+  const out = join(tmp, "site");
+
+  const { status, stderr } = codda(["build", course, "--out", out]);
+
+  expect(status).toBe(0);
+  expect(stderr.trimEnd().split("\n")).toEqual([
+    "у пакета `plain-pkg` нет типов: объявите `@types/plain-pkg` в dependencies, если он есть, иначе в редакторе он будет `any`",
+  ]);
+  const stubs = Object.keys(typesOf(out)).filter((path) => path.startsWith("/node_modules/@types/plain-pkg/")).sort();
+  expect(stubs).toEqual(["/node_modules/@types/plain-pkg/index.d.ts", "/node_modules/@types/plain-pkg/sub.d.ts"]);
+});
+
+test("a scoped package without types gets its stub by the @types naming rule: @scope/pkg → @types/scope__pkg", () => {
+  const course = join(tmp, "course");
+  writeCourse(course);
+  addPackages(course, {
+    "@acme/plain": {
+      files: {
+        "package.json": JSON.stringify({ name: "@acme/plain", version: "1.0.0", main: "index.js" }),
+        "index.js": "exports.plain = 1;\n",
+      },
+    },
+  });
+  writeFiles(course, { "greet/main.ts": 'import { greet } from "cjs-pkg";\nimport { plain } from "@acme/plain";\nexport const hi = () => greet(String(plain));\n' });
+  const out = join(tmp, "site");
+
+  const { status, stderr } = codda(["build", course, "--out", out]);
+
+  expect(status).toBe(0);
+  expect(stderr).toContain("у пакета `@acme/plain` нет типов: объявите `@types/acme__plain` в dependencies");
+  expect(Object.keys(typesOf(out))).toContain("/node_modules/@types/acme__plain/index.d.ts");
 });
