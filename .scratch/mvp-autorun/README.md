@@ -141,6 +141,7 @@ Slug фичи — имя папки без номера: `lesson-manifest/02` = 
 - 2026-10-04 — runtime-hardening/04 — коммит: `line/column` у ошибки компиляции только в Workspace (Workspace в esbuild — `file` `main`), ошибка Lesson Tests без строки; `runtime-error` без stack, сообщение — `message`; подчёркивание ошибки компиляции в редакторе через `@codemirror/lint`, снимается на правке и старте Run
 - 2026-10-04 — runtime-hardening/05 — коммит: падение Worker Compiler'а (не загрузился `esbuild.wasm` или скрипт, упал `initialize`) — сразу `internal-error`, Worker уничтожен, следующий Run поднимает новый; «Внутренняя ошибка» во вкладке «Тесты», новый текст timeout; сбой в тестах — `page.route` (команды Vitest browser и e2e)
 - 2026-10-04 — runtime-hardening — /code-review (Standards: 0 жёстких; Spec: 7). Исправлено: колонка ошибки в байтах (кириллица), падение экрана при правке во время Run, ложный чекбокс 01, тест «Run from «Решение»» возвращён (переставлен до тестов с бесконечным циклом). Остальное — в «Отложенные проблемы»
+- 2026-10-04 — runtime-hardening — push, `check` зелёный (прогон 37210868217); фича закрыта
 
 ## Журнал допущений
 
