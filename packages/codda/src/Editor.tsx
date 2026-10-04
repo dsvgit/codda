@@ -30,7 +30,7 @@ const RELINT = "codda.relint";
 export type EditorHandle = {
   /** Replaces the whole text in one transaction: Mod-z brings the old text back. */
   replaceAll: (text: string) => void;
-  /** Puts the cursor at offset `pos` and focuses the editor. */
+  /** Puts the cursor at offset `pos` (at most the text's end) and focuses the editor. */
   goTo: (pos: number) => void;
 };
 
@@ -114,7 +114,8 @@ export function Editor({
     },
     goTo: (pos) => {
       const editor = view.current!;
-      editor.dispatch({ selection: { anchor: pos }, scrollIntoView: true });
+      // The «Проблемы» list lags behind the text: a problem may be past its end.
+      editor.dispatch({ selection: { anchor: Math.min(pos, editor.state.doc.length) }, scrollIntoView: true });
       editor.focus();
     },
   }));

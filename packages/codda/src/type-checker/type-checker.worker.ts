@@ -29,7 +29,7 @@ self.onmessage = ({ data }: MessageEvent<TypeCheckerRequest>) => {
         env = createTypeEnvironment(ts, { ...libFiles, ...typeFiles });
         post({ type: "ready" });
       })
-      .catch((err: Error) => post({ type: "failed", message: err.message }));
+      .catch(() => post({ type: "failed" }));
     return;
   }
   env.setFile(data.file, data.text);

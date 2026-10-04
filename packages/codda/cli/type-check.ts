@@ -9,6 +9,7 @@ import { readFileSync } from "node:fs";
 import ts from "typescript-6";
 import type { LessonData } from "../src/course-data.ts";
 import { createTypeEnvironment, type TypeEnvironment } from "../src/type-checker/core.ts";
+import { solutionName } from "./read-course.ts";
 import { tsLibFiles } from "./ts-lib.ts";
 
 const CODDA_TEST = readFileSync(new URL("../src/runtime/codda-test.d.ts", import.meta.url), "utf8");
@@ -26,9 +27,8 @@ export function lessonTypeChecker(types: Record<string, string>) {
     const main = lesson.workspace.name;
     withTests.setFiles({ [main]: lesson.solution, [lesson.testsName]: lesson.tests });
     alone.setFiles({ [main]: lesson.workspace.starter });
-    const solutionFile = main.replace("main", "solution");
     return {
-      errors: [...lines(withTests, main, `${lesson.id}/${solutionFile}`), ...lines(withTests, lesson.testsName, `${lesson.id}/${lesson.testsName}`)],
+      errors: [...lines(withTests, main, `${lesson.id}/${solutionName(main)}`), ...lines(withTests, lesson.testsName, `${lesson.id}/${lesson.testsName}`)],
       warnings: lines(alone, main, `${lesson.id}/${main}`),
     };
   };

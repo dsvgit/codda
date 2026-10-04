@@ -17,7 +17,7 @@ import type { CourseData, LessonData } from "../src/course-data.ts";
 import type { TestReport } from "../src/runtime/types.ts";
 import { buildDependencyArtifact } from "./dependency-artifact.ts";
 import { findCourse } from "./find-course.ts";
-import { KEBAB_CASE, readCourse } from "./read-course.ts";
+import { KEBAB_CASE, readCourse, solutionName } from "./read-course.ts";
 import { formatLesson, formatSummary, type LessonResult } from "./report.ts";
 import { serveFolder } from "./static-server.ts";
 import { lessonTypeChecker } from "./type-check.ts";
@@ -296,7 +296,7 @@ async function test(): Promise<number> {
         ([id, which]) => (globalThis as any).__codda.run(id, which),
         [lesson.id, which] as const,
       );
-      const file = `${lesson.id}/${which === "solution" ? lesson.workspace.name.replace("main", "solution") : lesson.workspace.name}`;
+      const file = `${lesson.id}/${which === "solution" ? solutionName(lesson.workspace.name) : lesson.workspace.name}`;
       return { report, foreign: foreign.splice(0).map((url) => `${file}: запрос на чужой адрес: ${url}`) };
     };
 

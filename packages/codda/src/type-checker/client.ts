@@ -14,7 +14,7 @@ export type TypeCheckerRequest =
 
 export type TypeCheckerResponse =
   | { type: "ready" }
-  | { type: "failed"; message: string }
+  | { type: "failed" }
   | { type: "diagnostics"; id: number; errors: TypeError[] }
   | { type: "completions"; id: number; completions: Completions };
 

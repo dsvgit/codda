@@ -12,6 +12,9 @@ import type { CourseData, LessonData } from "../src/course-data.ts";
 z.config(z.locales.ru());
 
 export const KEBAB_CASE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+
+/** The Solution's file name: as the Starter's, with `solution` for `main`. */
+export const solutionName = (main: "main.ts" | "main.tsx") => main.replace("main", "solution");
 const kebabCase = z.string().regex(KEBAB_CASE, "ожидается kebab-case, например use-state");
 
 const CourseYaml = z.strictObject({
@@ -159,7 +162,7 @@ function readLesson(root: string, id: string, errors: string[]): LessonData | un
   const mains = (["main.ts", "main.tsx"] as const).filter(has);
   if (mains.length === 0) errors.push(`${id}/: нет main.ts или main.tsx`);
   if (mains.length === 2) errors.push(`${id}/: есть и main.ts, и main.tsx — нужен один`);
-  const solution = mains.length === 1 ? mains[0].replace("main", "solution") : undefined;
+  const solution = mains.length === 1 ? solutionName(mains[0]) : undefined;
   if (solution && !has(solution)) errors.push(`${id}/: нет ${solution} — расширение как у ${mains[0]}`);
 
   const tests = (["lesson.test.ts", "lesson.test.tsx"] as const).filter(has);
