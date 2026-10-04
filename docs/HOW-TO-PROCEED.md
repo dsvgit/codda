@@ -53,11 +53,12 @@ Wayfinder создаст `.scratch/mvp/map.md` и тикеты-решения (`
 | # | Фича (`.scratch/<slug>`) | Блок | Фаза |
 |---|---|---|---|
 | 0 | `misc-01-ci-bootstrap` — GitHub Actions: typecheck, unit, e2e на PR и push в `main`; обязательная проверка в branch protection ([тикет](../.scratch/misc/issues/01-ci-bootstrap.md)) | — | 1 |
+| 0a | `misc-03-workspaces` — npm workspaces: инструмент в `packages/codda/`, курсы вне workspaces; после `misc/02` (Pages), до `lesson-manifest` ([тикет](../.scratch/misc/issues/03-workspaces.md)) | — | 1 |
 | 1 | `lesson-manifest` — `course.yaml` + папки Lesson (тикет 03), Zod-схема, UI читает Course как данные `course.json` (ADR-0008), экран Lesson по прототипу 04, Solution, Reset, проверка границы ADR-0006 в CI; перевод React Hooks, удаление старого формата | C | 1 |
 | 2 | `runtime-hardening` — отмена Run, console, source maps, async-ошибки (R8), восстановление после падения | A | 1 |
 | 3 | `dependency-artifacts` — Dependency Artifact на Course из `package.json` + `package-lock.json`, `importmap.json` + `types.json` по hash, вшивание в бандл (ADR-0007) | B | 1 |
-| 4 | `author-cli` — `codda init/lesson/test/dev/build` (тикет 05, ADR-0008), шаги `codda test/build` и выкладка на GitHub Pages в CI, шаблоны CI для курсов (тикет 06) | D | 1 |
-| 4a | `misc-03-workspaces-cli-publish` — npm workspaces (`packages/codda/`, курсы вне workspaces) и публикация пакета `codda` для `npx codda` в репозиториях курсов; пересматривает ADR-0006, сначала grilling ([тикет](../.scratch/misc/issues/03-workspaces-cli-publish.md)) | D | 1 |
+| 4 | `author-cli` — `codda init/lesson/test/dev/build` (тикет 05, ADR-0008) в `packages/codda/cli/`, курс подключает его через `file:` и вызывает `npx codda` (misc/03), шаги `codda test/build` и выкладка на GitHub Pages в CI, шаблоны CI для курсов (тикет 06) | D | 1 |
+| 4a | `misc-04-cli-package-publish` — публикация пакета `codda` для `npx codda` в репозиториях курсов; пересматривает ADR-0006, сначала grilling; нужна, когда появится второй репозиторий курса ([тикет](../.scratch/misc/issues/04-cli-package-publish.md)) | D | 1 |
 | 5 | `ts-tooling` — Type Checker: diagnostics, autocomplete, `.d.ts` из `types.json` (тикет 09, ADR-0009) | E | 2 |
 | 6 | `course-ux` — дерево Course и навигация, локальный прогресс и Workspace в `localStorage` | H | 3 |
 | 7 | `pilot-course` — 5–10 реальных Lesson, прогон через CLI, пилот на людях (только Chrome) | — | 3 |
