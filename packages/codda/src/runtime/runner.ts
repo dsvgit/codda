@@ -5,23 +5,27 @@ export type { TestReport } from "./types";
 
 /**
  * One Run: compile source + Lesson Tests, execute them in a fresh Sandbox.
- * The whole Run, compilation included, gets `timeoutMs`; past it the Sandbox
- * is destroyed (and the Worker, if it is still compiling) and the Run reports
- * a timeout.
+ * The whole Run, compilation included, gets `timeoutMs`; `signal` cancels it.
+ * Deadline and cancellation stop the Run the same way: the Sandbox is
+ * destroyed (and the Worker, if it is still compiling) and the Run reports a
+ * timeout or `cancelled`.
  */
 export function run(
   input: CompileInput,
-  { timeoutMs = 5000 }: { timeoutMs?: number } = {},
+  { timeoutMs = 5000, signal }: { timeoutMs?: number; signal?: AbortSignal } = {},
 ): Promise<TestReport> {
-  const deadline = new AbortController();
+  if (signal?.aborted) return Promise.resolve({ kind: "cancelled" });
+  const stop = new AbortController();
   let timer: ReturnType<typeof setTimeout>;
-  const timedOut = new Promise<TestReport>((resolve) => {
-    timer = setTimeout(() => {
-      deadline.abort();
-      resolve({ kind: "timeout", ms: timeoutMs });
-    }, timeoutMs);
+  const stopped = new Promise<TestReport>((resolve) => {
+    const stopWith = (report: TestReport) => {
+      stop.abort();
+      resolve(report);
+    };
+    timer = setTimeout(() => stopWith({ kind: "timeout", ms: timeoutMs }), timeoutMs);
+    signal?.addEventListener("abort", () => stopWith({ kind: "cancelled" }), { once: true });
   });
-  return Promise.race([compileAndExecute(input, deadline.signal), timedOut]).finally(() =>
+  return Promise.race([compileAndExecute(input, stop.signal), stopped]).finally(() =>
     clearTimeout(timer),
   );
 }

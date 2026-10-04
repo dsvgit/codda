@@ -10,7 +10,8 @@ export type TestReport =
   | { kind: "tests"; results: TestResult[] }
   | { kind: "compile-error"; errors: CompileError[] }
   | { kind: "runtime-error"; message: string; stack?: string }
-  | { kind: "timeout"; ms: number };
+  | { kind: "timeout"; ms: number }
+  | { kind: "cancelled" };
 
 export type CompileInput = { source: string; tests: string };
 

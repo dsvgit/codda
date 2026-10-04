@@ -134,6 +134,7 @@ Slug фичи — имя папки без номера: `lesson-manifest/02` = 
 - 2026-10-04 — lesson-manifest/05 — коммит: граница ADR-0006 — `rootDir` в tsconfig пакета и Node-тест `cli/boundary.test.ts` (esbuild разрешает каждый импорт исходников, включая `?raw`/`?url`), идёт в `npm test`
 - 2026-10-04 — lesson-manifest — /code-review (Standards: 1 жёсткое — XSS через `javascript:` в Instructions; Spec: 4), правки отдельным коммитом
 - 2026-10-04 — lesson-manifest — push; `check` красный (dev-server.test: в контейнере localhost → ::1), fix 3806e47; `check` зелёный (прогон 37205302805); фича закрыта. Выкладка на Pages (01b) подтверждается после merge
+- 2026-10-04 — runtime-hardening/01 — коммит: отмена Run — `run(input, { signal })` и отчёт `cancelled` (deadline и отмена одним путём), `■ Отмена` на месте «Запустить тесты», нейтральное «Запуск отменён»
 
 ## Журнал допущений
 
@@ -171,3 +172,7 @@ Slug фичи — имя папки без номера: `lesson-manifest/02` = 
 - lesson-manifest/05 — `rootDir` корневого `tsconfig.json` переопределён на `.` — он наследует пакетный, а e2e читают тип из `packages/codda/src`
 - lesson-manifest/05 — `new URL(…, import.meta.url)` не проверяется — не импорт; отмечено в Comments
 - lesson-manifest (review) — e2e на экранированный raw HTML на странице не добавлен: экранирует `codda build`, покрыто тестом CLI
+- runtime-hardening/01 — после отмены на «Тесты» нет счётчика (ни `N/M`, ни красного `✗`) — «Запуск отменён» нейтральный, красный `✗` спорил бы с этим; в спеке не задано
+- runtime-hardening/01 — `■ Отмена` — та же кнопка тулбара с классом `btn` (не синяя `primary`); «Запуск отменён» — заголовок `h2` обычного цвета в Test Report — вид в спеке не задан
+- runtime-hardening/01 — «на месте» проверяется при 1280×800: при узком окне Vitest (414 px) колонки экрана следуют ширине тулбара и кнопка сдвигается на 6 px — экран рассчитан на десктоп
+- runtime-hardening/01 — слушатель `abort` на внешнем `signal` после конца Run не снимается — экран создаёт новый `AbortController` на каждый Run; отмена после отчёта ничего не делает (тест)

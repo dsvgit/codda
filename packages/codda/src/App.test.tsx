@@ -123,19 +123,44 @@ test("before the first Run «Тесты» has a hint and no counter", async () =
   await expect.element(report()).not.toBeInTheDocument();
 });
 
-test("during a Run the button is disabled and says «Выполняется…»", async () => {
+const cancelRun = () => page.getByRole("button", { name: "■ Отмена" });
+const looping = "while (true) {}\nexport const add = (a: number, b: number) => a + b;\n";
+
+test("during a Run «■ Отмена» stands in place of «▶ Запустить тесты»; it shows a neutral «Запуск отменён»", async () => {
+  // The screen is meant for a desktop; in a narrow one columns follow the toolbar width.
+  await page.viewport(1280, 800);
   renderApp("add");
-  // Busy for a second at import, so the Run is long enough to look at.
-  await editor().fill(
-    "const end = Date.now() + 1000;\nwhile (Date.now() < end) {}\nexport const add = (a: number, b: number) => a + b;\n",
-  );
+  await editor().fill(looping);
+  const place = runTests().element().getBoundingClientRect();
 
   await runTests().click();
 
-  const running = page.getByRole("button", { name: "Выполняется…" });
-  await expect.element(running).toBeDisabled();
-  await expect.element(report().getByText("PASS · 2 / 2")).toBeVisible();
+  await expect.element(cancelRun()).toBeVisible();
+  await expect.element(runTests()).not.toBeInTheDocument();
+  const box = cancelRun().element().getBoundingClientRect();
+  expect([box.left, box.top]).toEqual([place.left, place.top]);
+
+  await cancelRun().click();
+
+  const cancelled = report().getByRole("heading", { name: "Запуск отменён" });
+  await expect.element(cancelled).toBeVisible();
+  expect(getComputedStyle(cancelled.element()).color).not.toBe(RED);
+  expect(testsTab().element().textContent).toBe("Тесты");
   await expect.element(runTests()).toBeEnabled();
+  await expect.element(cancelRun()).not.toBeInTheDocument();
+});
+
+test("after a cancelled Run «▶ Запустить тесты» with the solution gives PASS", async () => {
+  renderApp("add");
+  await editor().fill(looping);
+  await runTests().click();
+  await cancelRun().click();
+  await expect.element(report().getByText("Запуск отменён")).toBeVisible();
+
+  await editor().fill(course.modules[0].lessons[0].solution);
+  await runTests().click();
+
+  await expect.element(report().getByText("PASS · 2 / 2")).toBeVisible();
 });
 
 test("student who breaks the syntax sees where the compile error is", async () => {

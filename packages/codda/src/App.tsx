@@ -33,6 +33,7 @@ function Lesson({ course, lesson }: { course: CourseData; lesson: LessonData }) 
   const [running, setRunning] = useState(false);
   const [tab, setTab] = useState<"tests" | "solution">("tests");
   const workspace = useRef<EditorHandle>(null);
+  const cancel = useRef<AbortController>(null);
 
   useEffect(() => {
     document.title = `${lesson.title} — ${course.title}`;
@@ -41,8 +42,9 @@ function Lesson({ course, lesson }: { course: CourseData; lesson: LessonData }) 
   const onRun = async () => {
     setTab("tests");
     setRunning(true);
+    cancel.current = new AbortController();
     try {
-      setReport(await run({ source, tests: lesson.tests }));
+      setReport(await run({ source, tests: lesson.tests }, { signal: cancel.current.signal }));
     } finally {
       setRunning(false);
     }
@@ -60,9 +62,15 @@ function Lesson({ course, lesson }: { course: CourseData; lesson: LessonData }) 
       </section>
       <section className="work">
         <div className="toolbar">
-          <button className="btn primary" onClick={onRun} disabled={running}>
-            {running ? "Выполняется…" : "▶ Запустить тесты"}
-          </button>
+          {running ? (
+            <button className="btn" onClick={() => cancel.current!.abort()}>
+              ■ Отмена
+            </button>
+          ) : (
+            <button className="btn primary" onClick={onRun}>
+              ▶ Запустить тесты
+            </button>
+          )}
           <button className="btn" onClick={() => workspace.current!.replaceAll(lesson.workspace.starter)}>
             ↺ Сбросить
           </button>
@@ -108,6 +116,7 @@ const passedOf = (results: TestResult[]) => results.filter((r) => r.status === "
 
 /** The result of the last Run on the «Тесты» tab, seen from any tab. */
 function Counter({ report }: { report: TestReport }) {
+  if (report.kind === "cancelled") return null;
   if (report.kind !== "tests") return <span className="badge bad">✗</span>;
   const passed = passedOf(report.results);
   const ok = passed === report.results.length;
@@ -140,6 +149,12 @@ function Report({ report }: { report: TestReport }) {
         <BrokenRun title="Ошибка выполнения">
           <pre>{report.stack ?? report.message}</pre>
         </BrokenRun>
+      );
+    case "cancelled":
+      return (
+        <section className="report" aria-label="Test Report">
+          <h2>Запуск отменён</h2>
+        </section>
       );
     case "timeout":
       return (

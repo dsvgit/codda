@@ -214,3 +214,59 @@ test("compilation that outlives the deadline times out, runs nothing later, and 
   const next = await run({ source: addTask.solution, tests: addTask.tests });
   expect(next.kind === "tests" && next.results.map((r) => r.status)).toEqual(["pass", "pass"]);
 });
+
+test("cancelling during the tests stops the Run before the deadline, and the next Run works", async () => {
+  const cancel = new AbortController();
+  const started = performance.now();
+  const report = run({ source: looping, tests: addTask.tests }, { signal: cancel.signal });
+  // The Sandbox appears once compilation is over; cancel while it loops.
+  await expect.poll(() => document.querySelector("iframe")).not.toBeNull();
+  cancel.abort();
+
+  expect(await report).toEqual({ kind: "cancelled" });
+  expect(performance.now() - started).toBeLessThan(5000);
+  expect(document.querySelector("iframe")).toBeNull();
+
+  const next = await run({ source: addTask.solution, tests: addTask.tests });
+  expect(next.kind === "tests" && next.results.map((r) => r.status)).toEqual(["pass", "pass"]);
+});
+
+test("cancelling during compilation stops the Run, runs nothing later, and the next Run works", async () => {
+  const cancel = new AbortController();
+  const report = run({ source: looping, tests: addTask.tests }, { signal: cancel.signal });
+  cancel.abort();
+
+  expect(await report).toEqual({ kind: "cancelled" });
+  await new Promise((resolve) => setTimeout(resolve, 1000));
+  expect(document.querySelector("iframe")).toBeNull();
+
+  const next = await run({ source: addTask.solution, tests: addTask.tests });
+  expect(next.kind === "tests" && next.results.map((r) => r.status)).toEqual(["pass", "pass"]);
+});
+
+test("an already cancelled signal gives cancelled at once, with no compilation and no Sandbox", async () => {
+  const report = run({ source: looping, tests: addTask.tests }, { signal: AbortSignal.abort() });
+
+  // No compilation fits before the next macrotask.
+  const nextTask = new Promise((resolve) => setTimeout(() => resolve("not yet"), 0));
+  expect(await Promise.race([report, nextTask])).toEqual({ kind: "cancelled" });
+  await new Promise((resolve) => setTimeout(resolve, 1000));
+  expect(document.querySelector("iframe")).toBeNull();
+});
+
+test("cancelling after the report has come changes nothing", async () => {
+  const cancel = new AbortController();
+  const report = await run({ source: addTask.solution, tests: addTask.tests }, { signal: cancel.signal });
+
+  cancel.abort();
+
+  expect(report).toEqual({
+    kind: "tests",
+    results: [
+      { name: "adds two positive numbers", status: "pass" },
+      { name: "adds a negative number", status: "pass" },
+    ],
+  });
+  const next = await run({ source: addTask.solution, tests: addTask.tests });
+  expect(next.kind === "tests" && next.results.map((r) => r.status)).toEqual(["pass", "pass"]);
+});
