@@ -150,6 +150,7 @@ Slug фичи — имя папки без номера: `lesson-manifest/02` = 
 - 2026-10-04 — dependency-artifacts/01 — ранний push, `check` зелёный (прогон 37211927030 на `3c5249e`)
 - 2026-10-04 — dependency-artifacts — /code-review (Standards: 0 жёстких; Spec: 8, все откладываемые). Исправлено: `esbuild` в `dependencies` пакета (CLI импортирует его на старте), `.tmp-*` удаляется в `finally`, `built` → `failed`. Остальное — в «Отложенные проблемы»
 - 2026-10-04 — dependency-artifacts — push, `check` зелёный (прогон 37221677271); фича закрыта
+- 2026-10-04 — author-cli/01 — коммит: `codda build [путь]` целиком — поиск `course.yaml` вверх (из папки Lesson тоже), свежесть `dist-tool/` по hash исходников с самосборкой UI, сборка во временную `.codda/build-*` и замена целевой папки, маркер `.codda-build`, отказ от чужой `--out` (код `2`), список файлов; `codda` в `devDependencies` React Hooks через `file:`; помощники тестов CLI `cli/test-helpers.ts`
 
 ## Журнал допущений
 
@@ -227,6 +228,12 @@ Slug фичи — имя папки без номера: `lesson-manifest/02` = 
 - dependency-artifacts/05 — заглушка `any` — `declare const m: any; export = m;`; пакет без точек входа заглушки не получает — текст заглушки проверит `ts-tooling` (Q4)
 - dependency-artifacts/05 — предупреждение о пакете без типов идёт в stderr, код `0`, и повторяется при попадании в кэш (выводится из заглушек `types.json`) — поток и поведение при кэше в спеке не заданы
 - dependency-artifacts/05 — базовая фикстура `deps.test.ts` получила типы (`@types/cjs-pkg` → `shape-types`, `.d.ts` у `esm-pkg`) — иначе предупреждение ломало бы ожидание пустого stderr
+- author-cli/01 — hash UI пишет плагин `codda-ui-hash` в `vite.config.ts` при любой `vite build` (файл `dist-tool/.codda-ui-hash`), CLI пересобирает UI через `npx vite build` без `tsc` — `npm run build` в `test:e2e` тоже даёт свежий UI, одна точка записи hash
+- author-cli/01 — в hash UI входят `src/` целиком (с тестами), `public/`, `index.html`, `vite.config.ts`, корневой `package-lock.json` — грубо, но надёжно; файл hash в сборку курса не копируется
+- author-cli/01 — итоговая строка `Курс собран в <out>, файлов: N`, маркер `.codda-build` тоже в списке; «Собираю UI codda…» и строка зависимостей — в stdout — формат в спеке не задан
+- author-cli/01 — `--out`, который является файлом, — та же ошибка `2`, что непустая папка без маркера; `--out` на другом диске — копирование вместо `rename` (не покрыто тестом)
+- author-cli/01 — тесты CLI запускают `node cli/codda.ts` в папке курса, а не `npx codda` — во временной папке `npx` пошёл бы в registry, а в CI у курса на шаге `npm test` может не быть `node_modules/.bin/codda`; `npx codda` из курса проверен руками
+- author-cli/01 — старый `courses/react-hooks/dist/` без маркера после этого коммита отвергается (код `2`) — у разработчика его надо удалить один раз
 
 ## Отложенные проблемы
 

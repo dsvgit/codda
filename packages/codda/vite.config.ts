@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, readFileSync, statSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -8,6 +8,7 @@ import react from "@vitejs/plugin-react";
 import { playwright } from "@vitest/browser-playwright";
 import { buildDependencyArtifact } from "./cli/dependency-artifact.ts";
 import { readCourse } from "./cli/read-course.ts";
+import { UI_HASH_FILE, uiSourceHash } from "./cli/ui-build.ts";
 
 /** The Course whose Dependency Artifact the browser tests use (vitest.global-setup.ts). */
 export const FIXTURE_COURSE = fileURLToPath(new URL("fixtures/react-course", import.meta.url));
@@ -71,8 +72,22 @@ function courseJson(): Plugin {
   };
 }
 
+/**
+ * Every UI build records the hash of the sources it was built from, so that
+ * `codda build` knows whether dist-tool/ is fresh (cli/ui-build.ts).
+ */
+function uiHash(): Plugin {
+  return {
+    name: "codda-ui-hash",
+    apply: "build",
+    writeBundle(options) {
+      writeFileSync(join(options.dir!, UI_HASH_FILE), uiSourceHash());
+    },
+  };
+}
+
 export default defineConfig({
-  plugins: [react(), courseJson()],
+  plugins: [react(), courseJson(), uiHash()],
   // Relative URLs: the build works from any subpath, e.g. the pilot on GitHub
   // Pages at /codda/ (.scratch/misc/issues/02-pages-deploy.md).
   base: "./",

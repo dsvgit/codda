@@ -8,6 +8,7 @@ import { tmpdir } from "node:os";
 import { delimiter, dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { beforeEach, describe, expect, test } from "vitest";
+import { fakeUi } from "./test-helpers.ts";
 
 const repoRoot = fileURLToPath(new URL("../../..", import.meta.url));
 
@@ -17,7 +18,7 @@ let ui: string;
 beforeEach(() => {
   tmp = mkdtempSync(join(tmpdir(), "codda-deps-"));
   ui = join(tmp, "ui");
-  writeFiles(ui, { "index.html": "<!doctype html><title>codda</title>" });
+  fakeUi(ui);
 });
 
 function writeFiles(root: string, files: Record<string, string>) {

@@ -1,12 +1,13 @@
 // `codda build` as an Author calls it: a process on a Course folder the test
 // writes itself. CODDA_UI_DIR points the CLI at a stand-in for the built UI,
 // because `npm test` runs before `npm run build` in CI.
-import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { beforeEach, describe, expect, test } from "vitest";
+import { fakeUi, runCodda, tsCourse, writeFiles } from "./test-helpers.ts";
+import { UI_HASH_FILE } from "./ui-build.ts";
 
 const repoRoot = fileURLToPath(new URL("../../..", import.meta.url));
 const reactHooks = join(repoRoot, "courses/react-hooks");
@@ -17,27 +18,23 @@ let ui: string;
 beforeEach(() => {
   tmp = mkdtempSync(join(tmpdir(), "codda-build-"));
   ui = join(tmp, "ui");
-  writeFiles(ui, { "index.html": "<!doctype html><title>codda</title>", "assets/app.js": "app" });
+  fakeUi(ui);
 });
 
-function writeFiles(root: string, files: Record<string, string>) {
-  for (const [path, content] of Object.entries(files)) {
-    mkdirSync(dirname(join(root, path)), { recursive: true });
-    writeFileSync(join(root, path), content);
-  }
-}
-
-function codda(args: string[], env: Record<string, string> = { CODDA_UI_DIR: ui }) {
-  const { status, stdout, stderr } = spawnSync("npx", ["codda", ...args], {
-    cwd: repoRoot,
-    encoding: "utf8",
-    env: { ...process.env, ...env },
-  });
-  return { status, stdout, stderr };
+function codda(args: string[], env: Record<string, string> = { CODDA_UI_DIR: ui }, cwd = repoRoot) {
+  return runCodda(cwd, args, env);
 }
 
 function readJson(path: string) {
   return JSON.parse(readFileSync(path, "utf8"));
+}
+
+/** Every file under `dir`, as paths relative to it, sorted. */
+function filesOf(dir: string): string[] {
+  return (readdirSync(dir, { recursive: true, withFileTypes: true }) as import("node:fs").Dirent[])
+    .filter((entry) => entry.isFile())
+    .map((entry) => relative(dir, join(entry.parentPath, entry.name)))
+    .sort();
 }
 
 /** A valid two-Lesson Course: one Lesson on .ts, one on .tsx, listed in non-alphabetical order. */
@@ -123,34 +120,171 @@ test("--out builds into another folder", () => {
   expect(existsSync(join(course, "dist"))).toBe(false);
 });
 
-test("without course.yaml at the path: one line, exit 2, nothing created", () => {
+test("without course.yaml at the path or above it: «здесь нет курса», exit 2, nothing created", () => {
   const empty = join(tmp, "empty");
   mkdirSync(empty);
 
-  const { status, stdout, stderr } = codda(["build", empty]);
+  const withPath = codda(["build", empty]);
+  const withoutPath = codda(["build"], { CODDA_UI_DIR: ui }, empty);
 
-  expect(status).toBe(2);
-  expect(stdout).toBe("");
-  expect(stderr).toBe(`codda: нет course.yaml в ${empty} (справка: codda --help)\n`);
-  expect(existsSync(join(empty, "dist"))).toBe(false);
+  // Without a path the CLI names its current folder, with symlinks resolved (/tmp on macOS).
+  for (const [{ status, stdout, stderr }, path] of [[withPath, empty], [withoutPath, realpathSync(empty)]] as const) {
+    expect(status).toBe(2);
+    expect(stdout).toBe("");
+    expect(stderr).toBe(`codda: здесь нет курса: ${path} (справка: codda --help)\n`);
+  }
+  expect(readdirSync(empty)).toEqual([]);
 });
 
-test("without a path: exit 2", () => {
-  const { status, stderr } = codda(["build"]);
+describe("author-cli/01: the whole `codda build`", () => {
+  /** The build's file list in stdout: one path per line, then the summary line. */
+  function listed(stdout: string) {
+    const lines = stdout.split("\n").slice(0, -1);
+    return { files: lines.slice(0, -1).sort(), summary: lines.at(-1) };
+  }
 
-  expect(status).toBe(2);
-  expect(stderr).toContain("не указан путь к курсу");
-});
+  test("without a path, from the Course root: <course>/dist with the marker, files listed, a summary", () => {
+    const course = tsCourse();
 
-test("without the built UI: a hint to run `npm run build`, exit 2, nothing created", () => {
-  const course = join(tmp, "course");
-  writeCourse(course);
+    const { status, stdout, stderr } = codda(["build"], { CODDA_UI_DIR: ui }, course);
 
-  const { status, stderr } = codda(["build", course], { CODDA_UI_DIR: join(tmp, "missing") });
+    expect(stderr).toBe("");
+    expect(status).toBe(0);
+    const out = join(realpathSync(course), "dist");
+    expect(filesOf(out)).toEqual([".codda-build", "assets/app.js", "course.json", "index.html"]);
+    expect(listed(stdout)).toEqual({
+      files: [".codda-build", "assets/app.js", "course.json", "index.html"],
+      summary: `Курс собран в ${out}, файлов: 4`,
+    });
+    expect(readJson(join(out, "course.json")).modules[0].lessons.map((l: { id: string }) => l.id)).toEqual(["sum", "greet"]);
+    // The temporary build folder inside .codda/ is gone.
+    expect(readdirSync(join(course, ".codda"))).toEqual([]);
+  });
 
-  expect(status).toBe(2);
-  expect(stderr).toContain("npm run build");
-  expect(existsSync(join(course, "dist"))).toBe(false);
+  test("from a Lesson folder: the same Course, into <course>/dist", () => {
+    const course = tsCourse();
+
+    const { status } = codda(["build"], { CODDA_UI_DIR: ui }, join(course, "greet"));
+
+    expect(status).toBe(0);
+    expect(filesOf(join(course, "dist"))).toEqual([".codda-build", "assets/app.js", "course.json", "index.html"]);
+    expect(existsSync(join(course, "greet", "dist"))).toBe(false);
+  });
+
+  test("--out: a new folder, relative to the current one; an existing empty folder", () => {
+    const course = tsCourse();
+
+    expect(codda(["build", "--out", "../site"], { CODDA_UI_DIR: ui }, course).status).toBe(0);
+    expect(filesOf(join(course, "../site"))).toContain("course.json");
+
+    const empty = join(tmp, "empty");
+    mkdirSync(empty);
+    expect(codda(["build", course, "--out", empty]).status).toBe(0);
+    expect(filesOf(empty)).toContain(".codda-build");
+  });
+
+  test("again into the same --out: the folder with the marker is cleared and replaced", () => {
+    const course = tsCourse();
+    const out = join(tmp, "site");
+    expect(codda(["build", course, "--out", out]).status).toBe(0);
+    writeFiles(out, { "stale.txt": "from an older build" });
+
+    const { status } = codda(["build", course, "--out", out]);
+
+    expect(status).toBe(0);
+    expect(filesOf(out)).toEqual([".codda-build", "assets/app.js", "course.json", "index.html"]);
+  });
+
+  test("--out that is not empty and has no marker: an error before the build, exit 2, the folder untouched", () => {
+    const course = tsCourse();
+    const out = join(tmp, "home");
+    writeFiles(out, { "notes.txt": "mine", "photos/cat.jpg": "cat" });
+
+    const { status, stdout, stderr } = codda(["build", course, "--out", out]);
+
+    expect(status).toBe(2);
+    expect(stdout).toBe("");
+    expect(stderr).toBe(
+      `codda: папка ${out} не пуста и это не сборка codda (нет файла .codda-build): укажите пустую папку (справка: codda --help)\n`,
+    );
+    expect(filesOf(out)).toEqual(["notes.txt", "photos/cat.jpg"]);
+    expect(existsSync(join(course, ".codda"))).toBe(false);
+  });
+
+  test("an invalid lesson.md: exit 1, no dist/ is created, an old dist/ stays as it was", () => {
+    const course = tsCourse();
+    writeFiles(course, { "sum/lesson.md": "Без frontmatter.\n" });
+
+    const first = codda(["build", course]);
+
+    expect(first.status).toBe(1);
+    expect(first.stdout).toBe("");
+    expect(first.stderr).toBe("sum/lesson.md: нет frontmatter между строками ---\n");
+    expect(existsSync(join(course, "dist"))).toBe(false);
+
+    writeFiles(course, { "dist/.codda-build": "", "dist/index.html": "old" });
+
+    expect(codda(["build", course]).status).toBe(1);
+    expect(filesOf(join(course, "dist"))).toEqual([".codda-build", "index.html"]);
+    expect(readFileSync(join(course, "dist/index.html"), "utf8")).toBe("old");
+  });
+
+  test("a Dependency Artifact error: exit 1, an old dist/ stays as it was, no temporary folders left", () => {
+    const course = tsCourse();
+    writeFiles(course, {
+      "sum/main.ts": 'import "left-pad";\nexport function sum(a: number, b: number): number {\n  return 0;\n}\n',
+      "dist/.codda-build": "",
+      "dist/index.html": "old",
+    });
+
+    const { status, stderr } = codda(["build", course]);
+
+    expect(status).toBe(1);
+    expect(stderr).toContain("нет package.json");
+    expect(filesOf(join(course, "dist"))).toEqual([".codda-build", "index.html"]);
+    expect(existsSync(join(course, ".codda")) ? readdirSync(join(course, ".codda")) : []).toEqual([]);
+  });
+
+  describe("the built UI (dist-tool/) is rebuilt from the tool's sources when needed", { timeout: 180_000 }, () => {
+    test("missing: «Собираю UI codda…», the UI is built with its hash, the build has the real UI", () => {
+      const course = tsCourse();
+      const missing = join(tmp, "dist-tool");
+
+      const { status, stdout } = codda(["build", course], { CODDA_UI_DIR: missing });
+
+      expect(status).toBe(0);
+      expect(stdout.split("\n")[0]).toBe("Собираю UI codda…");
+      expect(existsSync(join(missing, UI_HASH_FILE))).toBe(true);
+      expect(readFileSync(join(course, "dist/index.html"), "utf8")).toContain('<script type="module"');
+      expect(existsSync(join(course, "dist", UI_HASH_FILE))).toBe(false);
+
+      // Fresh now: the next build does not rebuild it.
+      expect(codda(["build", course], { CODDA_UI_DIR: missing }).stdout).not.toContain("Собираю UI codda");
+    });
+
+    test("stale (another sources hash): rebuilt", () => {
+      const course = tsCourse();
+      const stale = join(tmp, "stale-ui");
+      fakeUi(stale, "0000");
+
+      const { status, stdout } = codda(["build", course], { CODDA_UI_DIR: stale });
+
+      expect(status).toBe(0);
+      expect(stdout).toContain("Собираю UI codda…");
+      expect(readFileSync(join(stale, "index.html"), "utf8")).toContain('<script type="module"');
+    });
+
+    test("the UI build fails: exit 2, nothing built", () => {
+      const course = tsCourse();
+      writeFiles(tmp, { "a-file": "" });
+
+      const { status, stderr } = codda(["build", course], { CODDA_UI_DIR: join(tmp, "a-file", "ui") });
+
+      expect(status).toBe(2);
+      expect(stderr).toContain("не удалось собрать UI codda");
+      expect(existsSync(join(course, "dist"))).toBe(false);
+    });
+  });
 });
 
 test.each([["--bogus"], ["--out"]])("`build` with bad flags %s exits 2", (...flags) => {
@@ -207,6 +341,25 @@ test("`codda build courses/react-hooks` takes the five Lessons from the Course f
     expect.arrayContaining(["/node_modules/@types/react/index.d.ts", "/node_modules/@types/react-dom/client.d.ts", "/node_modules/csstype/index.d.ts"]),
   );
 });
+
+test("`codda build` from courses/react-hooks and from its Lesson folder gives the same build", () => {
+  const fromRoot = join(tmp, "from-root");
+  const fromLesson = join(tmp, "from-lesson");
+
+  const a = codda(["build", "--out", fromRoot], { CODDA_UI_DIR: ui }, reactHooks);
+  const b = codda(["build", "--out", fromLesson], { CODDA_UI_DIR: ui }, join(reactHooks, "use-state"));
+
+  expect(a.stderr).toBe("");
+  expect([a.status, b.status]).toEqual([0, 0]);
+  expect(filesOf(fromLesson)).toEqual(filesOf(fromRoot));
+  for (const file of filesOf(fromRoot)) {
+    expect(readFileSync(join(fromLesson, file)), file).toEqual(readFileSync(join(fromRoot, file)));
+  }
+  // `codda` is a devDependency of the Course: the Dependency Artifact ignores it.
+  const { deps } = readJson(join(fromRoot, "course.json"));
+  expect(Object.keys(readJson(join(fromRoot, deps, "importmap.json")).imports).some((s: string) => s.startsWith("codda"))).toBe(false);
+  expect(readJson(join(reactHooks, "package.json")).devDependencies).toEqual({ codda: "file:../../packages/codda" });
+}, 60_000);
 
 describe("Course errors: one line each, all in one run, exit 1, no build", () => {
   /**
@@ -379,12 +532,12 @@ test("on Course errors an existing --out folder stays as it was", () => {
   writeCourse(course);
   rmSync(join(course, "zeta/main.ts"));
   const out = join(tmp, "site");
-  writeFiles(out, { "index.html": "old", "course.json": "{}" });
+  writeFiles(out, { ".codda-build": "", "index.html": "old", "course.json": "{}" });
 
   const { status } = codda(["build", course, "--out", out]);
 
   expect(status).toBe(1);
-  expect(readdirSync(out).sort()).toEqual(["course.json", "index.html"]);
+  expect(readdirSync(out).sort()).toEqual([".codda-build", "course.json", "index.html"]);
   expect(readFileSync(join(out, "index.html"), "utf8")).toBe("old");
   expect(readFileSync(join(out, "course.json"), "utf8")).toBe("{}");
 });
