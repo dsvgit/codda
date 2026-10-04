@@ -45,14 +45,18 @@ async function fetchOk(url: URL): Promise<Response> {
   return response;
 }
 
+// The Workspace, imported by the Lesson Tests as "./main" whatever its
+// extension, is a "file" outside any directory: esbuild then names it plain
+// "main" in its messages and locations, not "codda:./main".
+const WORKSPACE_PATH = "/main";
+const WORKSPACE_FILE = "main";
+
 async function compile({ source, tests }: CompileInput): Promise<CompileResult> {
   // Import specifier → virtual file contents.
   const files: Record<string, string> = {
     "codda:entry": ENTRY,
     "@codda/test": harnessSource,
     "./tests": tests,
-    // The Workspace; Lesson Tests import it as "./main" whatever its extension.
-    "./main": source,
   };
 
   await ready;
@@ -64,16 +68,21 @@ async function compile({ source, tests }: CompileInput): Promise<CompileResult> 
       format: "iife",
       jsx: "automatic",
       logLevel: "silent",
+      absWorkingDir: "/",
       plugins: [
         {
           name: "codda-virtual",
           setup(build) {
             build.onResolve({ filter: /.*/ }, async (args) => {
+              if (args.path === "./main") return { path: WORKSPACE_PATH, namespace: "file" };
               if (args.path in files) return { path: args.path, namespace: "codda" };
               if (args.path in (await loadDependencies())) {
                 return { path: args.path, namespace: "dependency" };
               }
               return { errors: [{ text: `Cannot resolve "${args.path}"` }] };
+            });
+            build.onLoad({ filter: /.*/, namespace: "file" }, () => {
+              return { contents: source, loader: "tsx" };
             });
             build.onLoad({ filter: /.*/, namespace: "codda" }, (args) => {
               return { contents: files[args.path], loader: "tsx" };
@@ -90,12 +99,14 @@ async function compile({ source, tests }: CompileInput): Promise<CompileResult> 
     const { errors } = err as esbuild.BuildFailure;
     return {
       ok: false,
-      errors: errors.map((e) => ({
-        message: e.text,
-        line: e.location?.line,
-        // esbuild columns are 0-based; editors show 1-based.
-        column: e.location ? e.location.column + 1 : undefined,
-      })),
+      // Only a line of the Workspace is shown: the student does not see the
+      // Lesson Tests, so their error (e.g. a renamed export) comes without one.
+      errors: errors.map(({ text, location }) =>
+        location?.file === WORKSPACE_FILE
+          ? // esbuild columns are 0-based; editors show 1-based.
+            { message: text, line: location.line, column: location.column + 1 }
+          : { message: text },
+      ),
     };
   }
 }

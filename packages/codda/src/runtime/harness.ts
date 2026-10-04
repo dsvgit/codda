@@ -32,11 +32,8 @@ addEventListener("error", (event) => {
     failCurrentTest(err);
     return;
   }
-  sendReport({
-    kind: "runtime-error",
-    message: String(err),
-    stack: err instanceof Error ? err.stack : undefined,
-  });
+  // Without a stack: it points into the bundle, not into the student's file.
+  sendReport({ kind: "runtime-error", message: messageOf(err) });
 });
 addEventListener("unhandledrejection", (event) => failCurrentTest(event.reason));
 

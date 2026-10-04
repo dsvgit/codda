@@ -178,6 +178,20 @@ test("syntax error is reported as a compile error with line and column", async (
   });
 });
 
+test("a compile error in the Lesson Tests (the student renamed the export) has no line and column", async () => {
+  const source = `export function sum(a: number, b: number) {
+  return a + b;
+}
+`;
+
+  const report = await run({ source, tests: addTask.tests });
+
+  expect(report).toEqual({
+    kind: "compile-error",
+    errors: [{ message: 'No matching export in "main" for import "add"' }],
+  });
+});
+
 test("exception at the top level of the student's module is a runtime error", async () => {
   const source = `throw new Error("boom");
 export const add = (a: number, b: number) => a + b;
@@ -185,7 +199,7 @@ export const add = (a: number, b: number) => a + b;
 
   const report = await run({ source, tests: addTask.tests });
 
-  expect(report).toMatchObject({ kind: "runtime-error", message: "Error: boom" });
+  expect(report).toEqual({ kind: "runtime-error", message: "boom" });
 });
 
 const looping = `while (true) {}

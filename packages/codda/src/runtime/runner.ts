@@ -163,10 +163,8 @@ function isReportFor(data: unknown, runId: string): data is ReportMessage {
 // or an exception that escaped the Lesson Tests / student's module.
 function isSandboxReport(report: unknown): report is TestReport {
   if (typeof report !== "object" || report === null) return false;
-  const { kind, results, message, stack } = report as Record<string, unknown>;
-  if (kind === "runtime-error") {
-    return typeof message === "string" && (stack === undefined || typeof stack === "string");
-  }
+  const { kind, results, message } = report as Record<string, unknown>;
+  if (kind === "runtime-error") return typeof message === "string";
   return (
     kind === "tests" &&
     Array.isArray(results) &&

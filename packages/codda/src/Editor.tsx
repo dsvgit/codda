@@ -1,12 +1,16 @@
 import { useEffect, useImperativeHandle, useRef, type Ref } from "react";
 import { EditorView, basicSetup } from "codemirror";
 import { javascript } from "@codemirror/lang-javascript";
+import { setDiagnostics, type Diagnostic } from "@codemirror/lint";
+import type { CompileError } from "./runtime/types";
 
 type Props = {
   label: string;
   initialValue: string;
   onChange?: (value: string) => void;
   readOnly?: boolean;
+  /** Compile errors of the Workspace to underline; those without a line are not shown. */
+  errors?: CompileError[];
   ref?: Ref<EditorHandle>;
 };
 
@@ -15,7 +19,7 @@ export type EditorHandle = {
   replaceAll: (text: string) => void;
 };
 
-export function Editor({ label, initialValue, onChange, readOnly = false, ref }: Props) {
+export function Editor({ label, initialValue, onChange, readOnly = false, errors = [], ref }: Props) {
   const host = useRef<HTMLDivElement>(null);
   const view = useRef<EditorView>(null);
   const onChangeRef = useRef(onChange);
@@ -39,6 +43,11 @@ export function Editor({ label, initialValue, onChange, readOnly = false, ref }:
     return () => editor.destroy();
   }, [label, initialValue, readOnly]);
 
+  useEffect(() => {
+    const editor = view.current!;
+    editor.dispatch(setDiagnostics(editor.state, errors.flatMap((e) => toDiagnostic(editor, e))));
+  }, [errors]);
+
   useImperativeHandle(ref, () => ({
     replaceAll: (text) => {
       const editor = view.current!;
@@ -52,4 +61,11 @@ export function Editor({ label, initialValue, onChange, readOnly = false, ref }:
   }));
 
   return <div className="editor" ref={host} />;
+}
+
+/** From the error's position to the end of its line. */
+function toDiagnostic(editor: EditorView, { line, column, message }: CompileError): Diagnostic[] {
+  if (line === undefined || column === undefined) return [];
+  const { from, to } = editor.state.doc.line(line);
+  return [{ from: from + column - 1, to, severity: "error", message }];
 }

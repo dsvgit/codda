@@ -138,6 +138,7 @@ Slug фичи — имя папки без номера: `lesson-manifest/02` = 
 - 2026-10-04 — runtime-hardening/01 — коммит: отмена Run — `run(input, { signal })` и отчёт `cancelled` (deadline и отмена одним путём), `■ Отмена` на месте «Запустить тесты», нейтральное «Запуск отменён»
 - 2026-10-04 — runtime-hardening/02 — коммит: вкладка «Console» — `run(input, { onConsole })`, Test Harness перехватывает `console.*`, лимиты 1000 строк / 10 000 символов с обеих сторон, канал Sandbox → parent на `MessagePort`; флейк первого Run после бесконечного цикла отложен (правило 7), 2 теста `test.skip`
 - 2026-10-04 — runtime-hardening/03 — коммит: async-ошибки во время тестов (R8) — Test Harness слушает `error` и `unhandledrejection` весь Run и валит текущий тест (первая ошибка сохраняется), остальные выполняются; окно теста — конец промиса плюс два macrotask
+- 2026-10-04 — runtime-hardening/04 — коммит: `line/column` у ошибки компиляции только в Workspace (Workspace в esbuild — `file` `main`), ошибка Lesson Tests без строки; `runtime-error` без stack, сообщение — `message`; подчёркивание ошибки компиляции в редакторе через `@codemirror/lint`, снимается на правке и старте Run
 
 ## Журнал допущений
 
@@ -186,6 +187,9 @@ Slug фичи — имя папки без номера: `lesson-manifest/02` = 
 - runtime-hardening/03 — окно теста — конец промиса плюс **два** macrotask, а не один, как в спеке — Chrome сообщает о незахваченном reject задачей после первого `setTimeout(0)`, при одном reject доставался следующему тесту
 - runtime-hardening/03 — e2e «fetch to the Internet» ловит reject (`.catch(() => {})`), тест «lines printed after the report» печатает через 100 мс вместо 0 — по R8 их прежний код валил тест или печатал до отчёта; суть тестов та же
 - runtime-hardening/03 — reject на верхнем уровне модуля валит первый тест, а не даёт `runtime-error` — Chrome сообщает о нём уже после старта `runAll`; в спеке «до `runAll`» сказано про `error`
+- runtime-hardening/04 — Workspace в esbuild — `{ path: "/main", namespace: "file" }` при `absWorkingDir: "/"` — тогда esbuild пишет `"main"`, а не `"codda:./main"`, и в тексте ошибки, и в `location.file`
+- runtime-hardening/04 — текст `runtime-error` — `message` у `Error` (`boom`, а не `Error: boom`) — критерий тикета; так же, как текст ошибки теста
+- runtime-hardening/04 — подчёркивание — проп `errors` у `Editor` и `setDiagnostics`, без `linter()`; экран сбрасывает его в `onChange` и на старте Run — источник один, `ts-tooling/01` добавит второй
 
 ## Отложенные проблемы
 

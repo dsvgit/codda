@@ -2,13 +2,15 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Editor, type EditorHandle } from "./Editor";
 import type { CourseData, LessonData } from "./course-data";
 import { run, type ConsoleLine, type TestReport } from "./runtime/runner";
-import type { TestResult } from "./runtime/types";
+import type { CompileError, TestResult } from "./runtime/types";
 import "./styles.css";
 
 /**
  * The Lesson screen for `lessonId` of `course`; without an id, the first
  * Lesson of the first Module. Another id opens that Lesson from a clean slate.
  */
+const NO_ERRORS: CompileError[] = [];
+
 export function App({ course, lessonId }: { course: CourseData; lessonId?: string }) {
   const lessons = course.modules.flatMap((m) => m.lessons);
   const first = lessons[0];
@@ -32,6 +34,8 @@ function Lesson({ course, lesson }: { course: CourseData; lesson: LessonData }) 
   const [report, setReport] = useState<TestReport>();
   const [running, setRunning] = useState(false);
   const [consoleLines, setConsoleLines] = useState<ConsoleLine[]>([]);
+  // Underlined in the Workspace until the first edit or the next Run.
+  const [underlined, setUnderlined] = useState(NO_ERRORS);
   const [tab, setTab] = useState<"tests" | "console" | "solution">("tests");
   const workspace = useRef<EditorHandle>(null);
   const cancel = useRef<AbortController>(null);
@@ -43,11 +47,14 @@ function Lesson({ course, lesson }: { course: CourseData; lesson: LessonData }) 
   const onRun = async () => {
     setTab("tests");
     setConsoleLines([]);
+    setUnderlined(NO_ERRORS);
     setRunning(true);
     cancel.current = new AbortController();
     try {
       const onConsole = (line: ConsoleLine) => setConsoleLines((lines) => [...lines, line]);
-      setReport(await run({ source, tests: lesson.tests }, { signal: cancel.current.signal, onConsole }));
+      const result = await run({ source, tests: lesson.tests }, { signal: cancel.current.signal, onConsole });
+      setReport(result);
+      if (result.kind === "compile-error") setUnderlined(result.errors);
       // The student may have opened «Console» while the Run went.
       setTab("tests");
     } finally {
@@ -89,7 +96,11 @@ function Lesson({ course, lesson }: { course: CourseData; lesson: LessonData }) 
             ref={workspace}
             label={lesson.workspace.name}
             initialValue={lesson.workspace.starter}
-            onChange={setSource}
+            onChange={(value) => {
+              setSource(value);
+              setUnderlined(NO_ERRORS);
+            }}
+            errors={underlined}
           />
         </div>
         <div className="panel">
@@ -172,7 +183,7 @@ function Report({ report }: { report: TestReport }) {
     case "runtime-error":
       return (
         <BrokenRun title="Ошибка выполнения">
-          <pre>{report.stack ?? report.message}</pre>
+          <p>{report.message}</p>
         </BrokenRun>
       );
     case "cancelled":

@@ -177,16 +177,67 @@ test("student who breaks the syntax sees where the compile error is", async () =
   expect(background(counter.element())).toBe(RED);
 });
 
-test("an exception outside the tests shows «Ошибка выполнения» and its stack, counter ✗", async () => {
+test("an exception outside the tests shows «Ошибка выполнения» and its message without a stack, counter ✗", async () => {
   renderApp("add");
   await editor().fill('function boom(): never {\n  throw new Error("boom at import");\n}\nboom();\n');
 
   await runTests().click();
 
   await expect.element(report().getByText("Ошибка выполнения")).toBeVisible();
-  await expect.element(report().getByText("Error: boom at import", { exact: false })).toBeVisible();
-  await expect.element(report().getByText("at boom", { exact: false })).toBeVisible();
+  await expect.element(report().getByText("boom at import", { exact: true })).toBeVisible();
+  expect(report().element().textContent).not.toContain("at boom");
+  expect(report().element().textContent).not.toContain("Error:");
   await expect.element(testsTab().getByText("✗")).toBeVisible();
+});
+
+const underlined = () => [...document.querySelectorAll(".workspace .cm-lintRange-error")];
+
+test("a compile error in the Workspace is underlined from its position to the end of the line", async () => {
+  renderApp("add");
+  await editor().fill("export function add(a: number, b: number) {\n  return a +; // here\n}\n");
+
+  await runTests().click();
+
+  await expect.element(report().getByText('Строка 2:13 — Unexpected ";"')).toBeVisible();
+  await expect.poll(() => underlined().map((el) => el.textContent).join("")).toBe("; // here");
+});
+
+test("the underline goes away on the first edit", async () => {
+  renderApp("add");
+  await editor().fill("export function add(a: number, b: number) {\n  return a +;\n}\n");
+  await runTests().click();
+  await expect.poll(() => underlined().length).toBeGreaterThan(0);
+
+  await userEvent.click(editor());
+  await userEvent.keyboard("x");
+
+  await expect.poll(() => underlined().length).toBe(0);
+});
+
+test("the underline goes away when the next Run starts", async () => {
+  renderApp("add");
+  await editor().fill("export function add(a: number, b: number) {\n  return a +;\n}\n");
+  await runTests().click();
+  await expect.poll(() => underlined().length).toBeGreaterThan(0);
+
+  await runTests().click();
+
+  // The same code fails again: the underline is gone in between.
+  await expect.poll(() => underlined().length, { interval: 1 }).toBe(0);
+  await expect.poll(() => underlined().length).toBeGreaterThan(0);
+});
+
+test("a compile error in the Lesson Tests is shown without a line and underlines nothing", async () => {
+  renderApp("add");
+  await editor().fill("export function sum(a: number, b: number) {\n  return a + b;\n}\n");
+
+  await runTests().click();
+
+  await expect
+    .element(report().getByText('No matching export in "main" for import "add"', { exact: true }))
+    .toBeVisible();
+  expect(report().element().textContent).not.toContain("Строка");
+  expect(underlined()).toHaveLength(0);
 });
 
 test("an infinite loop shows «Превышено время: 5 с» and a hint, counter ✗", { timeout: 30_000 }, async () => {
