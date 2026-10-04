@@ -2,7 +2,7 @@
 
 Агент проходит все задачи MVP подряд в ветке `mvp-autorun`, один коммит на тикет; человек мержит всё одним PR. Правила приняты в [questions/00-mvp-autorun.md](questions/00-mvp-autorun.md) (раунд 1). Этот файл — порядок работ, договорённости между фичами и журнал прогона. Это исключение из правила `CLAUDE.md` «ветка и PR на фичу», только для этого эксперимента. Раскладка тоже исключение из [docs/agents/issue-tracker.md](../../docs/agents/issue-tracker.md): все документы прогона лежат здесь, а фичи — в папках `NN-<feature>/`, пронумерованных в порядке выполнения.
 
-Slug фичи — имя папки без номера: `lesson-manifest/02` = [`01-lesson-manifest/issues/02-…`](01-lesson-manifest/issues/). Тикет `misc/03` лежит в [`00-workspaces/`](00-workspaces/issues/01-workspaces.md). План решений MVP, на котором построены спеки, остаётся в [`../mvp/`](../mvp/map.md). Что получится в итоге, архитектура и как это проверяется — в [RESULT.md](RESULT.md).
+Slug фичи — имя папки без номера: `lesson-manifest/02` = [`01-lesson-manifest/issues/02-…`](01-lesson-manifest/issues/). Тикет `misc/03` лежит в [`00-workspaces/`](00-workspaces/issues/01-workspaces.md). План решений MVP, на котором построены спеки, остаётся в [`../mvp/`](../mvp/map.md). Что получится в итоге, архитектура и как это проверяется — в [RESULT.md](RESULT.md). Что делает человек — в [HUMAN.md](HUMAN.md).
 
 ## Фазы
 
