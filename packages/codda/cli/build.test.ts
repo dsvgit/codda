@@ -85,7 +85,7 @@ test("builds the UI, course.json and deps/ into <path>/dist", () => {
           {
             id: "zeta",
             title: "Зета",
-            instructions: "Сложите **числа**.\n",
+            instructions: "<p>Сложите <strong>числа</strong>.</p>\n",
             workspace: { name: "main.ts", starter: "export const sum = 0;\n" },
             solution: "export const sum = 1 + 2;\n",
             tests: 'import { sum } from "./main";\n',
@@ -98,7 +98,7 @@ test("builds the UI, course.json and deps/ into <path>/dist", () => {
           {
             id: "alpha",
             title: "Альфа",
-            instructions: "Кнопка.\n",
+            instructions: "<p>Кнопка.</p>\n",
             workspace: { name: "main.tsx", starter: "export const App = () => <button />;\n" },
             solution: "export const App = () => <button>ok</button>;\n",
             tests: 'import { App } from "./main";\n',
@@ -380,4 +380,111 @@ test("on Course errors an existing --out folder stays as it was", () => {
   expect(readdirSync(out).sort()).toEqual(["course.json", "index.html"]);
   expect(readFileSync(join(out, "index.html"), "utf8")).toBe("old");
   expect(readFileSync(join(out, "course.json"), "utf8")).toBe("{}");
+});
+
+describe("Instructions: lesson.md body → HTML in course.json", () => {
+  /** Builds the valid Course with `body` as the Instructions of zeta; returns its `instructions`. */
+  function instructionsOf(body: string) {
+    const course = join(tmp, "course");
+    writeCourse(course);
+    writeFiles(course, { "zeta/lesson.md": `---\ntitle: Зета\n---\n${body}` });
+    const out = join(tmp, "site");
+
+    const { status, stderr } = codda(["build", course, "--out", out]);
+
+    expect(stderr).toBe("");
+    expect(status).toBe(0);
+    return readJson(join(out, "course.json")).modules[0].lessons[0].instructions as string;
+  }
+
+  test("headings, lists, inline code, code blocks, GFM tables and links", () => {
+    const html = instructionsOf(
+      [
+        "## Задание",
+        "",
+        "- раз",
+        "- два",
+        "",
+        "1. первый",
+        "",
+        "Вызовите `useState`, см. [доку](#/use-state).",
+        "",
+        "```tsx",
+        "const [open, setOpen] = useState(false);",
+        "```",
+        "",
+        "| Действие | Результат |",
+        "| --- | --- |",
+        "| `increment` | +1 |",
+        "",
+      ].join("\n"),
+    );
+
+    expect(html).toContain("<h2>Задание</h2>");
+    expect(html).toContain("<ul>\n<li>раз</li>\n<li>два</li>\n</ul>");
+    expect(html).toContain("<ol>\n<li>первый</li>\n</ol>");
+    expect(html).toContain("<code>useState</code>");
+    expect(html).toContain('<a href="#/use-state">доку</a>');
+    expect(html).toContain('<pre><code class="language-tsx">const [open, setOpen] = useState(false);\n</code></pre>');
+    expect(html).toMatch(/<table>[\s\S]*<th>Действие<\/th>[\s\S]*<td><code>increment<\/code><\/td>[\s\S]*<\/table>/);
+  });
+
+  test("raw HTML, block and inline, is escaped and shows as text", () => {
+    const html = instructionsOf(
+      [
+        "<script>alert(1)</script>",
+        "",
+        '<div class="x">',
+        "блок",
+        "</div>",
+        "",
+        "Текст <img src=x onerror=alert(2)> и <b>жирный</b>.",
+        "",
+      ].join("\n"),
+    );
+
+    expect(html).not.toMatch(/<(script|div|img|b)[\s>]/);
+    expect(html).toContain("&lt;script&gt;alert(1)&lt;/script&gt;");
+    expect(html).toContain("&lt;div class=&quot;x&quot;&gt;");
+    expect(html).toContain("&lt;img src=x onerror=alert(2)&gt;");
+    expect(html).toContain("&lt;b&gt;жирный&lt;/b&gt;");
+  });
+
+  test("external links open in a new tab; links inside the site do not", () => {
+    const html = instructionsOf(
+      '[React](https://react.dev/reference/react/useState "useState"), http://example.com и [урок](#/use-ref).\n',
+    );
+
+    expect(html).toContain(
+      '<a href="https://react.dev/reference/react/useState" title="useState" target="_blank" rel="noopener">React</a>',
+    );
+    expect(html).toContain('<a href="http://example.com" target="_blank" rel="noopener">http://example.com</a>');
+    expect(html).toContain('<a href="#/use-ref">урок</a>');
+  });
+
+  test("a body that starts with `# …` is not an error", () => {
+    expect(instructionsOf("# Заголовок\n\nТекст.\n")).toBe("<h1>Заголовок</h1>\n<p>Текст.</p>\n");
+  });
+
+  test("an image is a Course error with its line in lesson.md, reported with the other errors", () => {
+    const course = join(tmp, "course");
+    writeCourse(course);
+    writeFiles(course, {
+      "zeta/lesson.md": "---\ntitle: Зета\n---\n\nТекст.\n\n![схема](diagram.png)\n\n| a |\n| - |\n| ![x](x.png) |\n\n![схема](diagram.png) и снова.\n",
+    });
+    rmSync(join(course, "alpha/lesson.test.tsx"));
+    const out = join(tmp, "site");
+
+    const { status, stdout, stderr } = codda(["build", course, "--out", out]);
+
+    expect(status).toBe(1);
+    expect(stdout).toBe("");
+    expect(stderr.split("\n").slice(0, -1)).toEqual([
+      "zeta/lesson.md: строка 7: картинки в Instructions не поддерживаются",
+      "zeta/lesson.md: строка 11: картинки в Instructions не поддерживаются",
+      "zeta/lesson.md: строка 13: картинки в Instructions не поддерживаются",
+      "alpha/: нет lesson.test.ts или lesson.test.tsx",
+    ]);
+    expect(existsSync(out)).toBe(false);
+  });
 });

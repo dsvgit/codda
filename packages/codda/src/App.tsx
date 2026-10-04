@@ -53,9 +53,10 @@ function Lesson({ course, lesson }: { course: CourseData; lesson: LessonData }) 
       <h1>
         {course.title} · {lesson.title}
       </h1>
-      <section className="instructions">
-        <h2>Instructions</h2>
-        <p>{lesson.instructions}</p>
+      <section className="instructions" aria-labelledby="instructions-title">
+        <h2 id="instructions-title">Instructions</h2>
+        {/* HTML from `codda build`: raw HTML of the Markdown is already escaped there. */}
+        <div className="markdown" dangerouslySetInnerHTML={{ __html: lesson.instructions }} />
       </section>
       <section className="work">
         <div className="toolbar">

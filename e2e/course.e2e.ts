@@ -37,7 +37,17 @@ test("#/use-effect opens that Lesson, with its titles and Workspace", async ({ p
   await expect(page.getByRole("heading", { name: "React Hooks · useEffect" })).toBeVisible();
   await expect(page).toHaveTitle("useEffect — React Hooks");
   await expect(page.getByRole("heading", { name: "main.tsx" })).toBeVisible();
-  await expect(page.getByText("Компонент `ClickTitle` уже считает клики.", { exact: false })).toBeVisible();
+  await expect(page.getByText("уже считает клики.", { exact: false })).toBeVisible();
+});
+
+test("Instructions of use-state are shown formatted, without the frontmatter", async ({ page }) => {
+  await page.goto("./#/use-state");
+
+  const instructions = page.getByRole("region", { name: "Instructions" });
+  await expect(instructions.getByRole("code").filter({ hasText: /^useState$/ })).toBeVisible();
+  await expect(instructions).not.toContainText("title:");
+  await expect(instructions).not.toContainText("---");
+  await expect(instructions).not.toContainText("`");
 });
 
 test("another fragment resets the editor, the Test Report and the tab to «Тесты»", async ({ page }) => {

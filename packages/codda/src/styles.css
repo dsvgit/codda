@@ -32,10 +32,34 @@ body {
   font-size: 18px;
   margin-top: 0;
 }
-/* Instructions are plain text until lesson-manifest/04 renders Markdown. */
-.instructions p {
-  white-space: pre-wrap;
+.markdown {
   line-height: 1.55;
+}
+.markdown code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.9em;
+  background: #f3f3f3;
+  border-radius: 3px;
+  padding: 1px 4px;
+}
+.markdown pre {
+  background: #f3f3f3;
+  border-radius: 4px;
+  padding: 8px 12px;
+  overflow: auto;
+}
+.markdown pre code {
+  background: none;
+  padding: 0;
+}
+.markdown table {
+  border-collapse: collapse;
+}
+.markdown th,
+.markdown td {
+  border: 1px solid #d0d0d0;
+  padding: 4px 8px;
+  text-align: left;
 }
 .work {
   display: grid;

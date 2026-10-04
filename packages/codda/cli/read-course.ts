@@ -4,6 +4,7 @@
 // Used by `codda build` and the tool's dev server (vite.config.ts).
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
+import { Marked, Renderer } from "marked";
 import { LineCounter, parseDocument } from "yaml";
 import * as z from "zod";
 import type { CourseData, LessonData } from "../src/course-data.ts";
@@ -22,6 +23,23 @@ const CourseYaml = z.strictObject({
 });
 
 const Frontmatter = z.strictObject({ title: z.string().min(1) });
+
+const escapeHtml = (text: string) =>
+  text.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
+
+// Instructions: CommonMark + GFM → HTML, once, in `codda build`; the UI
+// inserts it as is. Raw HTML in the Markdown is shown as text, never as tags.
+const markdown = new Marked({
+  gfm: true,
+  renderer: {
+    html: ({ text, block }) => (block ? `<p>${escapeHtml(text.trim())}</p>\n` : escapeHtml(text)),
+    // External links open in a new tab; `#/…` and other links inside the site do not.
+    link(token) {
+      const html = Renderer.prototype.link.call(this, token);
+      return /^https?:\/\//i.test(token.href) ? html.replace(">", ' target="_blank" rel="noopener">') : html;
+    },
+  },
+});
 
 type Result = { course: CourseData } | { errors: string[] };
 
@@ -106,7 +124,19 @@ function readLesson(root: string, id: string, errors: string[]): LessonData | un
       const yaml = parseYaml(`${id}/lesson.md`, md[1] ?? "", errors, 2);
       const front = yaml && check(`${id}/lesson.md`, yaml.value, Frontmatter, errors);
       title = front?.title ?? "";
-      instructions = md[2].replace(/^\r?\n/, "");
+      const body = md[2];
+      const bodyLine = md.input!.slice(0, md.input!.length - body.length).split("\n").length;
+      const tokens = markdown.lexer(body);
+      // Tokens carry no line numbers: find each image's `raw` in the body, in order.
+      let from = 0;
+      markdown.walkTokens(tokens, (token) => {
+        if (token.type !== "image") return;
+        const at = body.indexOf(token.raw, from);
+        from = at + token.raw.length;
+        const line = bodyLine + body.slice(0, at).split("\n").length - 1;
+        errors.push(`${id}/lesson.md: строка ${line}: картинки в Instructions не поддерживаются`);
+      });
+      instructions = markdown.parser(tokens);
     }
   }
 

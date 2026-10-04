@@ -15,7 +15,8 @@ const course: CourseData = {
         {
           id: "add",
           title: "Сложение",
-          instructions: "Допишите функцию add.\nОна складывает два числа.",
+          instructions:
+            "<h2>Задание</h2>\n<p>Допишите функцию <code>add</code>.</p>\n<ul>\n<li>Она складывает два числа.</li>\n</ul>\n",
           workspace: {
             name: "main.ts",
             starter: "export function add(a: number, b: number) {\n  return a - b;\n}\n",
@@ -41,7 +42,7 @@ test("adds a negative number", () => {
         {
           id: "greet",
           title: "Приветствие",
-          instructions: "Верните приветствие.",
+          instructions: "<p>Верните приветствие.</p>\n",
           workspace: { name: "main.tsx", starter: 'export const greet = () => "?";\n' },
           solution: 'export const greet = () => "hi";\n',
           tests: `import { test, expect } from "@codda/test";
@@ -270,15 +271,13 @@ test("the Lesson shows its and the Course's title, its Instructions and Workspac
   await expect.element(editor()).toHaveTextContent('export const greet = () => "?";');
 });
 
-test("Instructions keep their line breaks", async () => {
+test("Instructions are the HTML from course.json, shown with its formatting", async () => {
   renderApp("add");
 
-  const instructions = page.getByText("Допишите функцию add.", { exact: false });
-  await expect.element(instructions).toBeVisible();
-  expect(instructions.element()).toHaveProperty(
-    "innerText",
-    "Допишите функцию add.\nОна складывает два числа.",
-  );
+  const instructions = page.getByRole("region", { name: "Instructions" });
+  await expect.element(instructions.getByRole("heading", { name: "Задание" })).toBeVisible();
+  await expect.element(instructions.getByRole("code")).toHaveTextContent("add");
+  await expect.element(instructions.getByRole("listitem")).toHaveTextContent("Она складывает два числа.");
 });
 
 test("without a Lesson id the first Lesson of the first Module opens", async () => {
