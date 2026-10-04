@@ -1,6 +1,6 @@
 {
-  // Browser code only; cli/ runs in Node and has its own cli/tsconfig.json, so
-  // Node globals do not leak into src/.
+  // Browser code only; cli/ and vite.config.ts run in Node and are checked by
+  // cli/tsconfig.json, so Node globals do not leak into src/.
   "compilerOptions": {
     "target": "ES2022",
     "lib": ["ES2022", "DOM", "DOM.Iterable", "WebWorker"],
@@ -14,5 +14,5 @@
     "allowImportingTsExtensions": true,
     "types": ["vite/client"]
   },
-  "include": ["src", "vite.config.ts"]
+  "include": ["src"]
 }

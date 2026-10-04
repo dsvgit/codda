@@ -50,3 +50,10 @@ body {
   white-space: pre-wrap;
   font-family: ui-monospace, monospace;
 }
+/* Instructions are plain text until lesson-manifest/04 renders Markdown. */
+.instructions p {
+  white-space: pre-wrap;
+}
+.status {
+  padding: 16px;
+}

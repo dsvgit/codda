@@ -1,17 +1,40 @@
 import { expect, test } from "vitest";
-import { lesson } from "../lesson";
 import { run } from "./runner";
 
-test("React Counter solution passes every lesson test", async () => {
-  const report = await run({ source: lesson.solution, tests: lesson.tests });
+// A React task: the Runner bundles React from the Dependency Artifacts, and
+// Lesson Tests import the student's Workspace as "./main".
+const reactTask = {
+  solution: `import { useState } from "react";
+
+export function Toggle() {
+  const [on, setOn] = useState(false);
+  return <button onClick={() => setOn(!on)}>{on ? "on" : "off"}</button>;
+}
+`,
+  tests: `import { test, expect } from "@codda/test";
+import { act } from "react";
+import { createRoot } from "react-dom/client";
+import { Toggle } from "./main";
+
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+
+test("is off at first, on after a click", async () => {
+  const container = document.createElement("div");
+  document.body.append(container);
+  await act(() => createRoot(container).render(<Toggle />));
+  expect(container.textContent).toBe("off");
+  await act(() => container.querySelector("button")!.click());
+  expect(container.textContent).toBe("on");
+});
+`,
+};
+
+test("React solution passes the Lesson Tests that import it as ./main", async () => {
+  const report = await run({ source: reactTask.solution, tests: reactTask.tests });
 
   expect(report).toEqual({
     kind: "tests",
-    results: [
-      { name: "renders initial value", status: "pass" },
-      { name: "increments", status: "pass" },
-      { name: "decrements", status: "pass" },
-    ],
+    results: [{ name: "is off at first, on after a click", status: "pass" }],
   });
 });
 
@@ -23,7 +46,7 @@ const addTask = {
 }
 `,
   tests: `import { test, expect } from "@codda/test";
-import { add } from "./App";
+import { add } from "./main";
 
 test("adds two positive numbers", () => {
   expect(add(2, 3)).toBe(5);
@@ -65,7 +88,7 @@ test("starter fails each test with expected and actual values", async () => {
 
 test("harness awaits async tests, compares deeply and keeps going after a failure", async () => {
   const tests = `import { test, expect } from "@codda/test";
-import { pair } from "./App";
+import { pair } from "./main";
 
 test("async pass", async () => {
   const value = await new Promise((resolve) => setTimeout(() => resolve(pair(1)), 10));
@@ -101,7 +124,7 @@ test("runs after a failure", () => {
 
 test("failure message shows NaN and -0 as they are", async () => {
   const tests = `import { test, expect } from "@codda/test";
-import { value } from "./App";
+import { value } from "./main";
 
 test("not a number", () => {
   expect(value("nan")).toBe(1);

@@ -18,15 +18,15 @@ npx playwright install chromium   # один раз, нужен только д�
 npm run dev
 ```
 
-Откройте адрес, который напечатает Vite (обычно http://localhost:5173), и пройдите сценарий:
+`npm run dev` открывает курс React Hooks из `courses/react-hooks/`: `course.json` на каждый запрос собирает из файлов курса middleware Vite (`packages/codda/vite.config.ts`, курс задаёт переменная `CODDA_COURSE` в корневом скрипте). Правка UI видна сразу, правка курса — после перезагрузки страницы. Откройте адрес, который напечатает Vite (обычно http://localhost:5173), и пройдите сценарий:
 
-1. Нажмите **Run tests** — увидите `0 / 3 passed` и ошибки вида `expected "1", got "?"`.
-2. В редакторе допишите `Counter`: `useState(0)`, число в `<output>`, `onClick` у кнопок `+` и `−` (готовое решение — `lesson.solution` в `packages/codda/src/lesson.ts`).
+1. Нажмите **Run tests** — увидите `2 / 3 passed` и `✗ opens on click — …`.
+2. В редакторе допишите `Spoiler` (готовое решение — `courses/react-hooks/use-state/solution.tsx`).
 3. Снова **Run tests** — `3 / 3 passed`.
 
-Другие Lesson для ручного прогона — курс React Hooks в `courses/react-hooks/`: откройте `/?lesson=react-hooks/01-use-state` (id — ключи в `courses/index.ts`). Решение каждого — поле `solution` в файле Lesson.
+Другой Lesson открывается фрагментом `#/<id Lesson>`, например `/#/use-effect`; без фрагмента — первый Lesson курса.
 
-Пилот: [dsvgit.github.io/codda](https://dsvgit.github.io/codda/?lesson=react-hooks/01-use-state). Каждый push в `main` после зелёной проверки CI выкладывается туда (`.github/workflows/ci.yml`). Сборка использует относительные URL, поэтому работает из любого подпути.
+Пилот: [dsvgit.github.io/codda](https://dsvgit.github.io/codda/). Каждый push в `main` после зелёной проверки CI выкладывается туда (`.github/workflows/ci.yml`): Course Build `codda build courses/react-hooks`, тот же, что проверил e2e. Сборка использует относительные URL, поэтому работает из любого подпути.
 
 Первый Run занимает около секунды, потому что загружаются и инициализируются `esbuild.wasm` (~14 МБ) и Dependency Artifacts с React (~1.2 МБ). Последующие — около 0.5 с: React вшивается в бандл заново на каждый Run.
 
@@ -43,9 +43,9 @@ CLI `codda` запускается без сборки (TypeScript в Node 24): 
 
 | Команда | Что делает |
 |---|---|
-| `npm run dev` | Dev-сервер Vite с hot reload |
+| `npm run dev` | Dev-сервер Vite с hot reload на курсе `courses/react-hooks` |
 | `npm test` | Все тесты в headless Chromium (Vitest browser mode + Playwright) |
-| `npm run test:e2e` | Собирает `packages/codda/dist-tool/` и гоняет e2e на Playwright дважды: на dev-сервере (проект `dev`) и на собранном `dist-tool/` из подпути `/codda/`, как на GitHub Pages (проект `pages`). Проходит Golden Path и проверяет изоляцию Sandbox; внешняя сеть заблокирована |
+| `npm run test:e2e` | Собирает UI в `packages/codda/dist-tool/`, затем `codda build courses/react-hooks` (в `courses/react-hooks/dist/`) и гоняет e2e на Playwright по этой сборке из подпути `/codda/`, как на GitHub Pages (проект `pages`); на `npm run dev` — один smoke-тест (проект `dev`). Внешняя сеть заблокирована |
 | `npm test -- src/runtime/runner.test.ts` | Один файл тестов (путь от `packages/codda/`) |
 | `npm test -- --project cli` | Только тесты CLI (Node), без браузера |
 | `npm run typecheck` | Проверка типов TypeScript |
@@ -58,10 +58,11 @@ CLI `codda` запускается без сборки (TypeScript в Node 24): 
 Тесты запускаются в настоящем браузере, а не в jsdom: Runtime нужны Web Worker, WebAssembly и iframe.
 
 - `packages/codda/src/runtime/runner.test.ts` — главный шов, `run({ source, tests }) → TestReport`: исходник студента и Lesson Tests на входе, Test Report на выходе.
-- `packages/codda/src/App.test.tsx` — основной сценарий через UI: Run → FAIL → исправление в редакторе → Run → PASS.
+- `packages/codda/src/App.test.tsx` — экран Lesson на Course-литерале: Run → FAIL → исправление → PASS, заголовки, неизвестный id, смена Lesson.
 - `packages/codda/cli/codda.test.ts` — CLI как его вызывает автор: `npx codda …` из корня и из `courses/`, коды выхода.
 - `packages/codda/cli/build.test.ts` — `codda build` процессом на временном Course, который пишет сам тест: содержимое сборки, ошибки Course, коды выхода.
-- `e2e/` — Playwright против настоящего dev-сервера и собранного `dist-tool/` из `/codda/` (`npm run test:e2e`). Тесты открывают страницу относительно `baseURL` (`page.goto("./")`), а не `"/"`. `golden-path.e2e.ts` проходит тот же сценарий на странице приложения. `sandbox-isolation.e2e.ts` подсовывает через редактор враждебный код студента: чтение parent/cookies/storage, поддельные сообщения, `fetch` в Internet. Фикстура `e2e/offline.ts` обрывает любой запрос не на localhost, печатает список всех запросов страницы и валит тест, если был хоть один внешний.
+- `packages/codda/cli/dev-server.test.ts` — настоящий dev-сервер Vite отдаёт `course.json` временного Course, ошибки Course — ответ 500.
+- `e2e/` — Playwright против Course Build из `/codda/` и dev-сервера (`npm run test:e2e`). Тесты открывают страницу относительно `baseURL` (`page.goto("./")`), а не `"/"`. `golden-path.e2e.ts` проходит Lesson `use-state`. `course.e2e.ts` — загрузка `course.json` (ожидание, 404, обрыв сети), `#/<id>`, неизвестный id и Solution каждого Lesson → PASS. `dev.e2e.ts` — smoke-тест `npm run dev`. `sandbox-isolation.e2e.ts` подсовывает через редактор враждебный код студента: чтение parent/cookies/storage, поддельные сообщения, `fetch` в Internet. Фикстура `e2e/offline.ts` обрывает любой запрос не на localhost, печатает список всех запросов страницы и валит тест, если был хоть один внешний.
 
 На стадии PoC действует упрощённое правило: на каждом шаге — один happy-path тест, остальные случаи потом (см. раздел «Тесты» в [CLAUDE.md](CLAUDE.md)).
 
@@ -79,8 +80,9 @@ CodeMirror ──source──▶ Runner ──▶ Compiler (Web Worker, esbuild-
 
 | Файл (в `packages/codda/`) | Роль |
 |---|---|
-| `src/lesson.ts` | Lesson «React: Counter»: `instructions`, `starter`, `solution`, `tests` — строковые константы |
-| `src/App.tsx`, `src/Editor.tsx` | Страница: Instructions, CodeMirror, кнопка Run, Test Report |
+| `src/main.tsx` | Загрузка `course.json` и выбор Lesson по `#/<id>` |
+| `src/course-data.ts` | Тип `course.json` — граница курса и инструмента (ADR-0006, ADR-0008) |
+| `src/App.tsx`, `src/Editor.tsx` | Экран Lesson: Instructions, CodeMirror, кнопка Run, Test Report |
 | `src/runtime/runner.ts` | Runner: компиляция → новый Sandbox → ожидание отчёта; проверяет `event.source`, `type`, `runId` и форму отчёта |
 | `src/runtime/compiler.ts` | Клиент Compiler в основном потоке: держит Worker «тёплым» между Run |
 | `src/runtime/compiler.worker.ts` | Compiler: esbuild-wasm с виртуальным резолвером, всё собирается из памяти; JSX — automatic runtime |
@@ -90,11 +92,11 @@ CodeMirror ──source──▶ Runner ──▶ Compiler (Web Worker, esbuild-
 
 ### Как поменять задание
 
-Всё задание лежит в `packages/codda/src/lesson.ts`. Lesson Tests импортируют `test`/`expect` из `@codda/test`, код студента — из `./App`, а React — как обычно, из `react` и `react-dom/client` (резолвится в Dependency Artifacts). Пример задания на чистом TypeScript:
+Lesson — папка курса (`lesson.md`, `main.tsx`, `solution.tsx`, `lesson.test.tsx`), порядок задаёт `course.yaml`. Lesson Tests импортируют `test`/`expect` из `@codda/test`, код студента — из `./main`, а React — как обычно, из `react` и `react-dom/client` (резолвится в Dependency Artifacts). Пример задания на чистом TypeScript:
 
 ```ts
 import { test, expect } from "@codda/test";
-import { add } from "./App";
+import { add } from "./main";
 
 test("adds two positive numbers", () => {
   expect(add(2, 3)).toBe(5);

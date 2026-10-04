@@ -51,7 +51,8 @@ async function compile({ source, tests }: CompileInput): Promise<CompileResult> 
     "codda:entry": ENTRY,
     "@codda/test": harnessSource,
     "./tests": tests,
-    "./App": source,
+    // The Workspace; Lesson Tests import it as "./main" whatever its extension.
+    "./main": source,
   };
 
   await ready;

@@ -3,11 +3,12 @@ import { defineConfig, devices } from "@playwright/test";
 const devPort = 5179;
 const pagesPort = 5180;
 // The pilot is served from a subpath (https://dsvgit.github.io/codda/), so the
-// built dist-tool/ is tested from one too. Tests navigate relative to baseURL
+// Course Build is tested from one too. Tests navigate relative to baseURL
 // (`page.goto("./")`), never to "/".
 const pagesBase = "/codda/";
-// The tool's Vite project: its dev server and its built dist-tool/.
-const toolDir = "packages/codda";
+// The Course Build GitHub Pages deploys: `npm run test:e2e` builds the UI, then
+// runs `codda build courses/react-hooks` into its default --out.
+const courseBuild = "courses/react-hooks/dist";
 
 export default defineConfig({
   testDir: "e2e",
@@ -21,25 +22,28 @@ export default defineConfig({
   expect: { timeout: 10_000 },
   use: {
     ...devices["Desktop Chrome"],
-    // Full Chromium, not chrome-headless-shell: see vite.config.ts.
+    // Full Chromium, not chrome-headless-shell: see packages/codda/vite.config.ts.
     channel: "chromium",
   },
   projects: [
-    { name: "dev", use: { baseURL: `http://localhost:${devPort}/` } },
-    // The build GitHub Pages deploys: `npm run test:e2e` builds packages/codda/dist-tool/
-    // first.
-    { name: "pages", use: { baseURL: `http://localhost:${pagesPort}${pagesBase}` } },
+    // `npm run dev` only gets a smoke test; everything else runs on the build.
+    { name: "dev", testMatch: "dev.e2e.ts", use: { baseURL: `http://localhost:${devPort}/` } },
+    {
+      name: "pages",
+      testIgnore: "dev.e2e.ts",
+      use: { baseURL: `http://localhost:${pagesPort}${pagesBase}` },
+    },
   ],
   webServer: [
     {
-      command: `npx vite --port ${devPort} --strictPort`,
-      cwd: toolDir,
+      // The repository's own `npm run dev`, which points it at courses/react-hooks.
+      command: `npm run dev -- --port ${devPort} --strictPort`,
       url: `http://localhost:${devPort}`,
       reuseExistingServer: false,
     },
     {
-      command: `npx vite preview --base ${pagesBase} --port ${pagesPort} --strictPort`,
-      cwd: toolDir,
+      command: `npx vite preview --outDir ../../${courseBuild} --base ${pagesBase} --port ${pagesPort} --strictPort`,
+      cwd: "packages/codda",
       url: `http://localhost:${pagesPort}${pagesBase}`,
       reuseExistingServer: false,
     },

@@ -1,6 +1,6 @@
 // Course folder → course.json data, or the Course errors as lines
 // `<file from the Course root>: <field path>: <message>` in Russian.
-// Used by `codda build`; the tool's dev server takes it in lesson-manifest/01b.
+// Used by `codda build` and the tool's dev server (vite.config.ts).
 // The full set of rules (missing Lessons and files, unlisted folders, repeated
 // ids) is lesson-manifest/02.
 import { existsSync, readFileSync } from "node:fs";

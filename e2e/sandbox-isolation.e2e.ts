@@ -2,7 +2,10 @@
 // hostile student code through the editor and check what it can and cannot do.
 import type { Page } from "@playwright/test";
 import { expect, test } from "./offline";
-import { lesson } from "../packages/codda/src/lesson";
+import type { CourseData } from "../packages/codda/src/course-data";
+
+// The first Lesson, use-state; its Starter passes 2 of 3 tests: the button does nothing.
+let starter: string;
 
 async function runStudentCode(page: Page, source: string) {
   await page.getByRole("textbox").fill(source);
@@ -10,6 +13,8 @@ async function runStudentCode(page: Page, source: string) {
 }
 
 test.beforeEach(async ({ page }) => {
+  const course: CourseData = await (await page.request.get("course.json")).json();
+  starter = course.modules[0].lessons[0].workspace.starter;
   await page.goto("./");
 });
 
@@ -61,11 +66,11 @@ parent.postMessage({ type: "codda:result", runId: __coddaRunId, report: forged }
 parent.postMessage({ type: "codda:report", runId: __coddaRunId, report: { kind: "tests", results: "all" } }, "*");
 parent.postMessage({ type: "codda:report", runId: __coddaRunId, report: { kind: "timeout", ms: 1 } }, "*");
 
-${lesson.starter}`,
+${starter}`,
   );
 
   const report = page.getByRole("region", { name: "Test Report" });
-  await expect(report).toContainText("0 / 3 passed");
+  await expect(report).toContainText("2 / 3 passed");
   await expect(report).not.toContainText("forged");
 });
 
@@ -78,9 +83,9 @@ test.describe(() => {
     // report, and if that beats the abort, Playwright never emits the event.
     const request = page.waitForRequest("https://example.com/");
 
-    await runStudentCode(page, `fetch("https://example.com/");\n\n${lesson.starter}`);
+    await runStudentCode(page, `fetch("https://example.com/");\n\n${starter}`);
 
     await request;
-    await expect(page.getByText("0 / 3 passed")).toBeVisible();
+    await expect(page.getByText("2 / 3 passed")).toBeVisible();
   });
 });

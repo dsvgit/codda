@@ -126,6 +126,7 @@ Slug фичи — имя папки без номера: `lesson-manifest/02` = 
 - 2026-10-04 — misc-03-workspaces — push, draft PR #6, `check` зелёный; фича закрыта
 - 2026-10-04 — человек разрешил `@types/node`; `cli/` вернулся в typecheck (`packages/codda/cli/tsconfig.json`)
 - 2026-10-04 — lesson-manifest/01a — коммит: `course.yaml` и пять Lesson React Hooks в новом формате, модуль чтения Course (Zod + `yaml`), минимальный `codda build`, собранный UI в `dist-tool/`
+- 2026-10-04 — lesson-manifest/01b — коммит: UI грузит `course.json` и выбирает Lesson по `#/<id>`, Compiler отдаёт `./main`, middleware `course.json` в `npm run dev`, e2e и выкладка на Course Build `codda build courses/react-hooks`, PoC-формат удалён
 
 ## Журнал допущений
 
@@ -140,3 +141,9 @@ Slug фичи — имя папки без номера: `lesson-manifest/02` = 
 - lesson-manifest/01a — корневой typecheck исключает `courses/**/lesson.test.*` — `@codda/test` есть только в Sandbox; типы Course проверяет `ts-tooling/04`
 - lesson-manifest/01a — `CourseData` лежит в `packages/codda/src/course-data.ts` (только типы), CLI импортирует его оттуда — UI в 01b возьмёт тот же тип без Zod
 - lesson-manifest/01a — Instructions React Hooks: код и имена элементов в обратных кавычках — Further Notes спеки
+- lesson-manifest/01b — Course Build для e2e и Pages — `courses/react-hooks/dist/` (`--out` по умолчанию) — без нового пути и флага; `dist/` уже в `.gitignore`
+- lesson-manifest/01b — переменная `CODDA_COURSE` для `npm run dev`, корневой скрипт задаёт `"$PWD/courses/react-hooks"` — POSIX-shell, Windows не цель пилота
+- lesson-manifest/01b — `vite.config.ts` проверяется `cli/tsconfig.json` (Node-типы) — он импортирует модуль чтения Course
+- lesson-manifest/01b — `styles.css` импортируется в `App.tsx` — браузерные тесты экрана видят CSS (перенос строк в Instructions)
+- lesson-manifest/01b — проект Playwright `dev` запускает корневой `npm run dev` и только `e2e/dev.e2e.ts` — smoke проверяет сам скрипт с `CODDA_COURSE`
+- lesson-manifest/01b — e2e use-state ждут `2 / 3 passed` на Starter — так ведут себя Lesson Tests курса; слабость тестов отмечена для `pilot-course`

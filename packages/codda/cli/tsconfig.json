@@ -1,5 +1,6 @@
 {
-  // The CLI runs in Node 24 as TypeScript, without a build step.
+  // The CLI runs in Node 24 as TypeScript, without a build step. vite.config.ts
+  // runs in Node too and imports the CLI's Course reader.
   "extends": "../tsconfig.json",
   "compilerOptions": {
     "lib": ["ES2022"],
@@ -8,5 +9,5 @@
     "resolveJsonModule": true,
     "types": ["node"]
   },
-  "include": ["."]
+  "include": [".", "../vite.config.ts"]
 }

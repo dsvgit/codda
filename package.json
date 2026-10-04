@@ -6,13 +6,13 @@
     "packages/codda"
   ],
   "scripts": {
-    "dev": "npm run dev -w codda --",
+    "dev": "CODDA_COURSE=\"$PWD/courses/react-hooks\" npm run dev -w codda --",
     "build": "npm run build -w codda --",
     "preview": "npm run preview -w codda --",
     "typecheck": "npm run typecheck -w codda && tsc -p tsconfig.json",
     "test": "npm test -w codda --",
     "build:deps": "npm run build:deps -w codda",
-    "test:e2e": "npm run build && playwright test"
+    "test:e2e": "npm run build && codda build courses/react-hooks && playwright test"
   },
   "devDependencies": {
     "@playwright/test": "1.63.0",

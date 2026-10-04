@@ -1,14 +1,40 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Editor } from "./Editor";
-import type { Lesson } from "../../../courses";
-import { lesson as defaultLesson } from "./lesson";
+import type { CourseData, LessonData } from "./course-data";
 import { run, type TestReport } from "./runtime/runner";
 import type { TestResult } from "./runtime/types";
+import "./styles.css";
 
-export function App({ lesson = defaultLesson }: { lesson?: Lesson }) {
-  const [source, setSource] = useState(lesson.starter);
+/**
+ * The Lesson screen for `lessonId` of `course`; without an id, the first
+ * Lesson of the first Module. Another id opens that Lesson from a clean slate.
+ */
+export function App({ course, lessonId }: { course: CourseData; lessonId?: string }) {
+  const lessons = course.modules.flatMap((m) => m.lessons);
+  const first = lessons[0];
+  const lesson = lessonId === undefined ? first : lessons.find((l) => l.id === lessonId);
+
+  if (!lesson) {
+    return (
+      <main className="lesson">
+        <p>Урок „{lessonId}“ не найден</p>
+        <p>
+          Первый урок курса: <a href={`#/${first.id}`}>{first.title}</a>
+        </p>
+      </main>
+    );
+  }
+  return <Lesson key={lesson.id} course={course} lesson={lesson} />;
+}
+
+function Lesson({ course, lesson }: { course: CourseData; lesson: LessonData }) {
+  const [source, setSource] = useState(lesson.workspace.starter);
   const [report, setReport] = useState<TestReport>();
   const [running, setRunning] = useState(false);
+
+  useEffect(() => {
+    document.title = `${lesson.title} — ${course.title}`;
+  }, [lesson.title, course.title]);
 
   const onRun = async () => {
     setRunning(true);
@@ -21,15 +47,17 @@ export function App({ lesson = defaultLesson }: { lesson?: Lesson }) {
 
   return (
     <main className="lesson">
-      <h1>{lesson.title}</h1>
+      <h1>
+        {course.title} · {lesson.title}
+      </h1>
       <div className="panes">
         <section className="instructions">
           <h2>Instructions</h2>
           <p>{lesson.instructions}</p>
         </section>
         <section>
-          <h2>App.tsx</h2>
-          <Editor initialValue={lesson.starter} onChange={setSource} />
+          <h2>{lesson.workspace.name}</h2>
+          <Editor initialValue={lesson.workspace.starter} onChange={setSource} />
         </section>
       </div>
       <button className="run" onClick={onRun} disabled={running}>
