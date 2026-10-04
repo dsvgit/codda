@@ -53,7 +53,7 @@ Wayfinder создаст `.scratch/mvp/map.md` и тикеты-решения (`
 | # | Фича (`.scratch/<slug>`) | Блок | Фаза |
 |---|---|---|---|
 | 0 | `misc-01-ci-bootstrap` — GitHub Actions: typecheck, unit, e2e на PR и push в `main`; обязательная проверка в branch protection ([тикет](../.scratch/misc/issues/01-ci-bootstrap.md)); `misc-02-pages-deploy` — выкладка пилота на GitHub Pages из CI на push в `main`, сборка из подпути `/codda/` ([тикет](../.scratch/misc/issues/02-pages-deploy.md)) | — | 1 |
-| 0a | `misc-03-workspaces` — npm workspaces: инструмент в `packages/codda/`, курсы вне workspaces; после `misc/02` (Pages), до `lesson-manifest` ([тикет](../.scratch/misc/issues/03-workspaces.md)) | — | 1 |
+| 0a | `misc-03-workspaces` — npm workspaces: инструмент в `packages/codda/`, курсы вне workspaces; после `misc/02` (Pages), до `lesson-manifest` ([тикет](../.scratch/mvp-autorun/00-workspaces/issues/01-workspaces.md)) | — | 1 |
 | 1 | `lesson-manifest` — `course.yaml` + папки Lesson (тикет 03), Zod-схема, UI читает Course как данные `course.json` (ADR-0008), экран Lesson по прототипу 04, Solution, Reset, проверка границы ADR-0006 в CI; перевод React Hooks, удаление старого формата | C | 1 |
 | 2 | `runtime-hardening` — отмена Run, console, source maps, async-ошибки (R8), восстановление после падения | A | 1 |
 | 3 | `dependency-artifacts` — Dependency Artifact на Course из `package.json` + `package-lock.json`, `importmap.json` + `types.json` по hash, вшивание в бандл (ADR-0007) | B | 1 |
