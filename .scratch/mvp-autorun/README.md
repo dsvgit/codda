@@ -128,6 +128,7 @@ Slug фичи — имя папки без номера: `lesson-manifest/02` = 
 - 2026-10-04 — lesson-manifest/01a — коммит: `course.yaml` и пять Lesson React Hooks в новом формате, модуль чтения Course (Zod + `yaml`), минимальный `codda build`, собранный UI в `dist-tool/`
 - 2026-10-04 — lesson-manifest/01b — коммит: UI грузит `course.json` и выбирает Lesson по `#/<id>`, Compiler отдаёт `./main`, middleware `course.json` в `npm run dev`, e2e и выкладка на Course Build `codda build courses/react-hooks`, PoC-формат удалён
 - 2026-10-04 — lesson-manifest/01b — агент прерывался на лимите сессии, дошёл до коммита после сброса; оркестратор перепроверил: typecheck, 38 unit, 11 e2e зелёные. Пауза на границе тикета до «продолжай mvp-autorun»
+- 2026-10-04 — lesson-manifest/02 — коммит: все ошибки Course за один запуск (схема, кросс-файловые правила, файлы Lesson), сообщения Zod и YAML по-русски, номер строки YAML через `LineCounter`
 
 ## Журнал допущений
 
@@ -148,3 +149,6 @@ Slug фичи — имя папки без номера: `lesson-manifest/02` = 
 - lesson-manifest/01b — `styles.css` импортируется в `App.tsx` — браузерные тесты экрана видят CSS (перенос строк в Instructions)
 - lesson-manifest/01b — проект Playwright `dev` запускает корневой `npm run dev` и только `e2e/dev.e2e.ts` — smoke проверяет сам скрипт с `CODDA_COURSE`
 - lesson-manifest/01b — e2e use-state ждут `2 / 3 passed` на Starter — так ведут себя Lesson Tests курса; слабость тестов отмечена для `pilot-course`
+- lesson-manifest/02 — при ошибке схемы `course.yaml` Lesson всё равно проверяются по сырому списку `modules[].lessons` — иначе «все ошибки за один запуск» не выполняется; при синтаксической ошибке `course.yaml` Lesson не проверяются
+- lesson-manifest/02 — свои русские тексты для частых issue Zod («обязательное поле», «ожидается строка», «не может быть пустым», «неизвестное поле») и для кодов ошибок `yaml` — локаль `ru` пишет типы по-английски, `yaml` — целиком по-английски
+- lesson-manifest/02 — ошибки файлов Lesson пишутся как `<id>/: нет main.ts или main.tsx`, неуказанная папка — `<id>/lesson.md: урок <id> не указан в course.yaml`; при пустом списке Lesson эта проверка не идёт — формат строки для не-полей в тикете не задан

@@ -69,7 +69,9 @@ test("Course errors are a 500 with the same lines as codda build", async () => {
 
   const response = await fetch(courseJson);
   expect(response.status).toBe(500);
-  expect(await response.text()).toMatch(/^course\.yaml: title: .+\n$/);
+  expect(await response.text()).toBe(
+    "course.yaml: title: обязательное поле\ncourse.yaml: modules[0].lessons[0]: нет папки урока first\n",
+  );
 });
 
 test("no course.yaml at CODDA_COURSE is a 500 that names the path", async () => {

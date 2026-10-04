@@ -2,11 +2,11 @@
 // writes itself. CODDA_UI_DIR points the CLI at a stand-in for the built UI,
 // because `npm test` runs before `npm run build` in CI.
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { beforeEach, expect, test } from "vitest";
+import { beforeEach, describe, expect, test } from "vitest";
 
 const repoRoot = fileURLToPath(new URL("../../..", import.meta.url));
 const reactHooks = join(repoRoot, "courses/react-hooks");
@@ -199,4 +199,185 @@ test("`codda build courses/react-hooks` takes the five Lessons from the Course f
     expect(lesson.tests).toBe(readFileSync(join(dir, "lesson.test.tsx"), "utf8"));
   }
   expect(lessons[0].title).toBe("useState");
+});
+
+describe("Course errors: one line each, all in one run, exit 1, no build", () => {
+  /**
+   * Writes the valid two-Lesson Course, applies `changes` (`null` deletes a
+   * file) and runs `codda build` on it. Returns the stderr lines.
+   */
+  function errorsOf(changes: Record<string, string | null>) {
+    const course = join(tmp, "course");
+    rmSync(course, { recursive: true, force: true });
+    writeCourse(course);
+    for (const [path, content] of Object.entries(changes)) {
+      if (content === null) rmSync(join(course, path));
+      else writeFiles(course, { [path]: content });
+    }
+    const out = join(tmp, "site");
+
+    const { status, stdout, stderr } = codda(["build", course, "--out", out]);
+
+    expect(stdout).toBe("");
+    expect(existsSync(out)).toBe(false);
+    expect(status).toBe(1);
+    return stderr.split("\n").slice(0, -1);
+  }
+
+  const modules = "modules:\n  - title: Первый\n    lessons: [zeta]\n  - title: Второй\n    lessons: [alpha]\n";
+
+  test("course.yaml without id, title and modules", () => {
+    expect(errorsOf({ "course.yaml": "{}\n" })).toEqual([
+      "course.yaml: id: обязательное поле",
+      "course.yaml: title: обязательное поле",
+      "course.yaml: modules: обязательное поле",
+    ]);
+  });
+
+  test("empty title and modules", () => {
+    expect(errorsOf({ "course.yaml": 'id: demo\ntitle: ""\nmodules: []\n' })).toEqual([
+      "course.yaml: title: не может быть пустым",
+      "course.yaml: modules: список не может быть пустым",
+    ]);
+  });
+
+  test("a Module without title or with empty lessons; wrong types", () => {
+    expect(
+      errorsOf({
+        "course.yaml": "id: demo\ntitle: 5\nmodules:\n  - lessons: [zeta]\n  - title: Второй\n    lessons: []\n  - title: Третий\n    lessons: alpha\n",
+      }),
+    ).toEqual([
+      "course.yaml: title: ожидается строка",
+      "course.yaml: modules[0].title: обязательное поле",
+      "course.yaml: modules[1].lessons: список не может быть пустым",
+      "course.yaml: modules[2].lessons: ожидается список",
+      "alpha/lesson.md: урок alpha не указан в course.yaml",
+    ]);
+  });
+
+  test("ids of the Course and of Lessons that are not kebab-case", () => {
+    expect(
+      errorsOf({
+        "course.yaml": "id: React-Hooks\ntitle: Демо\nmodules:\n  - title: Первый\n    lessons: [zeta, use_state, 01-]\n  - title: Второй\n    lessons: [alpha]\n",
+      }),
+    ).toEqual([
+      "course.yaml: id: ожидается kebab-case, например use-state",
+      "course.yaml: modules[0].lessons[1]: ожидается kebab-case, например use-state",
+      "course.yaml: modules[0].lessons[2]: ожидается kebab-case, например use-state",
+    ]);
+  });
+
+  test("unknown fields in course.yaml and in the frontmatter", () => {
+    expect(
+      errorsOf({
+        "course.yaml": `id: demo\ntitle: Демо\ndependencies:\n  react: 19.0.0\nmodules:\n  - title: Первый\n    lessons: [zeta]\n    order: 1\n  - title: Второй\n    lessons: [alpha]\n`,
+        "zeta/lesson.md": "---\ntitle: Зета\ndependencies: [react]\n---\nТекст.\n",
+      }),
+    ).toEqual([
+      "course.yaml: modules[0].order: неизвестное поле",
+      "course.yaml: dependencies: неизвестное поле",
+      "zeta/lesson.md: dependencies: неизвестное поле",
+    ]);
+  });
+
+  test("YAML syntax errors in course.yaml and in the frontmatter: the line number", () => {
+    expect(errorsOf({ "course.yaml": `id: demo\ntitle: Демо\nid: other\n${modules}` })).toEqual([
+      "course.yaml: строка 3: ключ повторяется",
+    ]);
+    expect(
+      errorsOf({
+        "zeta/lesson.md": "---\ntitle: Зета\ntitle: Z\n---\nТекст.\n",
+        "alpha/lesson.md": "---\ntitle: 'Альфа\n---\nТекст.\n",
+      }),
+    ).toEqual(["zeta/lesson.md: строка 3: ключ повторяется", "alpha/lesson.md: строка 2: не закрыта кавычка или скобка"]);
+  });
+
+  test("a listed Lesson missing on disk, an unlisted Lesson folder, repeated ids", () => {
+    expect(
+      errorsOf({
+        "course.yaml": "id: demo\ntitle: Демо\nmodules:\n  - title: Первый\n    lessons: [zeta, beta, zeta]\n  - title: Второй\n    lessons: [zeta]\n",
+      }),
+    ).toEqual([
+      "course.yaml: modules[0].lessons[1]: нет папки урока beta",
+      "course.yaml: modules[0].lessons[2]: урок zeta уже указан в modules[0].lessons[0]",
+      "course.yaml: modules[1].lessons[0]: урок zeta уже указан в modules[0].lessons[0]",
+      "alpha/lesson.md: урок alpha не указан в course.yaml",
+    ]);
+  });
+
+  test("lesson.md: missing, without frontmatter, without title or with an empty one", () => {
+    expect(errorsOf({ "zeta/lesson.md": null, "alpha/lesson.md": "Кнопка.\n" })).toEqual([
+      "zeta/: нет lesson.md",
+      "alpha/lesson.md: нет frontmatter между строками ---",
+    ]);
+    expect(errorsOf({ "zeta/lesson.md": "---\n---\nТекст.\n", "alpha/lesson.md": '---\ntitle: ""\n---\n' })).toEqual([
+      "zeta/lesson.md: title: обязательное поле",
+      "alpha/lesson.md: title: не может быть пустым",
+    ]);
+  });
+
+  test("main.*, solution.* and lesson.test.*: missing, both, or solution with another extension", () => {
+    expect(
+      errorsOf({
+        "zeta/main.ts": null,
+        "zeta/lesson.test.ts": null,
+        "alpha/solution.tsx": null,
+        "alpha/solution.ts": "export {};\n",
+      }),
+    ).toEqual([
+      "zeta/: нет main.ts или main.tsx",
+      "zeta/: нет lesson.test.ts или lesson.test.tsx",
+      "alpha/: нет solution.tsx — расширение как у main.tsx",
+    ]);
+    expect(errorsOf({ "zeta/main.tsx": "export {};\n", "alpha/lesson.test.ts": "export {};\n" })).toEqual([
+      "zeta/: есть и main.ts, и main.tsx — нужен один",
+      "alpha/: есть и lesson.test.ts, и lesson.test.tsx — нужен один",
+    ]);
+    expect(errorsOf({ "zeta/solution.ts": null })).toEqual(["zeta/: нет solution.ts — расширение как у main.ts"]);
+  });
+
+  test("errors in several files and Lessons, all in one run: course.yaml first, then Lessons in its order", () => {
+    expect(
+      errorsOf({
+        "course.yaml": "id: demo\ntitle: Демо\nextra: 1\nmodules:\n  - title: Первый\n    lessons: [zeta]\n  - title: Второй\n    lessons: [alpha, gamma]\n",
+        "beta/lesson.md": "---\ntitle: Бета\n---\n",
+        "alpha/lesson.md": "---\ntitle: Альфа\nlevel: 2\n---\n",
+        "alpha/main.ts": "export {};\n",
+        "zeta/lesson.test.ts": null,
+      }),
+    ).toEqual([
+      "course.yaml: extra: неизвестное поле",
+      "course.yaml: modules[1].lessons[1]: нет папки урока gamma",
+      "beta/lesson.md: урок beta не указан в course.yaml",
+      "zeta/: нет lesson.test.ts или lesson.test.tsx",
+      "alpha/lesson.md: level: неизвестное поле",
+      "alpha/: есть и main.ts, и main.tsx — нужен один",
+    ]);
+  });
+});
+
+test("folders without lesson.md, like node_modules/ and dist/, are not Lessons", () => {
+  const course = join(tmp, "course");
+  writeCourse(course);
+  writeFiles(course, { "node_modules/react/index.js": "", "dist/index.html": "", "notes/todo.txt": "" });
+
+  const { status, stderr } = codda(["build", course, "--out", join(tmp, "site")]);
+
+  expect(stderr).toBe("");
+  expect(status).toBe(0);
+});
+
+test("on Course errors an existing --out folder stays as it was", () => {
+  const course = join(tmp, "course");
+  writeCourse(course);
+  rmSync(join(course, "zeta/main.ts"));
+  const out = join(tmp, "site");
+  writeFiles(out, { "index.html": "old", "course.json": "{}" });
+
+  const { status } = codda(["build", course, "--out", out]);
+
+  expect(status).toBe(1);
+  expect(readdirSync(out).sort()).toEqual(["course.json", "index.html"]);
+  expect(readFileSync(join(out, "index.html"), "utf8")).toBe("old");
+  expect(readFileSync(join(out, "course.json"), "utf8")).toBe("{}");
 });
