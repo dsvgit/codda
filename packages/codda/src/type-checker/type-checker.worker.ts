@@ -2,8 +2,8 @@
 // Compiler's. The first message names the JSON with TS's lib files and
 // types.json of the Course's Dependency Artifact (none for a Course without
 // one), both on our own origin (ADR-0002); they are loaded once. Then each
-// request carries the whole text of the file, so the Worker keeps no state of
-// the editor.
+// request — diagnostics or completions — carries the whole text of the file,
+// so the Worker keeps no state of the editor.
 import ts from "typescript-6";
 import { createTypeEnvironment, type TypeEnvironment } from "./core.ts";
 import type { TypeCheckerRequest, TypeCheckerResponse } from "./client.ts";
@@ -33,5 +33,6 @@ self.onmessage = ({ data }: MessageEvent<TypeCheckerRequest>) => {
     return;
   }
   env.setFile(data.file, data.text);
-  post({ type: "diagnostics", id: data.id, errors: env.errors(data.file) });
+  if (data.type === "diagnostics") post({ type: "diagnostics", id: data.id, errors: env.errors(data.file) });
+  else post({ type: "completions", id: data.id, completions: env.completions(data.file, data.pos) });
 };

@@ -10,6 +10,12 @@ import { TS_COMPILER_OPTIONS } from "../ts-config.ts";
 /** One error of a file. `from`/`to` are offsets in its text; `line`/`column` are 1-based. */
 export type TypeError = { from: number; to: number; line: number; column: number; message: string; code: number };
 
+/** One completion as CodeMirror shows it: `type` picks its icon, `detail` is a short signature. */
+export type CompletionItem = { label: string; type?: string; detail?: string };
+
+/** What the completions replace — `from`…`to`, the prefix typed so far — and the items. */
+export type Completions = { from: number; to: number; items: CompletionItem[] };
+
 export type TypeEnvironment = {
   /**
    * Creates the file `name` (e.g. "main.tsx") or replaces its text. It is the
@@ -18,6 +24,50 @@ export type TypeEnvironment = {
   setFile: (name: string, text: string) => void;
   /** Syntactic and semantic errors of the file; warnings and suggestions are left out. */
   errors: (name: string) => TypeError[];
+  /** Completions at offset `pos` of the file: none inside a string or a comment, no auto-import. */
+  completions: (name: string, pos: number) => Completions;
+};
+
+/** TS's kind of a completion (ScriptElementKind) → CodeMirror's type; another kind gets none. */
+const TYPES: Record<string, string> = {
+  function: "function",
+  "local function": "function",
+  var: "variable",
+  "local var": "variable",
+  let: "variable",
+  const: "variable",
+  parameter: "variable",
+  property: "property",
+  getter: "property",
+  setter: "property",
+  method: "method",
+  keyword: "keyword",
+  class: "class",
+  "local class": "class",
+  interface: "interface",
+  type: "type",
+  "type parameter": "type",
+  "primitive type": "type",
+};
+
+/** An imported name is «alias»: the first keyword of its signature says what it names. */
+const ALIASED: Record<string, string> = {
+  function: "function",
+  var: "variable",
+  let: "variable",
+  const: "variable",
+  class: "class",
+  interface: "interface",
+  type: "type",
+};
+
+/** Signatures are asked for one by one; this many per list keeps a list of every global fast. */
+const DETAILS_LIMIT = 50;
+
+/** Not in TS's public typings, but in its module: where TS's own completions look. */
+type Internals = {
+  isInString: (file: TS.SourceFile, pos: number) => boolean;
+  isInComment: (file: TS.SourceFile, pos: number) => unknown;
 };
 
 /** `files`: virtual path → text, the lib files (`/lib.*.d.ts`) and types.json as is. */
@@ -61,6 +111,29 @@ export function createTypeEnvironment(ts: typeof TS, files: Record<string, strin
             code: d.code,
           };
         });
+    },
+    completions(name, pos) {
+      const path = `/${name}`;
+      // vfs gives the TS 7 types, which have no language service: these are TS 6's.
+      const service = env!.languageService as unknown as TS.LanguageService;
+      const file = env!.getSourceFile(path) as unknown as TS.SourceFile;
+      const internals = ts as unknown as Internals;
+      if (internals.isInString(file, pos) || internals.isInComment(file, pos)) return { from: pos, to: pos, items: [] };
+      const result = service.getCompletionsAtPosition(path, pos, { includeCompletionsForModuleExports: false });
+      const span = result?.optionalReplacementSpan;
+      const from = span ? span.start : pos;
+      const prefix = file.text.slice(from, pos).toLowerCase();
+      let detailed = 0;
+      const items = (result?.entries ?? []).map(({ name: label, kind, source, data }): CompletionItem => {
+        if (detailed >= DETAILS_LIMIT || !label.toLowerCase().startsWith(prefix)) return { label, type: TYPES[kind] };
+        detailed++;
+        const parts = service.getCompletionEntryDetails(path, pos, label, {}, source, {}, data)?.displayParts ?? [];
+        const type = kind === "alias" ? ALIASED[parts.find((part) => part.kind === "keyword")?.text ?? ""] : TYPES[kind];
+        // "(method) Array<number>.map<U>(…)…": the kind is the icon already; one line is enough.
+        const detail = ts.displayPartsToString(parts).replace(/^\([^)]*\) /, "").split("\n")[0];
+        return detail ? { label, type, detail } : { label, type };
+      });
+      return { from, to: pos, items };
     },
   };
 }

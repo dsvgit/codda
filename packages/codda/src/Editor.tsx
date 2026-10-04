@@ -1,9 +1,10 @@
 import { useEffect, useImperativeHandle, useRef, type Ref } from "react";
 import { EditorView, basicSetup } from "codemirror";
 import { javascript } from "@codemirror/lang-javascript";
+import { autocompletion, type CompletionSource } from "@codemirror/autocomplete";
 import { forceLinting, linter, type Diagnostic } from "@codemirror/lint";
 import type { CompileError } from "./runtime/types";
-import type { TypeCheckerStatus, TypeError } from "./type-checker/client";
+import type { Completions, TypeCheckerStatus, TypeError } from "./type-checker/client";
 
 type Props = {
   label: string;
@@ -18,6 +19,8 @@ type Props = {
   onTypeErrors?: (errors: TypeError[]) => void;
   /** A change re-checks at once: an unavailable Type Checker takes its underlines away. */
   typeCheckStatus?: TypeCheckerStatus;
+  /** Completions at `pos` of a text (Type Checker), the list's only source; none: no list at all. */
+  complete?: (text: string, pos: number) => Promise<Completions | undefined>;
   ref?: Ref<EditorHandle>;
 };
 
@@ -40,6 +43,7 @@ export function Editor({
   typeCheck,
   onTypeErrors,
   typeCheckStatus,
+  complete,
   ref,
 }: Props) {
   const host = useRef<HTMLDivElement>(null);
@@ -51,6 +55,9 @@ export function Editor({
   const onTypeErrorsRef = useRef(onTypeErrors);
   onTypeErrorsRef.current = onTypeErrors;
   const checked = typeCheck !== undefined;
+  const completeRef = useRef(complete);
+  completeRef.current = complete;
+  const completes = complete !== undefined;
   // Until the next edit: then they no longer match the text.
   const compileErrors = useRef(errors);
 
@@ -73,11 +80,13 @@ export function Editor({
           needsRefresh: (update) => update.transactions.some((tr) => tr.isUserEvent(RELINT)),
         }),
         checked ? linter(typeErrorSource(typeCheckRef, onTypeErrorsRef), { delay: 300 }) : [],
+        // Replaces basicSetup's sources: the keywords and locals of lang-javascript would double TS's items.
+        autocompletion({ override: completes ? [completionSource(completeRef)] : [] }),
       ],
     });
     view.current = editor;
     return () => editor.destroy();
-  }, [label, initialValue, readOnly, checked]);
+  }, [label, initialValue, readOnly, checked, completes]);
 
   useEffect(() => {
     compileErrors.current = errors;
@@ -135,5 +144,15 @@ function typeErrorSource(typeCheck: { current: Props["typeCheck"] }, onTypeError
       severity: "error",
       message: `${message} (TS${code})`,
     }));
+  };
+}
+
+/** While typing — after a word's character or a dot; on Ctrl/Cmd+Space anywhere. */
+function completionSource(complete: { current: Props["complete"] }): CompletionSource {
+  return async (context) => {
+    if (!context.explicit && !context.matchBefore(/[\w$.]$/)) return null;
+    const result = await complete.current!(context.state.doc.toString(), context.pos);
+    if (!result || result.items.length === 0) return null;
+    return { from: result.from, to: result.to, options: result.items };
   };
 }

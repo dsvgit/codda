@@ -111,3 +111,92 @@ test("another Starter's extension drops the old file: its globals do not clash w
   // And back: the first name is a new file again.
   expect(errorsOf("main.tsx", `const count = 3;\nexport const n: number = "";\n`, env)).toMatchObject([{ code: 2322 }]);
 });
+
+/** Completions where `|` stands in `text` (the marker is taken out). */
+function completionsAt(file: string, text: string, env = createTypeEnvironment(ts, { ...lib, ...types })) {
+  const pos = text.indexOf("|");
+  env.setFile(file, text.replace("|", ""));
+  return env.completions(file, pos);
+}
+
+const typeOf = (items: { label: string; type?: string }[], label: string) => {
+  const found = items.filter((item) => item.label === label);
+  expect(found, label).toHaveLength(1);
+  return found[0].type;
+};
+
+const DECLARATIONS = `const values = [1];
+let count = 0;
+function add() {}
+class Box {}
+interface Shape {}
+type Id = string;
+namespace Space { export const x = 1; }
+`;
+
+test("completions: the TS kind becomes the CodeMirror type — function, variable, keyword, class; an unknown kind (a namespace) gives none", () => {
+  const { items } = completionsAt("main.ts", `${DECLARATIONS}|`);
+
+  expect(typeOf(items, "add")).toBe("function");
+  expect(typeOf(items, "values")).toBe("variable");
+  expect(typeOf(items, "count")).toBe("variable");
+  expect(typeOf(items, "if")).toBe("keyword");
+  expect(typeOf(items, "Box")).toBe("class");
+  expect(typeOf(items, "Space")).toBeUndefined();
+});
+
+test("completions: an interface and a type alias are types", () => {
+  const { items } = completionsAt("main.ts", `${DECLARATIONS}let x: |`);
+
+  expect(typeOf(items, "Shape")).toBe("interface");
+  expect(typeOf(items, "Id")).toBe("type");
+});
+
+test("completions after `.`: members of the object — method and property with a short signature; ESNext's toSorted", () => {
+  const text = `const items = [3, 1];\nitems.|`;
+  const { from, to, items } = completionsAt("main.ts", text);
+
+  expect(typeOf(items, "map")).toBe("method");
+  expect(typeOf(items, "length")).toBe("property");
+  expect(typeOf(items, "toSorted")).toBe("method");
+  expect(items.find((item) => item.label === "length")?.detail).toBe("Array<number>.length: number");
+  expect([from, to]).toEqual([text.indexOf("|"), text.indexOf("|")]);
+});
+
+test("completions: the range is the typed prefix; the detail is the signature's first line, without the kind in parentheses", () => {
+  const text = `function addNumbers(a: number, b: number) {\n  return a + b;\n}\nexport const sum = addNu|;`;
+  const { from, to, items } = completionsAt("main.ts", text);
+
+  expect([from, to]).toEqual([text.indexOf("addNu|"), text.indexOf("|")]);
+  expect(items.find((item) => item.label === "addNumbers")).toEqual({
+    label: "addNumbers",
+    type: "function",
+    detail: "function addNumbers(a: number, b: number): number",
+  });
+});
+
+test("completions: an imported name has the type of what it names, not «alias»", () => {
+  const env = createTypeEnvironment(ts, { ...lib, "/lib.ts": "export function add(a: number) { return a; }\n" });
+  const { items } = completionsAt("main.ts", `import { add } from "./lib";\nadd|`, env);
+
+  expect(items.find((item) => item.label === "add")).toMatchObject({ type: "function", detail: "function add(a: number): number" });
+});
+
+test("completions: no auto-import — exports of a module not imported are not offered", () => {
+  const env = createTypeEnvironment(ts, { ...lib, "/lib.ts": "export function addNumbers(a: number) { return a; }\n" });
+  const { items } = completionsAt("main.ts", `export const f = addNu|`, env);
+
+  expect(items.map((item) => item.label)).not.toContain("addNumbers");
+});
+
+test("completions: none inside a string, a template's text or a comment", () => {
+  // A string TS would complete: the tag names of querySelector.
+  expect(completionsAt("main.ts", `document.querySelector("di|");`).items).toEqual([]);
+  expect(completionsAt("main.ts", `const tag = "di|";`).items).toEqual([]);
+  expect(completionsAt("main.ts", "const t = `con|`;").items).toEqual([]);
+  expect(completionsAt("main.ts", `// con|\n`).items).toEqual([]);
+  expect(completionsAt("main.ts", `/* con| */\n`).items).toEqual([]);
+  expect(completionsAt("main.ts", `/** @par| */\nfunction f(a: number) {}\n`).items).toEqual([]);
+  // A template's substitution is code.
+  expect(completionsAt("main.ts", "const t = `${docu|}`;").items.map((item) => item.label)).toContain("document");
+});

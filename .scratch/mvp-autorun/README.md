@@ -161,6 +161,7 @@ Slug фичи — имя папки без номера: `lesson-manifest/02` = 
 - 2026-10-05 — author-cli — push правок по review, `check` зелёный (прогон 37228012008); фича закрыта
 - 2026-10-05 — ts-tooling/01 — коммит: Type Checker в редакторе Workspace — модуль конфига TS (ADR-0009), Compiler на нём и loader по расширению (`testsName` в `course.json`), lib-файлы `typescript-6` одним JSON с hash (`codda-ts-lib`), ядро на `@typescript/vfs`, отдельный Worker на сессию, второй `linter` (300 мс) рядом с ошибкой компиляции; заглушка `any` в `types.json` — `declare module` (`PIPELINE_VERSION` = 3). Агент прерывался на лимите, доделано следующей сессией
 - 2026-10-05 — ts-tooling/02 — коммит: вкладка «Проблемы» (счётчик `…`/N/без числа, список `строка:колонка — сообщение (TSxxxx)`, клик ставит курсор), статус Type Checker `loading | ready | unavailable` (ответ `ready`, `error` у Worker посреди сессии, подчёркивания снимаются), смена расширения Starter удаляет старый файл из окружения
+- 2026-10-05 — ts-tooling/03 — коммит: autocomplete от TS — `completions` в ядре (без auto-import, пусто в строке и комментарии, `kind` → `type`, `alias` по сигнатуре, `detail` — первая строка сигнатуры), запрос `completions` у Worker и клиента, `autocompletion({ override })` единственным источником в редакторе Workspace, у read-only — без источников; `@codemirror/autocomplete` явной зависимостью
 
 ## Журнал допущений
 
@@ -281,6 +282,10 @@ Slug фичи — имя папки без номера: `lesson-manifest/02` = 
 - ts-tooling/02 — счётчик «Проблемы» в `ready` до первого ответа на проверку — `…`, как в `loading`, без «0» до проверки. Число `0` показывается, когда ошибок нет
 - ts-tooling/02 — строка списка — `<button>` (клик и клавиатура), список — `<ul aria-label="Проблемы">`. Вид в спеке не задан
 - ts-tooling/02 — e2e смены `main.tsx` ↔ `main.ts` на курсе-фикстуре через `page.route` `course.json`: в React Hooks нет `.ts`-Lesson
+- ts-tooling/03 — `detail` подсказки (сигнатура `getCompletionEntryDetails`) — только у пунктов, начинающихся с набранного префикса, не больше 50 на список: детали считаются по одной, у глобальной области их больше 1000
+- ts-tooling/03 — «внутри строки и комментария» — внутренние `ts.isInString`/`ts.isInComment` модуля `typescript-6` (версия точная, unit-тест ловит поломку); тип импортированного имени (`alias`) — по первому ключевому слову сигнатуры
+- ts-tooling/03 — Ctrl/Cmd+Space — `Ctrl-Space` CodeMirror на всех ОС; Cmd+Space в macOS занят Spotlight, отдельной привязки нет
+- ts-tooling/03 — редактор без Type Checker (read-only «Решение», компонентный тест) — `autocompletion({ override: [] })`: подсказок нет вовсе, keyword/local completion `lang-javascript` отключены и там
 
 ## Отложенные проблемы
 

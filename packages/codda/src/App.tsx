@@ -28,13 +28,11 @@ export function runLesson(course: CourseData, lesson: LessonData, source: string
 }
 
 /**
- * The type errors of the Workspace `text` of `lesson`, from the session's Type
- * Checker with types.json of the same Dependency Artifact as the Compiler's.
- * The first call starts it: after the Lesson screen is drawn.
+ * The session's Type Checker, with types.json of the same Dependency Artifact
+ * as the Compiler's. The first call starts it: after the Lesson screen is drawn.
  */
-function typeCheck(course: CourseData, lesson: LessonData, text: string) {
-  const types = course.deps === null ? undefined : new URL(`${course.deps}types.json`, document.baseURI).href;
-  return typeChecker(types).diagnostics(lesson.workspace.name, text);
+function sessionTypeChecker(course: CourseData) {
+  return typeChecker(course.deps === null ? undefined : new URL(`${course.deps}types.json`, document.baseURI).href);
 }
 
 /**
@@ -156,7 +154,8 @@ function Lesson({ course, lesson }: { course: CourseData; lesson: LessonData }) 
               editedDuringRun.current = true;
             }}
             errors={underlined}
-            typeCheck={(text) => typeCheck(course, lesson, text)}
+            typeCheck={(text) => sessionTypeChecker(course).diagnostics(lesson.workspace.name, text)}
+            complete={(text, pos) => sessionTypeChecker(course).completions(lesson.workspace.name, text, pos)}
             onTypeErrors={setTypeErrors}
             typeCheckStatus={typeStatus}
           />
