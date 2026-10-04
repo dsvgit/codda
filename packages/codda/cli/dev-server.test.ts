@@ -33,7 +33,9 @@ beforeAll(async () => {
   server = await createServer({
     root: packageDir,
     configFile: join(packageDir, "vite.config.ts"),
-    server: { port: 0, strictPort: false },
+    // An explicit address: in the CI container `localhost` resolves to ::1 for
+    // the server but to 127.0.0.1 for fetch.
+    server: { host: "127.0.0.1", port: 0, strictPort: false },
     logLevel: "silent",
   });
   await server.listen();
