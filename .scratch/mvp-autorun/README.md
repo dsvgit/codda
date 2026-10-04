@@ -156,6 +156,7 @@ Slug фичи — имя папки без номера: `lesson-manifest/02` = 
 - 2026-10-04 — author-cli/02 — ранний push: `check` красный дважды — ложный timeout (отложенный флейк) в `test-command.test.ts`, затем в e2e `sandbox-isolation`. Обход по правилу 7: повторы тестов только в CI
 - 2026-10-04 — author-cli/04 — коммит: `codda dev [путь] [--port <n>]` — сервер `127.0.0.1` (порт `4173`, `--port 0`, занятый — код `2`) на `static-server.ts` с SSE `/__codda/events` и вставкой скрипта перезагрузки в `index.html`, `fs.watch` с `recursive` и debounce 100 мс, пересборка в `.codda/dev/` (артефакт через кэш, правка `package*.json` — с шагом npm), `course.json` с `errors` у Lesson и верхнего уровня, страницы «Ошибки в Lesson» и «Ошибки в курсе», SIGINT — код `0`; флейк `codda test` (чужой запрос) — `test.skip`
 - 2026-10-04 — author-cli/05 — коммит: `codda init [путь]` (пустая папка или только `.git`, id из имени папки, `course.yaml` с Lesson `hello`, `package.json` с `codda` в `devDependencies` через `file:`, `.npmrc`, `.gitignore`, `npm install`) и `codda lesson <id> [--module] [--tsx]` (шаблоны `ts`/`tsx` в `packages/codda/templates/`, правка `course.yaml` через `parseDocument` с комментариями, ошибки — код `1`); свежий курс и свежие Lesson проходят `codda test`
+- 2026-10-04 — author-cli/06 — коммит: CI по курсам — шаг `npm ci` → `npx codda test` → `npx codda build` в каждой `courses/*` с `course.yaml`, выкладка `dist/` пилотного курса из `PILOT_COURSE`; `codda init --ci github|gitlab` — шаблоны `templates/ci/` с версией Playwright (Pages / S3)
 
 ## Журнал допущений
 
@@ -261,6 +262,10 @@ Slug фичи — имя папки без номера: `lesson-manifest/02` = 
 - author-cli/05 — ошибки `lesson` — `codda: <сообщение>` в stderr, код `1`; сломанный `course.yaml` и Module без `lessons` — тоже `1`; без id — код `2`; `codda lesson` работает и из папки Lesson (урок в корне Course) — формат в спеке не задан
 - author-cli/05 — сбой `npm install` в `init` — вывод npm и код `2`, созданные файлы остаются; подсказка о React — с `npx codda lesson <id> --tsx` — в спеке не задано
 - author-cli/05 — `course.yaml` пишется с `flowCollectionPadding: false` — иначе `yaml` переписывает `[sum]` в `[ sum ]`
+- author-cli/06 — «unit-тест шаблонов» и тест CLI совмещены: шаблон после подстановки берётся из настоящего `init --ci`, без отдельного модуля подстановки — правило 3
+- author-cli/06 — `--ci` с неизвестным значением проверяется до создания папки: код `2`, ничего не создано; текст `--ci: github или gitlab, а не <значение>` — в спеке не задан
+- author-cli/06 — GitLab: образ выкладки — переменная `$CODDA_DEPLOY_IMAGE`, `immutable` — `public, max-age=31536000, immutable`, `index.html` и `course.json` заливаются после `sync` отдельным `aws s3 cp`, `--endpoint-url` явно; GitHub-шаблон с `--user 1001`, как `ci.yml` — детали в спеке не заданы
+- author-cli/06 — `dist/` пилота пишет шаг курсов в `ci.yml` (`npx codda build` после `npx codda test`), а не `codda build` из `test:e2e` — выкладывается то, что проверил `codda test`; e2e идут на сборке из тех же файлов
 
 ## Отложенные проблемы
 

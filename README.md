@@ -26,7 +26,7 @@ npm run dev
 
 Другой Lesson открывается фрагментом `#/<id Lesson>`, например `/#/use-effect`; без фрагмента — первый Lesson курса.
 
-Пилот: [dsvgit.github.io/codda](https://dsvgit.github.io/codda/). Каждый push в `main` после зелёной проверки CI выкладывается туда (`.github/workflows/ci.yml`): Course Build `codda build courses/react-hooks`, тот же, что проверил e2e. Сборка использует относительные URL, поэтому работает из любого подпути.
+Пилот: [dsvgit.github.io/codda](https://dsvgit.github.io/codda/). Каждый push в `main` после зелёной проверки CI выкладывается туда (`.github/workflows/ci.yml`): `dist/` пилотного курса (переменная `PILOT_COURSE`, сейчас `courses/react-hooks`), который тот же прогон проверил `npx codda test` и собрал `npx codda build`. Сборка использует относительные URL, поэтому работает из любого подпути.
 
 Первый Run занимает около секунды, потому что загружаются и инициализируются `esbuild.wasm` (~14 МБ) и Dependency Artifacts с React (~1.2 МБ). Последующие — около 0.5 с: React вшивается в бандл заново на каждый Run.
 
@@ -34,7 +34,9 @@ npm run dev
 
 Репозиторий — npm workspaces с одним пакетом. Код инструмента (UI, Runtime, CLI) лежит в `packages/codda/`, курсы — в `courses/` и в workspaces не входят: у Course свои зависимости (ADR-0007). В корне — общие npm-скрипты, e2e (`e2e/`, `playwright.config.ts`) и один `package-lock.json`.
 
-CLI `codda` запускается без сборки (TypeScript в Node 24): `npx codda --help` из корня или из папки курса. Пока есть `--help`, `--version` и минимальный `codda build <путь к курсу> [--out <папка>]`: проверяет Course, копирует собранный UI из `packages/codda/dist-tool/` (сначала `npm run build`), кладёт рядом `course.json` и `deps/`; по умолчанию в `<путь>/dist`. Остальные команды для авторов курсов появятся позже. Курс вне этого репозитория подключит его через `"codda": "file:…/packages/codda"` в `devDependencies`.
+CLI `codda` запускается без сборки (TypeScript в Node 24): `npx codda --help` из корня или из папки курса. Команды автора: `codda build`, `codda test` (Solution проходит тесты, Starter — нет, в Chromium), `codda dev`, `codda init`, `codda lesson`. Курс этого репозитория подключает пакет через `"codda": "file:../../packages/codda"` в `devDependencies`.
+
+CI этого репозитория после проверок инструмента в каждой папке `courses/*` с `course.yaml` выполняет то же, что CI репозитория курса: `npm ci`, `npx codda test`, `npx codda build`. Новый курс в `courses/` в workflow добавлять не нужно. Репозиторию нового курса CI даёт `codda init --ci github` (`.github/workflows/codda.yml`: контейнер Playwright с версией из пакета `codda`, выкладка на GitHub Pages) или `codda init --ci gitlab` (`.gitlab-ci.yml`: внутренний образ `$CODDA_IMAGE`, выкладка `aws s3 sync` в S3). В обоих выкладка — отдельная job, только на `main`. Шаблоны — `packages/codda/templates/ci/`.
 
 ## Команды
 
@@ -60,6 +62,7 @@ CLI `codda` запускается без сборки (TypeScript в Node 24): 
 - `packages/codda/src/App.test.tsx` — экран Lesson на Course-литерале: Test Report (FAIL, PASS, ошибка компиляции, runtime-ошибка, timeout), вкладки «Тесты» и «Решение», Reset и его отмена, раскладка на 1280×800, заголовки, неизвестный id, смена Lesson.
 - `packages/codda/cli/codda.test.ts` — CLI как его вызывает автор: `npx codda …` из корня и из `courses/`, коды выхода.
 - `packages/codda/cli/build.test.ts` — `codda build` процессом на временном Course, который пишет сам тест: содержимое сборки, ошибки Course, коды выхода.
+- `packages/codda/cli/ci-templates.test.ts` — `codda init --ci github|gitlab`: шаблон после подстановки разбирается пакетом `yaml` — job'ы, порядок команд `codda`, выкладка только на `main`.
 - `packages/codda/cli/deps.test.ts` — Dependency Artifact из `codda build` на Course с поддельными пакетами в `node_modules` (без npm и сети). Runner-тесты берут артефакт `packages/codda/fixtures/react-course/` с настоящим React: его собирает global setup (`vitest.global-setup.ts`, `npm ci` из registry, если нет `node_modules`).
 - `packages/codda/cli/dev-server.test.ts` — настоящий dev-сервер Vite отдаёт `course.json` временного Course, ошибки Course — ответ 500.
 - `packages/codda/cli/boundary.test.ts` — граница ADR-0006: ни один импорт исходников пакета `codda` (включая `?raw` и `?url` Vite) не ведёт за пределы пакета, кроме `node_modules`. Обычные импорты ловит ещё и `rootDir` в tsconfig пакета.

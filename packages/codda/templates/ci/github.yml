@@ -1,0 +1,49 @@
+# CI курса codda (создан `codda init --ci github`). На каждый PR и push в
+# `main`: `npm ci` → `npx codda test` → `npx codda build`. Push в `main` после
+# этого выкладывается на GitHub Pages — тот же `dist/`, без пересборки.
+#
+# Что сделать в репозитории один раз: Settings → Pages → Source: GitHub
+# Actions; branch protection на `main` с обязательной проверкой `check`.
+name: codda
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    container:
+      # Образ несёт Chromium ровно для Playwright {{playwright}} — версии
+      # `playwright` пакета codda. После обновления codda поменяйте версию здесь.
+      image: mcr.microsoft.com/playwright:v{{playwright}}-noble
+      options: --user 1001
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm ci
+      - run: npx codda test
+      - run: npx codda build
+      # То же условие, что у job'ы `deploy` ниже.
+      - if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: dist/
+
+  deploy:
+    needs: check
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    # Одна выкладка за раз; следующая ждёт, а не обрывает текущую.
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5

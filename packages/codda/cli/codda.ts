@@ -28,7 +28,7 @@ const HELP = `Использование: codda [флаги]
        codda build [путь] [--out <папка>]
        codda test [путь]
        codda dev [путь] [--port <n>]
-       codda init [путь]
+       codda init [путь] [--ci github|gitlab]
        codda lesson <id> [--module <название>] [--tsx]
 
 Инструмент автора курсов codda.
@@ -48,7 +48,9 @@ const HELP = `Использование: codda [флаги]
                  Ctrl+C — остановить
   init           создать новый курс в пустой папке (по умолчанию текущей; .git
                  можно): id и название курса — имя папки в kebab-case, урок
-                 hello, package.json с codda, затем npm install
+                 hello, package.json с codda, затем npm install. --ci github —
+                 ещё .github/workflows/codda.yml (проверка и GitHub Pages),
+                 --ci gitlab — .gitlab-ci.yml (проверка и выкладка в S3)
   lesson         добавить урок <id> (kebab-case) из шаблона: папка урока и строка
                  в course.yaml (в последний модуль или в модуль --module с этим
                  названием; комментарии course.yaml сохраняются). --tsx — урок
@@ -66,10 +68,11 @@ const options = {
   port: { type: "string" },
   module: { type: "string" },
   tsx: { type: "boolean" },
+  ci: { type: "string" },
 } as const;
 
 /** Flags that belong to one command only. */
-const COMMAND_OF: Record<string, string> = { out: "build", port: "dev", module: "lesson", tsx: "lesson" };
+const COMMAND_OF: Record<string, string> = { out: "build", port: "dev", module: "lesson", tsx: "lesson", ci: "init" };
 
 // The tool's built UI (`npm run build`, ADR-0008). CODDA_UI_DIR replaces it in
 // the CLI's own tests, which run before the UI is built.
@@ -77,6 +80,9 @@ const COMMAND_OF: Record<string, string> = { out: "build", port: "dev", module: 
 const templatesDir = fileURLToPath(new URL("../templates", import.meta.url));
 
 const uiDir = process.env.CODDA_UI_DIR ?? fileURLToPath(new URL("../dist-tool", import.meta.url));
+
+/** `codda init --ci <kind>`: the template in templates/ci/ and where it goes in the Course. */
+const CI_FILES: Record<string, string> = { github: ".github/workflows/codda.yml", gitlab: ".gitlab-ci.yml" };
 
 /** The marker of a Course Build: only a folder with it may be cleared by `--out`. */
 const MARKER = ".codda-build";
@@ -443,6 +449,8 @@ function copyTemplate(name: string, dest: string, vars: { id: string; title: str
  */
 function init(): number {
   if (args.length > 1) fail(`лишний аргумент ${args[1]}`);
+  const ci = values.ci as string | undefined;
+  if (ci !== undefined && !Object.hasOwn(CI_FILES, ci)) fail(`--ci: github или gitlab, а не ${ci}`);
   const dir = resolve(args[0] ?? ".");
   if (existsSync(dir)) {
     if (!statSync(dir).isDirectory()) fail(`${dir} — не папка`);
@@ -463,6 +471,13 @@ function init(): number {
   };
   writeFileSync(join(dir, "package.json"), `${JSON.stringify(manifest, null, 2)}\n`);
   files.push(...copyTemplate("lesson-ts", join(dir, "hello"), { id: "hello", title: "hello" }).map((file) => `hello/${file}`));
+  if (ci !== undefined) {
+    // The image of the template must ship Chromium for exactly this Playwright.
+    const text = readFileSync(join(templatesDir, "ci", `${ci}.yml`), "utf8").replaceAll("{{playwright}}", pkg.dependencies.playwright);
+    mkdirSync(dirname(join(dir, CI_FILES[ci])), { recursive: true });
+    writeFileSync(join(dir, CI_FILES[ci]), text);
+    files.push(CI_FILES[ci]);
+  }
   process.stdout.write(`Курс ${id} создан в ${dir}:\n${files.map((file) => `  ${file}\n`).join("")}`);
 
   process.stdout.write("npm install…\n");

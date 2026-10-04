@@ -1,0 +1,44 @@
+# CI курса codda (создан `codda init --ci gitlab`). На каждый push:
+# `npm ci` → `npx codda test` → `npx codda build`, `dist/` сохраняется
+# артефактом. Push в `main` после этого выкладывается в S3 — тот же `dist/`,
+# без пересборки.
+#
+# npm берёт пакеты из registry, указанного в `.npmrc` курса.
+#
+# Переменные CI/CD (Settings → CI/CD → Variables):
+#   CODDA_IMAGE         — внутренний образ: Node 24 и Chromium для Playwright {{playwright}}
+#   CODDA_DEPLOY_IMAGE  — внутренний образ с AWS CLI
+#   CODDA_S3_BUCKET, AWS_ENDPOINT_URL, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY,
+#   AWS_DEFAULT_REGION  — protected: доступны только защищённой ветке `main`
+#
+# Сайт курса должен открываться по HTTPS (или с localhost): проверка
+# `integrity` зависимостей в браузере работает только в secure context.
+# `.wasm` должен отдаваться с MIME `application/wasm`.
+
+# Node 24 и Chromium для Playwright {{playwright}} — версии `playwright` пакета codda.
+image: $CODDA_IMAGE
+
+stages: [check, deploy]
+
+check:
+  stage: check
+  script:
+    - npm ci
+    - npx codda test
+    - npx codda build
+  artifacts:
+    paths: [dist/]
+
+deploy:
+  stage: deploy
+  # Плейсхолдер: образ с AWS CLI.
+  image: $CODDA_DEPLOY_IMAGE
+  needs: [check]
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+  script:
+    # Сначала всё, кроме точек входа: файлы с hash в пути не меняются.
+    - aws s3 sync dist/ s3://$CODDA_S3_BUCKET/ --delete --endpoint-url "$AWS_ENDPOINT_URL" --exclude index.html --exclude course.json --cache-control "public, max-age=31536000, immutable"
+    # Точки входа — последними и без кэша: браузер всегда берёт свежий курс.
+    - aws s3 cp dist/index.html s3://$CODDA_S3_BUCKET/index.html --endpoint-url "$AWS_ENDPOINT_URL" --cache-control no-cache
+    - aws s3 cp dist/course.json s3://$CODDA_S3_BUCKET/course.json --endpoint-url "$AWS_ENDPOINT_URL" --cache-control no-cache
