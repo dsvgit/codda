@@ -30,7 +30,7 @@
 - [x] e2e: Solution каждого Lesson из собранного `course.json` даёт PASS по всем тестам, офлайн
 - [x] e2e: `#/use-effect` открывает этот Lesson; неизвестный id; 404 на `course.json` (через `route`) показывает «Не удалось загрузить курс»
 - [x] `golden-path.e2e.ts` и `sandbox-isolation.e2e.ts` переведены на Lesson `use-state`
-- [ ] CI выкладывает на Pages выход `codda build`, который проверил e2e (без пересборки) — `ci.yml` переключён на `courses/react-hooks/dist/`; подтвердить — после CI (выкладка только на push в `main`)
+- [ ] CI выкладывает на Pages выход `codda build`, который проверил e2e (без пересборки) — `ci.yml` переключён на `courses/react-hooks/dist/`; подтвердить — после merge PR #6 (выкладка только на push в `main`)
 - [x] `npm run typecheck`, `npm test`, `npm run test:e2e` зелёные; `npm run dev` вручную открывает `use-state`
 
 ## Comments

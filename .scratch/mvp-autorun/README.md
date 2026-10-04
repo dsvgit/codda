@@ -133,6 +133,7 @@ Slug фичи — имя папки без номера: `lesson-manifest/02` = 
 - 2026-10-04 — lesson-manifest/04 — коммит: Instructions из Markdown — `marked` в модуле чтения Course, raw HTML экранируется, внешние ссылки в новой вкладке, картинка — ошибка Course со строкой; UI вставляет HTML
 - 2026-10-04 — lesson-manifest/05 — коммит: граница ADR-0006 — `rootDir` в tsconfig пакета и Node-тест `cli/boundary.test.ts` (esbuild разрешает каждый импорт исходников, включая `?raw`/`?url`), идёт в `npm test`
 - 2026-10-04 — lesson-manifest — /code-review (Standards: 1 жёсткое — XSS через `javascript:` в Instructions; Spec: 4), правки отдельным коммитом
+- 2026-10-04 — lesson-manifest — push; `check` красный (dev-server.test: в контейнере localhost → ::1), fix 3806e47; `check` зелёный (прогон 37205302805); фича закрыта. Выкладка на Pages (01b) подтверждается после merge
 
 ## Журнал допущений
 

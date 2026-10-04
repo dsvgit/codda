@@ -24,7 +24,7 @@
 - [x] Тест CLI: неизвестный флаг → код `2`
 - [x] Тест CLI: невалидный Course (например, нет `title`) → строка `<файл>: <путь>: <сообщение>` в stderr, код `1`, папка `--out` не создана
 - [x] Тест CLI: `codda build courses/react-hooks` даёт `course.json` с пятью Lesson, Starter, Solution и Lesson Tests из файлов курса
-- [ ] Тесты CLI идут в `npm test` и в CI `check` — в `npm test` идут (проект Vitest `cli`); `check` — после CI
+- [x] Тесты CLI идут в `npm test` и в CI `check` — в `npm test` идут (проект Vitest `cli`); `check` зелёный, прогон 37205302805
 - [x] `npm run typecheck`, `npm test`, `npm run test:e2e` зелёные (e2e пока на PoC-формате)
 
 ## Comments
