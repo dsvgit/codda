@@ -2,7 +2,7 @@
 
 Платформа интерактивных курсов по программированию: студент читает задание, правит код в браузере, жмёт **Run tests** и получает PASS/FAIL. Весь код студента компилируется и исполняется **в браузере**, на собственном runtime, внутри полностью внутренней инфраструктуры.
 
-Раскладка: npm workspaces с одним пакетом. Инструмент (UI, Runtime, CLI `cli/codda.ts`) — в `packages/codda/`, курсы — в `courses/`, вне workspaces (ADR-0007). В корне — npm-скрипты разработки, `e2e/`, `playwright.config.ts` и единственный `package-lock.json`. Команды для курса вызываются как `npx codda …`.
+Раскладка: npm workspaces с одним пакетом. Инструмент (UI, Runtime, CLI `cli/codda.ts`) — в `packages/codda/`, курсы — в `courses/`, вне workspaces (ADR-0006, ADR-0007). В корне — npm-скрипты разработки, `e2e/`, `playwright.config.ts` и единственный `package-lock.json`. Команды для курса вызываются как `npx codda …`.
 
 Текущая стадия: **Golden Path PoC завершён (GO)**, итог — `docs/poc-report.md`, спека и тикеты — `.scratch/golden-path-poc/`. Следующая стадия — MVP: `docs/roadmap.md`, шаги — `docs/HOW-TO-PROCEED.md`.
 

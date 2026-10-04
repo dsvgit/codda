@@ -23,7 +23,8 @@
 Критерии приёмки:
 
 - [x] Корень — npm workspaces с одним членом `packages/codda/`; один `package-lock.json` в корне; `courses/` в `workspaces` нет
-- [x] `npm ci`, `npm run typecheck`, `npm test`, `npm run test:e2e`, `npm run build` из корня работают; `npm run dev` поднимает Golden Path; job `check` в CI зелёная, выкладка из `misc/02` выкладывает тот же `dist/` (путь в `ci.yml` обновлён)
+- [x] `npm ci`, `npm run typecheck`, `npm test`, `npm run test:e2e`, `npm run build` из корня работают; `npm run dev` поднимает Golden Path
+- [ ] job `check` в CI зелёная (отмечается после первого прогона на draft PR), выкладка из `misc/02` выкладывает тот же `dist/` (путь в `ci.yml` обновлён)
 - [x] `packages/codda/package.json`: `"bin": { "codda": "./cli/codda.ts" }`, CLI запускается без сборки. Пока это только каркас из тикета 05: `parseArgs`, `--help` на русском, `--version`, неизвестная команда или флаг → код выхода `2`. Команды `init/lesson/test/dev/build` добавляет `author-cli`: им нужен `course.yaml`, а его вводит `lesson-manifest`
 - [x] Тест: `npx codda --version` из корня и из `courses/` печатает версию, `npx codda --bogus` даёт код `2`. Тест идёт в `check`
 - [x] Документы: пути в `CLAUDE.md`, `docs/ai-workflow.md`, README; тикет 05 Плана решений не переписывается, а в `docs/HOW-TO-PROCEED.md` в строке `author-cli` указано: CLI в `packages/codda/cli/`, курс подключает его через `file:` и вызывает `npx codda`
@@ -39,3 +40,4 @@
   - **Находка — `cli/` вне typecheck.** Для `node:util`, `process`, `node:child_process` нужен `@types/node`, а его нет в списке разрешённых зависимостей README («стоп и вопрос»). Обход: `cli/` пока не входит в `tsconfig` (комментарий там же), Node всё равно исполняет его с проверкой поведения тестами. **Нужно решение человека до `author-cli`:** разрешить `@types/node` в `devDependencies` пакета и включить `cli/` в typecheck.
   - **Документы:** раздел «Раскладка репозитория» и пути в `README.md`, строка о раскладке в `CLAUDE.md`. В `docs/ai-workflow.md` путей к коду нет, менять нечего. Строка `author-cli` в `docs/HOW-TO-PROCEED.md` уже содержала нужное (CLI в `packages/codda/cli/`, `file:`, `npx codda`). Исторические `docs/poc-report.md` и ADR не правились.
   - **Вне критериев:** npm 11 печатает `install-scripts … not yet covered by allowScripts` для `esbuild` и `fsevents` — было и до переноса, на работу не влияет.
+- **2026-10-04 — правки по review (оркестратор).** `--version=1` и любое значение у boolean-флага теперь дают код `2` («флаг … не принимает значение»), тест добавлен. Корневой `build` теперь проверяет типы только пакета (`src`, `vite.config.ts`); `courses/` и `e2e/` проверяет `npm run typecheck`, он идёт в `check` отдельным шагом. Чекбокс CI снят до зелёного прогона. Версия Playwright теперь в трёх местах (корень, пакет, образ в `ci.yml`): пакету она нужна для Vitest browser mode — принято.

@@ -57,3 +57,11 @@ test("a short unknown flag exits 2 as well", () => {
   expect(status).toBe(2);
   expect(stderr).toContain("неизвестный флаг -x");
 });
+
+test("a value on a boolean flag exits 2", () => {
+  const { status, stdout, stderr } = codda(repoRoot, "--version=1");
+
+  expect(status).toBe(2);
+  expect(stdout).toBe("");
+  expect(stderr).toContain("флаг --version не принимает значение");
+});

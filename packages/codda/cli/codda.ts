@@ -34,6 +34,7 @@ const { values, tokens } = parseArgs({ options, strict: false, allowPositionals:
 for (const token of tokens) {
   if (token.kind === "positional") fail(`неизвестная команда ${token.value}`);
   if (token.kind === "option" && !(token.name in options)) fail(`неизвестный флаг ${token.rawName}`);
+  if (token.kind === "option" && token.value !== undefined) fail(`флаг ${token.rawName} не принимает значение`);
 }
 
 if (values.version) process.stdout.write(`${pkg.version}\n`);

@@ -48,7 +48,7 @@ CLI `codda` запускается без сборки (TypeScript в Node 24): 
 | `npm run test:e2e` | Собирает `packages/codda/dist/` и гоняет e2e на Playwright дважды: на dev-сервере (проект `dev`) и на собранном `dist/` из подпути `/codda/`, как на GitHub Pages (проект `pages`). Проходит Golden Path и проверяет изоляцию Sandbox; внешняя сеть заблокирована |
 | `npm test -- src/runtime/runner.test.ts` | Один файл тестов (путь от `packages/codda/`) |
 | `npm test -- --project cli` | Только тесты CLI (Node), без браузера |
-| `npm run typecheck` | Проверка типов TypeScript |
+| `npm run typecheck` | Проверка типов TypeScript (кроме `packages/codda/cli/`: пока нет `@types/node`) |
 | `npm run build` | Typecheck + production-сборка в `packages/codda/dist/` |
 | `npm run preview` | Отдать собранный `dist/` локально, чтобы проверить сборку |
 | `npm run build:deps` | Пересобрать Dependency Artifacts (`react`, `react/jsx-runtime`, `react-dom/client`) в `packages/codda/public/deps/` из `node_modules`; результат коммитится |
