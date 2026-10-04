@@ -64,3 +64,20 @@ test("a value on a boolean flag exits 2", () => {
   expect(stdout).toBe("");
   expect(stderr).toContain("флаг --version не принимает значение");
 });
+
+test("`codda test --help` and `codda --help` describe `test` in Russian", () => {
+  const help = codda(repoRoot, "test", "--help");
+
+  expect(help.status).toBe(0);
+  expect(help.stdout).toBe(codda(repoRoot, "--help").stdout);
+  expect(help.stdout).toMatch(/codda test \[путь\]/);
+  expect(help.stdout).toMatch(/папк[аи] урока/);
+  expect(help.stdout).toContain("Chromium");
+});
+
+test("an unknown flag of `test` exits 2", () => {
+  const { status, stderr } = codda(repoRoot, "test", "--bogus");
+
+  expect(status).toBe(2);
+  expect(stderr).toBe("codda: неизвестный флаг --bogus (справка: codda --help)\n");
+});

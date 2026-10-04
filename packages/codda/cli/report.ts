@@ -1,12 +1,16 @@
 // The report of `codda test`: one line per Lesson — ✓ passed, ✗ errors,
 // ⚠ warnings only — with its errors and warnings indented under it, and the
-// summary line. Warnings do not fail a Lesson.
+// summary line. Warnings do not fail a Lesson. With `color` (a TTY without
+// NO_COLOR, cli/codda.ts) the mark is green, red or yellow.
 
 export type LessonResult = { id: string; errors: string[]; warnings: string[] };
 
-export function formatLesson({ id, errors, warnings }: LessonResult): string {
+const COLORS = { "✓": 32, "✗": 31, "⚠": 33 };
+
+export function formatLesson({ id, errors, warnings }: LessonResult, color = false): string {
   const mark = errors.length > 0 ? "✗" : warnings.length > 0 ? "⚠" : "✓";
-  return [`${mark} ${id}`, ...[...errors, ...warnings].map((line) => `  ${line}`)].map((line) => `${line}\n`).join("");
+  const shown = color ? `\x1b[${COLORS[mark]}m${mark}\x1b[0m` : mark;
+  return [`${shown} ${id}`, ...[...errors, ...warnings].map((line) => `  ${line}`)].map((line) => `${line}\n`).join("");
 }
 
 /** `N из M Lesson прошли[, K предупреждений]`; `otherWarnings` — those not of a Lesson (Dependency Artifact). */

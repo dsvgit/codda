@@ -30,8 +30,12 @@ const HELP = `Использование: codda [флаги]
 Команды:
   build          собрать курс в папку статических файлов (по умолчанию <курс>/dist);
                  курс — путь или папка с course.yaml выше текущей
-  test           проверить в Chromium, что Solution каждого урока проходит
-                 его тесты, а Starter — нет
+  test           проверить курс в Chromium: Solution каждого урока проходит
+                 его тесты, а Starter — нет; запросы на чужие адреса — ошибка
+                 урока. Путь — папка курса или папка урока (тогда, как и при
+                 запуске из неё, проверяется только этот урок). Коды выхода:
+                 0 — всё прошло, 1 — ошибки курса, 2 — окружение или вызов
+                 (например, не установлен Chromium)
 
 Флаги:
   -h, --help     показать эту справку
@@ -70,7 +74,8 @@ for (const token of tokens) {
   if (!takesValue && token.value !== undefined) fail(`флаг ${token.rawName} не принимает значение`);
 }
 
-if (command === "build") process.exitCode = await build();
+if (values.help) process.stdout.write(HELP);
+else if (command === "build") process.exitCode = await build();
 else if (command === "test") process.exitCode = await test();
 else if (values.version) process.stdout.write(`${pkg.version}\n`);
 else process.stdout.write(HELP);
@@ -162,22 +167,42 @@ function replaceFolder(out: string, staging: string) {
  * served from `/<course id>/` on 127.0.0.1, and full Chromium Runs the
  * Solution, then the Starter of each Lesson on the service page `#/__codda-test`
  * (src/main.tsx) — the student's Runtime with its 5 s limit. A Lesson with
- * manifest errors gets ✗ and no Run; the others are still checked.
+ * manifest errors gets ✗ and no Run; the others are still checked. A path in a
+ * Lesson folder checks only that Lesson: the errors of course.yaml are printed,
+ * those of other Lessons are not. A request to another origin than the server
+ * is aborted and becomes an error of the Run it happened in.
  */
 async function test(): Promise<number> {
   if (args.length > 1) fail(`лишний аргумент ${args[1]}`);
   const found = findCourse(args[0] ?? ".");
   if (found === null) fail(`здесь нет курса: ${resolve(args[0] ?? ".")}`);
-  const { root } = found;
+  const { root, lessonId } = found;
   ensureUi();
+  const color = process.stdout.isTTY === true && !process.env.NO_COLOR;
+  const relevant = (line: string) => lessonId === undefined || line.startsWith("course.yaml:") || line.startsWith(`${lessonId}/`);
 
   const result = readCourse(root);
   if ("errors" in result && !result.partial) {
-    process.stderr.write(result.errors.map((line) => `${line}\n`).join(""));
+    process.stderr.write(result.errors.filter(relevant).map((line) => `${line}\n`).join(""));
     return 1;
   }
-  const { course, lessonErrors, courseErrors } =
+  const { course: wholeCourse, lessonErrors, courseErrors: allCourseErrors } =
     "course" in result ? { ...result, lessonErrors: new Map<string, string[]>(), courseErrors: [] } : result.partial!;
+  const lessons = new Map(wholeCourse.modules.flatMap((module) => module.lessons).map((lesson) => [lesson.id, lesson]));
+  // course.yaml order; the Course of `partial` lacks the Lessons with errors.
+  const listed = "course" in result ? [...lessons.keys()] : [...lessonErrors.keys()];
+  if (lessonId !== undefined && !listed.includes(lessonId)) {
+    const errors = [...allCourseErrors.filter((line) => line.startsWith("course.yaml:")), `${lessonId}/: урок ${lessonId} не указан в course.yaml`];
+    process.stderr.write(errors.map((line) => `${line}\n`).join(""));
+    return 1;
+  }
+  const ids = lessonId === undefined ? listed : [lessonId];
+  const courseErrors = allCourseErrors.filter(relevant);
+  // Only the Lessons to check go into the build, and so into the Dependency Artifact.
+  const course = {
+    ...wholeCourse,
+    modules: wholeCourse.modules.map((module) => ({ ...module, lessons: module.lessons.filter((lesson) => ids.includes(lesson.id)) })),
+  };
   process.stdout.write(courseErrors.map((line) => `${line}\n`).join(""));
 
   const built = join(root, ".codda", "test");
@@ -193,9 +218,6 @@ async function test(): Promise<number> {
   }
   process.stdout.write(artifact.deps === null ? "Зависимости: нет\n" : `${artifact.log}\n`);
 
-  const lessons = new Map(course.modules.flatMap((module) => module.lessons).map((lesson) => [lesson.id, lesson]));
-  // course.yaml order; the Course of `partial` lacks the Lessons with errors.
-  const ids = "course" in result ? [...lessons.keys()] : [...lessonErrors.keys()];
   const results: LessonResult[] = [];
 
   // Imported only now: without node_modules, the npm step above installs it.
@@ -204,26 +226,53 @@ async function test(): Promise<number> {
   let browser;
   try {
     browser = await chromium.launch({ channel: "chromium" });
-    const page = await browser.newPage();
+    const context = await browser.newContext();
+    // Every request of the page, its Worker and Sandbox included (as in
+    // e2e/offline.ts); WebSockets are not routed.
+    const origin = new URL(server.url).origin;
+    const foreign: string[] = [];
+    await context.route("**/*", (route) => {
+      const url = new URL(route.request().url());
+      if (!/^(https?|wss?):$/.test(url.protocol) || url.origin === origin) return route.continue();
+      foreign.push(url.href);
+      return route.abort("blockedbyclient");
+    });
+    const page = await context.newPage();
     await page.goto(`${server.url}#/__codda-test`);
     await page.waitForFunction(() => "__codda" in globalThis);
     await page.evaluate(() => (globalThis as any).__codda.warmUp());
-    const runIn = (lesson: LessonData, which: "solution" | "starter"): Promise<TestReport> =>
-      page.evaluate(([id, which]) => (globalThis as any).__codda.run(id, which), [lesson.id, which] as const);
+    foreign.length = 0;
+    /** A Run and the foreign requests made during it, as errors of its file. */
+    const runIn = async (lesson: LessonData, which: "solution" | "starter") => {
+      const report: TestReport = await page.evaluate(
+        ([id, which]) => (globalThis as any).__codda.run(id, which),
+        [lesson.id, which] as const,
+      );
+      const file = `${lesson.id}/${which === "solution" ? lesson.workspace.name.replace("main", "solution") : lesson.workspace.name}`;
+      return { report, foreign: foreign.splice(0).map((url) => `${file}: запрос на чужой адрес: ${url}`) };
+    };
 
     for (const id of ids) {
       const lesson = lessons.get(id);
       let errors = lessonErrors.get(id) ?? [];
       if (lesson && errors.length === 0) {
         const solution = await runIn(lesson, "solution");
-        const solutionErrors = verdict(lesson, solution);
-        errors = solutionErrors.length > 0 ? solutionErrors : verdict(lesson, solution, await runIn(lesson, "starter"));
+        errors = [...verdict(lesson, solution.report), ...solution.foreign];
+        if (errors.length === 0) {
+          const starter = await runIn(lesson, "starter");
+          errors = [...verdict(lesson, solution.report, starter.report), ...starter.foreign];
+        }
       }
       results.push({ id, errors, warnings: [] });
-      process.stdout.write(formatLesson(results.at(-1)!));
+      process.stdout.write(formatLesson(results.at(-1)!, color));
     }
   } catch (error) {
-    process.stderr.write(`codda: не удалось проверить курс в Chromium: ${(error as Error).message}\n`);
+    const message = (error as Error).message;
+    if (message.includes("Executable doesn't exist")) {
+      process.stderr.write("Chromium не найден. Установите: npx playwright install chromium (зеркало — PLAYWRIGHT_DOWNLOAD_HOST)\n");
+    } else {
+      process.stderr.write(`codda: не удалось проверить курс в Chromium: ${message}\n`);
+    }
     return 2;
   } finally {
     await browser?.close();

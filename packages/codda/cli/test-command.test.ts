@@ -2,6 +2,9 @@
 // writes itself, Runs in full Chromium. The CLI uses the tool's real built UI
 // (dist-tool/) and builds it first if it is missing or stale. Each process
 // checks many Lessons at once: every Chromium start costs seconds.
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { expect, test } from "vitest";
 import { runCodda, tsCourse, writeFiles } from "./test-helpers.ts";
 
@@ -113,4 +116,68 @@ test("course.yaml itself is invalid: all its errors, no Lesson lines, code 1", (
     "course.yaml: id: ожидается kebab-case, например use-state\ncourse.yaml: title: обязательное поле\ncourse.yaml: modules: список не может быть пустым\n",
   );
   expect(status).toBe(1);
+});
+
+test("a Lesson path checks only that Lesson; errors of other Lessons are not printed; no colour off a TTY", LONG, () => {
+  const course = tsCourse();
+  writeFiles(course, {
+    "course.yaml": "id: demo\ntitle: Демо\nmodules:\n  - title: Основы\n    lessons: [sum, greet, bad-md]\n",
+    "bad-md/lesson.md": "Нет frontmatter.\n",
+  });
+
+  const { status, stdout, stderr } = runCodda(course, ["test", "sum"]);
+
+  expect(stderr).toBe("");
+  expect(report(stdout)).toBe("Зависимости: нет\n✓ sum\n1 из 1 Lesson прошли\n");
+  expect(stdout).not.toContain("\x1b[");
+  expect(status).toBe(0);
+});
+
+test("from a Lesson folder: only that Lesson, course.yaml errors printed, a foreign request is its error", LONG, () => {
+  const course = tsCourse();
+  writeFiles(course, {
+    "course.yaml": "id: demo\ntitle: Демо\nmodules:\n  - title: Основы\n    lessons: [sum, fetches, bad-md, bad-md]\n",
+    "bad-md/lesson.md": "Нет frontmatter.\n",
+    "fetches/lesson.md": "---\ntitle: Сеть\n---\nЗадание.\n",
+    "fetches/main.ts": "export function sum(a: number, b: number): number {\n  return 0;\n}\n",
+    "fetches/solution.ts":
+      'export function sum(a: number, b: number): number {\n  fetch("https://example.com/").catch(() => {});\n  return a + b;\n}\n',
+    "fetches/lesson.test.ts":
+      'import { test, expect } from "@codda/test";\nimport { sum } from "./main";\n\ntest("складывает", () => {\n  expect(sum(1, 2)).toBe(3);\n});\n',
+  });
+
+  const { status, stdout, stderr } = runCodda(join(course, "fetches"), ["test"]);
+
+  expect(stderr).toBe("");
+  expect(report(stdout)).toBe(
+    "course.yaml: modules[0].lessons[3]: урок bad-md уже указан в modules[0].lessons[2]\n" +
+      "Зависимости: нет\n" +
+      "✗ fetches\n" +
+      "  fetches/solution.ts: запрос на чужой адрес: https://example.com/\n" +
+      "0 из 1 Lesson прошли\n",
+  );
+  expect(status).toBe(1);
+});
+
+test("a folder inside the Course that course.yaml does not list: a manifest error, code 1", () => {
+  const course = tsCourse();
+  writeFiles(course, { "extra/main.ts": "export {};\n" });
+
+  const { status, stdout, stderr } = runCodda(course, ["test", "extra"]);
+
+  expect(report(stdout)).toBe("");
+  expect(stderr).toBe("extra/: урок extra не указан в course.yaml\n");
+  expect(status).toBe(1);
+});
+
+test("no Chromium: one line with the install command, code 2, no stack", LONG, () => {
+  const course = tsCourse();
+  const empty = mkdtempSync(join(tmpdir(), "codda-no-browsers-"));
+
+  const { status, stderr } = runCodda(course, ["test", "sum"], { PLAYWRIGHT_BROWSERS_PATH: empty });
+
+  expect(stderr).toBe(
+    "Chromium не найден. Установите: npx playwright install chromium (зеркало — PLAYWRIGHT_DOWNLOAD_HOST)\n",
+  );
+  expect(status).toBe(2);
 });

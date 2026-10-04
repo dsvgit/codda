@@ -28,3 +28,14 @@ test("summary: passed of all, warnings only when there are some, Russian plural"
   expect(formatSummary([ok], 11)).toBe("1 из 1 Lesson прошли, 11 предупреждений\n");
   expect(formatSummary([ok], 21)).toBe("1 из 1 Lesson прошли, 21 предупреждение\n");
 });
+
+test("colour: ✓ green, ✗ red, ⚠ yellow — only the mark, only when asked", () => {
+  const ok = { id: "a", errors: [], warnings: [] };
+  const failed = { id: "b", errors: ["b/main.ts: x"], warnings: [] };
+  const warned = { id: "c", errors: [], warnings: ["c/main.ts: w"] };
+
+  expect(formatLesson(ok, true)).toBe("\x1b[32m✓\x1b[0m a\n");
+  expect(formatLesson(failed, true)).toBe("\x1b[31m✗\x1b[0m b\n  b/main.ts: x\n");
+  expect(formatLesson(warned, true)).toBe("\x1b[33m⚠\x1b[0m c\n  c/main.ts: w\n");
+  expect(formatLesson(failed, false)).toBe("✗ b\n  b/main.ts: x\n");
+});

@@ -152,6 +152,7 @@ Slug фичи — имя папки без номера: `lesson-manifest/02` = 
 - 2026-10-04 — dependency-artifacts — push, `check` зелёный (прогон 37221677271); фича закрыта
 - 2026-10-04 — author-cli/01 — коммит: `codda build [путь]` целиком — поиск `course.yaml` вверх (из папки Lesson тоже), свежесть `dist-tool/` по hash исходников с самосборкой UI, сборка во временную `.codda/build-*` и замена целевой папки, маркер `.codda-build`, отказ от чужой `--out` (код `2`), список файлов; `codda` в `devDependencies` React Hooks через `file:`; помощники тестов CLI `cli/test-helpers.ts`
 - 2026-10-04 — author-cli/02 — коммит: `codda test` по всему Course — сборка в `.codda/test/`, статический сервер `127.0.0.1` с подпутём `/<course id>/`, полный Chromium на служебной странице `#/__codda-test` (`warmUp`, `run`), вердикт Lesson и отчёт `✓/✗/⚠` с итогом, Lesson с ошибкой манифеста — `✗` без Run; `playwright` в `dependencies` пакета; React Hooks — 5 из 5 ✓
+- 2026-10-04 — author-cli/03 — коммит: `codda test` по одному Lesson (путь или папка Lesson; ошибки только `course.yaml` и этого Lesson; папка не из `course.yaml` — код `1`), запросы на чужой origin отменяются и становятся ошибкой Run, «Chromium не найден…» с кодом `2`, цвет знаков только в TTY без `NO_COLOR`, `--help` главнее команды
 
 ## Журнал допущений
 
@@ -242,6 +243,10 @@ Slug фичи — имя папки без номера: `lesson-manifest/02` = 
 - author-cli/02 — все Lesson идут в одной странице Chromium (тёплый Worker, как у студента); `warmUp()` — пустой код без `importMap`, артефакт грузит первый Lesson с пакетами; сбой Playwright или страницы — одна строка и код `2`
 - author-cli/02 — путь «Lesson → Compiler» вынесен в `runLesson()` в `src/App.tsx`, служебная страница — ветка в `src/main.tsx` с `window.__codda`, без нового модуля
 - author-cli/02 — тесты `codda test` берут настоящий `dist-tool/` (самосборка, если устарел), все сломанные случаи — один курс в одном процессе; Lesson с бесконечным циклом последний из-за флейка runtime-hardening/02; отсутствие дочерних процессов проверено руками (`ps`), не тестом
+- author-cli/03 — `codda test <Lesson>` собирает в `.codda/test/` и в Dependency Artifact только этот Lesson; печатаются строки ошибок с префиксом `course.yaml:` или `<id>/`; папка не из `course.yaml` — `<id>/: урок <id> не указан в course.yaml` в stderr, код `1` — формат в спеке не задан
+- author-cli/03 — чужой запрос — ошибка файла Run: `<lesson>/solution.ts: запрос на чужой адрес: <url>` (у Starter — `main.ts`), после ошибок вердикта; блокируются только `http(s)`/`ws(s)`, запросы до первого Run отбрасываются, WebSocket не ловится (route его не видит) — по спеке «путь файла от корня Course»
+- author-cli/03 — «нет Chromium» распознаётся по подстроке `Executable doesn't exist` в ошибке Playwright; в тесте — `PLAYWRIGHT_BROWSERS_PATH` на пустую папку (критерий тикета)
+- author-cli/03 — цвет только у знака `✓/✗/⚠`; `NO_COLOR` отключает цвет, если не пуст (no-color.org); `--help` печатает справку при любой команде — в спеке не задано
 
 ## Отложенные проблемы
 
