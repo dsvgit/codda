@@ -123,6 +123,7 @@ Slug фичи — имя папки без номера: `lesson-manifest/02` = 
 - 2026-10-04 — фаза B — человек дал старт («начинай фазу B»)
 - 2026-10-04 — misc/03 — коммит: npm workspaces, инструмент в `packages/codda/`, каркас CLI `npx codda` (`--help`, `--version`, код `2`)
 - 2026-10-04 — misc-03-workspaces — /code-review (Standards: 0 жёстких; Spec: 3), правки отдельным коммитом
+- 2026-10-04 — misc-03-workspaces — push, draft PR #6, `check` зелёный; фича закрыта
 
 ## Журнал допущений
 

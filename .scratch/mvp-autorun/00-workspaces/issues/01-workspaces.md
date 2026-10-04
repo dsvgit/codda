@@ -24,7 +24,7 @@
 
 - [x] Корень — npm workspaces с одним членом `packages/codda/`; один `package-lock.json` в корне; `courses/` в `workspaces` нет
 - [x] `npm ci`, `npm run typecheck`, `npm test`, `npm run test:e2e`, `npm run build` из корня работают; `npm run dev` поднимает Golden Path
-- [ ] job `check` в CI зелёная (отмечается после первого прогона на draft PR), выкладка из `misc/02` выкладывает тот же `dist/` (путь в `ci.yml` обновлён)
+- [x] job `check` в CI зелёная (PR #6, прогон 37199804212), выкладка из `misc/02` выкладывает тот же `dist/` (путь в `ci.yml` обновлён)
 - [x] `packages/codda/package.json`: `"bin": { "codda": "./cli/codda.ts" }`, CLI запускается без сборки. Пока это только каркас из тикета 05: `parseArgs`, `--help` на русском, `--version`, неизвестная команда или флаг → код выхода `2`. Команды `init/lesson/test/dev/build` добавляет `author-cli`: им нужен `course.yaml`, а его вводит `lesson-manifest`
 - [x] Тест: `npx codda --version` из корня и из `courses/` печатает версию, `npx codda --bogus` даёт код `2`. Тест идёт в `check`
 - [x] Документы: пути в `CLAUDE.md`, `docs/ai-workflow.md`, README; тикет 05 Плана решений не переписывается, а в `docs/HOW-TO-PROCEED.md` в строке `author-cli` указано: CLI в `packages/codda/cli/`, курс подключает его через `file:` и вызывает `npx codda`
