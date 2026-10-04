@@ -46,7 +46,8 @@ const markdown = new Marked({
   },
 });
 
-type Result = { course: CourseData } | { errors: string[] };
+// `deps` is added by whoever builds the Dependency Artifact (codda build, the dev server).
+type Result = { course: Omit<CourseData, "deps"> } | { errors: string[] };
 
 // The `yaml` package reports syntax errors in English.
 const yamlMessages: Record<string, string> = {

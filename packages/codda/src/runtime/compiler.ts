@@ -3,11 +3,6 @@ import type { CompileInput, CompileResult } from "./types";
 let worker: Worker | undefined;
 let nextId = 0;
 
-// Dependency Artifacts live in public/deps/, next to the page. Resolved here,
-// against the page: with the relative base of the build (vite.config.ts) the
-// Worker could only resolve it against its own script in assets/.
-const depsURL = new URL(`${import.meta.env.BASE_URL}deps/`, document.baseURI).href;
-
 /**
  * Compiles in a Web Worker that stays warm between Runs. If `signal` aborts
  * before the result arrives, the Worker is treated as hung: it is terminated,
@@ -57,6 +52,6 @@ export function compile(input: CompileInput, signal: AbortSignal): Promise<Compi
     w.addEventListener("message", onMessage);
     w.addEventListener("error", onError);
     signal.addEventListener("abort", onAbort, { once: true });
-    w.postMessage({ id, input, depsURL });
+    w.postMessage({ id, input });
   });
 }

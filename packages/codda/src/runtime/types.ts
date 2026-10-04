@@ -14,7 +14,12 @@ export type TestReport =
   | { kind: "cancelled" }
   | { kind: "internal-error"; message: string };
 
-export type CompileInput = { source: string; tests: string };
+export type CompileInput = {
+  source: string;
+  tests: string;
+  /** Absolute URL of importmap.json of the Course's Dependency Artifact; none if the Course has none. */
+  importMap?: string;
+};
 
 export type CompileResult =
   | { ok: true; code: string }

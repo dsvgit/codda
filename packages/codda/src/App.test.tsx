@@ -8,6 +8,7 @@ import type { CourseData } from "./course-data";
 const course: CourseData = {
   id: "demo",
   title: "Демо",
+  deps: null,
   modules: [
     {
       title: "Первый",

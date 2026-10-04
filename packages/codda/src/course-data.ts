@@ -6,6 +6,11 @@ export type CourseData = {
   id: string;
   title: string;
   modules: { title: string; lessons: LessonData[] }[];
+  /**
+   * Folder of the Course's Dependency Artifact relative to the page,
+   * `deps/<hash>/` with importmap.json in it; null if no Lesson imports a package.
+   */
+  deps: string | null;
 };
 
 export type LessonData = {

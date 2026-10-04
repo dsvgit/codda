@@ -56,7 +56,9 @@ function Lesson({ course, lesson }: { course: CourseData; lesson: LessonData }) 
     cancel.current = new AbortController();
     try {
       const onConsole = (line: ConsoleLine) => setConsoleLines((lines) => [...lines, line]);
-      const result = await run({ source, tests: lesson.tests }, { signal: cancel.current.signal, onConsole });
+      // The artifact's folder in course.json is relative to the page (ADR-0008).
+      const importMap = course.deps === null ? undefined : new URL(`${course.deps}importmap.json`, document.baseURI).href;
+      const result = await run({ source, tests: lesson.tests, importMap }, { signal: cancel.current.signal, onConsole });
       setReport(result);
       if (result.kind === "compile-error" && !editedDuringRun.current) setUnderlined(result.errors);
       // The student may have opened «Console» while the Run went.

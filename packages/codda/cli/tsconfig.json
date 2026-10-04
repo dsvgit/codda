@@ -1,6 +1,7 @@
 {
   // The CLI runs in Node 24 as TypeScript, without a build step. vite.config.ts
-  // runs in Node too and imports the CLI's Course reader.
+  // and the browser tests' global setup run in Node too and import the CLI's
+  // Course reader and Dependency Artifact builder.
   "extends": "../tsconfig.json",
   "compilerOptions": {
     "lib": ["ES2022"],
@@ -12,5 +13,5 @@
     // ../src/course-data.ts and ../package.json, never anything outside.
     "rootDir": ".."
   },
-  "include": [".", "../vite.config.ts"]
+  "include": [".", "../vite.config.ts", "../vitest.global-setup.ts"]
 }

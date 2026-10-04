@@ -142,6 +142,7 @@ Slug фичи — имя папки без номера: `lesson-manifest/02` = 
 - 2026-10-04 — runtime-hardening/05 — коммит: падение Worker Compiler'а (не загрузился `esbuild.wasm` или скрипт, упал `initialize`) — сразу `internal-error`, Worker уничтожен, следующий Run поднимает новый; «Внутренняя ошибка» во вкладке «Тесты», новый текст timeout; сбой в тестах — `page.route` (команды Vitest browser и e2e)
 - 2026-10-04 — runtime-hardening — /code-review (Standards: 0 жёстких; Spec: 7). Исправлено: колонка ошибки в байтах (кириллица), падение экрана при правке во время Run, ложный чекбокс 01, тест «Run from «Решение»» возвращён (переставлен до тестов с бесконечным циклом). Остальное — в «Отложенные проблемы»
 - 2026-10-04 — runtime-hardening — push, `check` зелёный (прогон 37210868217); фича закрыта
+- 2026-10-04 — dependency-artifacts/01 — коммит: `codda build` собирает Dependency Artifact в `deps/<hash>/` (точки входа из импортов Lesson, `npm ci` без `node_modules`, один esbuild со splitting, CJS-обёртки, `importmap.json` с `integrity`), `"deps"` в `course.json`; Compiler грузит файлы по `importmap.json` один раз за Worker; `package.json`/`package-lock.json` у React Hooks, курс-фикстура Runner-тестов; PoC `build-deps.mjs`, `build:deps`, `public/deps/` удалены
 
 ## Журнал допущений
 
@@ -197,6 +198,13 @@ Slug фичи — имя папки без номера: `lesson-manifest/02` = 
 - runtime-hardening/05 — `compile()` при сбое Worker отклоняет промис, Runner превращает это в `internal-error` — без нового вида `CompileResult`
 - runtime-hardening/05 — timeout: заголовок «Тесты не завершились за N с», абзац «Возможные причины: бесконечный цикл, зависший промис или нехватка памяти.»; `internal-error` — сообщение и «Запустите тесты ещё раз.» абзацами, счётчик `✗` — точная вёрстка в спеке не задана
 - runtime-hardening/05 — `internal-error` на экране проверяет только e2e — в `App.test.tsx` Worker тёплый, сбросить его через экран надёжно нельзя
+- dependency-artifacts/01 — ESM или CJS у точки входа — по `.mjs`/`.cjs`, `"type"` в `package.json`, иначе регулярка на `import`/`export` в начале строки — правило 6, статический лексер в «MVP, часть 2»
+- dependency-artifacts/01 — `npm ci` только без `node_modules`, кэша нет, артефакт пишется прямо в `<out>/deps/<hash>/` — полное правило npm и кэш — тикет 02
+- dependency-artifacts/01 — Compiler получает абсолютный адрес `importmap.json` (`CompileInput.importMap`), адреса внутри разрешает от `new URL("../../", importMap)` — корень сборки по Q1 без отдельного параметра
+- dependency-artifacts/01 — `npm run dev` собирает артефакт заново на каждый `course.json` во временную папку и отдаёт `/deps/` своим middleware байт в байт — без кэша (02) и без пересборки по изменению (author-cli)
+- dependency-artifacts/01 — курс-фикстура Runner-тестов — `packages/codda/fixtures/react-course/`, global setup `vitest.global-setup.ts` + `provide("importMap")`, сервер тестов раздаёт `/fixture-build/`; `fixtures/` вне скана `boundary.test.ts` — Vite трансформирует `.js` из корня и `publicDir` кэширует список файлов на старте
+- dependency-artifacts/01 — «CJS без `__esModule`» в Runner проверен на `react`, а не на поддельном пакете — поддельный пакет в браузерной фикстуре был бы `file:`-зависимостью, не точной версией
+- dependency-artifacts/01 — Lesson `alpha` фикстуры `build.test.ts` без JSX — иначе ему нужен объявленный `react`
 
 ## Отложенные проблемы
 

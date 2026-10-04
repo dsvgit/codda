@@ -1,9 +1,20 @@
-import { expect, test } from "vitest";
+import { expect, inject, test } from "vitest";
 import { commands } from "vitest/browser";
 import { run } from "./runner";
 import type { ConsoleLine } from "./types";
 
-// A React task: the Runner bundles React from the Dependency Artifacts, and
+declare module "vitest" {
+  export interface ProvidedContext {
+    /** Path of importmap.json of the fixture Course's Dependency Artifact (vitest.global-setup.ts). */
+    importMap: string;
+  }
+}
+
+// The Dependency Artifact of fixtures/react-course with real react and
+// react-dom, built by the code of `codda build`, as the page passes it.
+const importMap = new URL(inject("importMap"), location.href).href;
+
+// A React task: the Runner bundles React from the Dependency Artifact, and
 // Lesson Tests import the student's Workspace as "./main".
 const reactTask = {
   solution: `import { useState } from "react";
@@ -32,12 +43,50 @@ test("is off at first, on after a click", async () => {
 };
 
 test("React solution passes the Lesson Tests that import it as ./main", async () => {
-  const report = await run({ source: reactTask.solution, tests: reactTask.tests });
+  const report = await run({ source: reactTask.solution, tests: reactTask.tests, importMap });
 
   expect(report).toEqual({
     kind: "tests",
     results: [{ name: "is off at first, on after a click", status: "pass" }],
   });
+});
+
+test("default and named imports of a CommonJS package work in one file", async () => {
+  const report = await run({
+    source: `import React, { useState } from "react";
+export const same = React.useState === useState && typeof useState === "function";
+`,
+    tests: `import { test, expect } from "@codda/test";
+import { same } from "./main";
+
+test("same useState", () => expect(same).toBe(true));
+`,
+    importMap,
+  });
+
+  expect(report).toEqual({ kind: "tests", results: [{ name: "same useState", status: "pass" }] });
+});
+
+test("the default import of a CommonJS package without __esModule is module.exports itself", async () => {
+  const report = await run({
+    source: `import React from "react";
+export const kind = Object.prototype.toString.call(React);
+export const hasDefault = "default" in React;
+export const keys = Object.keys(React).includes("useState");
+`,
+    tests: `import { test, expect } from "@codda/test";
+import { kind, hasDefault, keys } from "./main";
+
+test("module.exports", () => {
+  expect(kind).toBe("[object Object]");
+  expect(hasDefault).toBe(false);
+  expect(keys).toBe(true);
+});
+`,
+    importMap,
+  });
+
+  expect(report).toEqual({ kind: "tests", results: [{ name: "module.exports", status: "pass" }] });
 });
 
 // A plain-TypeScript task: the Runner tests below are about the Runner, not

@@ -10,10 +10,11 @@ import * as esbuild from "esbuild";
 import { expect, test } from "vitest";
 
 /**
- * Not sources: dependencies, the built UI, static files served as is, and
- * Vitest's attachments in .vitest/ (folders named after test files).
+ * Not sources: dependencies, the built UI, static files served as is,
+ * Vitest's attachments in .vitest/ (folders named after test files), and the
+ * Course the browser tests build a Dependency Artifact of (Course files).
  */
-const NOT_SOURCES = new Set(["node_modules", "dist-tool", "public", ".vitest"]);
+const NOT_SOURCES = new Set(["node_modules", "dist-tool", "public", ".vitest", "fixtures"]);
 
 /**
  * Every import of the package's sources that leads outside it, one line each.

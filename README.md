@@ -51,7 +51,6 @@ CLI `codda` запускается без сборки (TypeScript в Node 24): 
 | `npm run typecheck` | Проверка типов TypeScript |
 | `npm run build` | Typecheck + production-сборка UI в `packages/codda/dist-tool/` |
 | `npm run preview` | Отдать собранный `dist-tool/` локально, чтобы проверить сборку |
-| `npm run build:deps` | Пересобрать Dependency Artifacts (`react`, `react/jsx-runtime`, `react-dom/client`) в `packages/codda/public/deps/` из `node_modules`; результат коммитится |
 
 ## Тесты
 
@@ -61,6 +60,7 @@ CLI `codda` запускается без сборки (TypeScript в Node 24): 
 - `packages/codda/src/App.test.tsx` — экран Lesson на Course-литерале: Test Report (FAIL, PASS, ошибка компиляции, runtime-ошибка, timeout), вкладки «Тесты» и «Решение», Reset и его отмена, раскладка на 1280×800, заголовки, неизвестный id, смена Lesson.
 - `packages/codda/cli/codda.test.ts` — CLI как его вызывает автор: `npx codda …` из корня и из `courses/`, коды выхода.
 - `packages/codda/cli/build.test.ts` — `codda build` процессом на временном Course, который пишет сам тест: содержимое сборки, ошибки Course, коды выхода.
+- `packages/codda/cli/deps.test.ts` — Dependency Artifact из `codda build` на Course с поддельными пакетами в `node_modules` (без npm и сети). Runner-тесты берут артефакт `packages/codda/fixtures/react-course/` с настоящим React: его собирает global setup (`vitest.global-setup.ts`, `npm ci` из registry, если нет `node_modules`).
 - `packages/codda/cli/dev-server.test.ts` — настоящий dev-сервер Vite отдаёт `course.json` временного Course, ошибки Course — ответ 500.
 - `packages/codda/cli/boundary.test.ts` — граница ADR-0006: ни один импорт исходников пакета `codda` (включая `?raw` и `?url` Vite) не ведёт за пределы пакета, кроме `node_modules`. Обычные импорты ловит ещё и `rootDir` в tsconfig пакета.
 - `e2e/` — Playwright против Course Build из `/codda/` и dev-сервера (`npm run test:e2e`). Тесты открывают страницу относительно `baseURL` (`page.goto("./")`), а не `"/"`. `golden-path.e2e.ts` проходит Lesson `use-state`. `course.e2e.ts` — загрузка `course.json` (ожидание, 404, обрыв сети), `#/<id>`, неизвестный id и Solution каждого Lesson → PASS. `dev.e2e.ts` — smoke-тест `npm run dev`. `sandbox-isolation.e2e.ts` подсовывает через редактор враждебный код студента: чтение parent/cookies/storage, поддельные сообщения, `fetch` в Internet. Фикстура `e2e/offline.ts` обрывает любой запрос не на localhost, печатает список всех запросов страницы и валит тест, если был хоть один внешний.
@@ -87,7 +87,7 @@ CodeMirror ──source──▶ Runner ──▶ Compiler (Web Worker, esbuild-
 | `src/runtime/runner.ts` | Runner: компиляция → новый Sandbox → ожидание отчёта; проверяет `event.source`, `type`, `runId` и форму отчёта |
 | `src/runtime/compiler.ts` | Клиент Compiler в основном потоке: держит Worker «тёплым» между Run |
 | `src/runtime/compiler.worker.ts` | Compiler: esbuild-wasm с виртуальным резолвером, всё собирается из памяти; JSX — automatic runtime |
-| `scripts/build-deps.mjs`, `public/deps/` | Dependency Artifacts: React, собранный native esbuild в ESM, и `manifest.json` «specifier → файл». Compiler скачивает их со своего origin и вшивает в бандл — Sandbox с opaque origin сам их загрузить не может (ADR-0003) |
+| `cli/dependency-artifact.ts` | Dependency Artifact Course (ADR-0007): точки входа из импортов Lesson, `npm ci`, один вызов native esbuild в `deps/<hash>/` и `importmap.json` с `integrity`. Compiler скачивает файлы со своего origin и вшивает в бандл — Sandbox с opaque origin сам их загрузить не может (ADR-0003) |
 | `src/runtime/harness.ts` | Test Harness: `test`, `expect().toBe/toEqual`, async-тесты; вшивается в бандл как модуль `@codda/test` |
 | `src/runtime/types.ts` | `TestReport`, `CompileResult` и форма сообщения Sandbox → parent |
 

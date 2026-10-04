@@ -11,6 +11,7 @@ import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import pkg from "../package.json" with { type: "json" };
+import { buildDependencyArtifact } from "./dependency-artifact.ts";
 import { readCourse } from "./read-course.ts";
 
 const HELP = `Использование: codda [флаги]
@@ -35,8 +36,6 @@ const options = {
 // The tool's built UI (`npm run build`, ADR-0008). CODDA_UI_DIR replaces it in
 // the CLI's own tests, which run before the UI is built.
 const uiDir = process.env.CODDA_UI_DIR ?? fileURLToPath(new URL("../dist-tool", import.meta.url));
-// The PoC Dependency Artifact, copied as is until dependency-artifacts.
-const depsDir = fileURLToPath(new URL("../public/deps", import.meta.url));
 
 function fail(message: string): never {
   process.stderr.write(`codda: ${message} (справка: codda --help)\n`);
@@ -57,11 +56,11 @@ for (const token of tokens) {
   if (!takesValue && token.value !== undefined) fail(`флаг ${token.rawName} не принимает значение`);
 }
 
-if (command === "build") build();
+if (command === "build") await build();
 else if (values.version) process.stdout.write(`${pkg.version}\n`);
 else process.stdout.write(HELP);
 
-function build() {
+async function build() {
   if (args.length === 0) fail("не указан путь к курсу: codda build <путь>");
   if (args.length > 1) fail(`лишний аргумент ${args[1]}`);
   const root = resolve(args[0]);
@@ -76,9 +75,15 @@ function build() {
     process.exit(1);
   }
 
+  const lessonIds = result.course.modules.flatMap((module) => module.lessons.map((lesson) => lesson.id));
+  const artifact = await buildDependencyArtifact(root, lessonIds, out);
+  if ("errors" in artifact) {
+    process.stderr.write(artifact.errors.map((line) => `${line}\n`).join(""));
+    process.exit(1);
+  }
+
   mkdirSync(out, { recursive: true });
   cpSync(uiDir, out, { recursive: true });
-  cpSync(depsDir, join(out, "deps"), { recursive: true });
-  writeFileSync(join(out, "course.json"), JSON.stringify(result.course));
+  writeFileSync(join(out, "course.json"), JSON.stringify({ ...result.course, deps: artifact.deps }));
   process.stdout.write(`Курс собран в ${out}\n`);
 }

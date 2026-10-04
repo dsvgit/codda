@@ -1,8 +1,9 @@
 // Compiler: bundles the student's source, the Lesson Tests, the Test Harness
-// and the Dependency Artifacts they import into one IIFE with esbuild-wasm.
-// Everything is resolved from memory; artifacts are fetched from our own origin
-// (public/deps/, built by scripts/build-deps.mjs) and inlined into the bundle,
-// because the opaque-origin Sandbox could not fetch them itself (ADR-0003).
+// and the files of the Dependency Artifact they import into one IIFE with
+// esbuild-wasm. Everything is resolved from memory; the artifact's files are
+// fetched from our own origin (deps/<hash>/, built by `codda build`, ADR-0007)
+// and inlined into the bundle, because the opaque-origin Sandbox could not
+// fetch them itself (ADR-0003).
 import * as esbuild from "esbuild-wasm";
 import wasmURL from "esbuild-wasm/esbuild.wasm?url";
 import harnessSource from "./harness.ts?raw";
@@ -15,33 +16,45 @@ import "./tests";
 runAll();
 `;
 
-// Absolute URL of public/deps/, ending with "/". Sent by the page with every
-// compile (compiler.ts): only the page knows where it is served from.
-let depsURL: string;
-let dependencies: Promise<Record<string, string>> | undefined;
+/** A loaded artifact: specifier → absolute URL of its file, absolute URL → file text. */
+type Artifact = { imports: Record<string, string>; files: Record<string, string> };
 
-/** Import specifier → artifact text. Fetched once, then kept while the Worker lives. */
-function loadDependencies(): Promise<Record<string, string>> {
-  dependencies ??= (async () => {
-    const manifest: Record<string, string> = await fetchOk(new URL("manifest.json", depsURL)).then(
-      (r) => r.json(),
-    );
-    const entries = await Promise.all(
-      Object.entries(manifest).map(async ([specifier, file]) => {
-        const text = await fetchOk(new URL(file, depsURL)).then((r) => r.text());
-        return [specifier, text] as const;
+// One artifact per Course; kept while the Worker lives, keyed by its importmap.json.
+let artifact: { url: string; loaded: Promise<Artifact> } | undefined;
+
+/**
+ * The artifact of `importMap`: importmap.json, then every file it lists in
+ * `integrity`, fetched once with that integrity (the browser checks it).
+ * Its addresses are relative to the build root, two levels above
+ * deps/<hash>/importmap.json.
+ */
+function loadArtifact(importMap: string): Promise<Artifact> {
+  if (artifact?.url === importMap) return artifact.loaded;
+  const loaded = (async () => {
+    const map: { imports: Record<string, string>; integrity: Record<string, string> } = await fetchOk(
+      importMap,
+    ).then((r) => r.json());
+    const root = new URL("../../", importMap);
+    const files = await Promise.all(
+      Object.entries(map.integrity).map(async ([address, integrity]) => {
+        const url = new URL(address, root).href;
+        return [url, await fetchOk(url, integrity).then((r) => r.text())] as const;
       }),
     );
-    return Object.fromEntries(entries);
+    const imports = Object.entries(map.imports).map(([specifier, address]) => [specifier, new URL(address, root).href]);
+    return { imports: Object.fromEntries(imports), files: Object.fromEntries(files) };
   })();
+  artifact = { url: importMap, loaded };
   // A failed load is retried on the next Run instead of being cached.
-  dependencies.catch(() => (dependencies = undefined));
-  return dependencies;
+  loaded.catch(() => {
+    if (artifact?.loaded === loaded) artifact = undefined;
+  });
+  return loaded;
 }
 
-async function fetchOk(url: URL): Promise<Response> {
-  const response = await fetch(url);
-  if (!response.ok) throw new Error(`Failed to load ${url.pathname}: HTTP ${response.status}`);
+async function fetchOk(url: string, integrity?: string): Promise<Response> {
+  const response = await fetch(url, { integrity });
+  if (!response.ok) throw new Error(`Failed to load ${new URL(url).pathname}: HTTP ${response.status}`);
   return response;
 }
 
@@ -51,7 +64,7 @@ async function fetchOk(url: URL): Promise<Response> {
 const WORKSPACE_PATH = "/main";
 const WORKSPACE_FILE = "main";
 
-async function compile({ source, tests }: CompileInput): Promise<CompileResult> {
+async function compile({ source, tests, importMap }: CompileInput): Promise<CompileResult> {
   // Import specifier → virtual file contents.
   const files: Record<string, string> = {
     "codda:entry": ENTRY,
@@ -76,9 +89,12 @@ async function compile({ source, tests }: CompileInput): Promise<CompileResult> 
             build.onResolve({ filter: /.*/ }, async (args) => {
               if (args.path === "./main") return { path: WORKSPACE_PATH, namespace: "file" };
               if (args.path in files) return { path: args.path, namespace: "codda" };
-              if (args.path in (await loadDependencies())) {
-                return { path: args.path, namespace: "dependency" };
+              // A chunk imported by a file of the artifact: a file of the same folder.
+              if (args.namespace === "dependency") {
+                return { path: new URL(args.path, args.importer).href, namespace: "dependency" };
               }
+              const url = importMap && (await loadArtifact(importMap)).imports[args.path];
+              if (url) return { path: url, namespace: "dependency" };
               return { errors: [{ text: `Cannot resolve "${args.path}"` }] };
             });
             build.onLoad({ filter: /.*/, namespace: "file" }, () => {
@@ -88,7 +104,7 @@ async function compile({ source, tests }: CompileInput): Promise<CompileResult> 
               return { contents: files[args.path], loader: "tsx" };
             });
             build.onLoad({ filter: /.*/, namespace: "dependency" }, async (args) => {
-              return { contents: (await loadDependencies())[args.path], loader: "js" };
+              return { contents: (await loadArtifact(importMap!)).files[args.path], loader: "js" };
             });
           },
         },
@@ -111,11 +127,8 @@ async function compile({ source, tests }: CompileInput): Promise<CompileResult> 
   }
 }
 
-self.onmessage = async (
-  event: MessageEvent<{ id: number; input: CompileInput; depsURL: string }>,
-) => {
+self.onmessage = async (event: MessageEvent<{ id: number; input: CompileInput }>) => {
   const { id, input } = event.data;
-  depsURL = event.data.depsURL;
   try {
     self.postMessage({ id, result: await compile(input) });
   } catch (err) {

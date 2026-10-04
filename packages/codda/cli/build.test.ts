@@ -57,13 +57,13 @@ modules:
     "zeta/solution.ts": "export const sum = 1 + 2;\n",
     "zeta/lesson.test.ts": 'import { sum } from "./main";\n',
     "alpha/lesson.md": "---\ntitle: Альфа\n---\nКнопка.\n",
-    "alpha/main.tsx": "export const App = () => <button />;\n",
-    "alpha/solution.tsx": "export const App = () => <button>ok</button>;\n",
+    "alpha/main.tsx": "export const App = () => null;\n",
+    "alpha/solution.tsx": 'export const App = () => "ok";\n',
     "alpha/lesson.test.tsx": 'import { App } from "./main";\n',
   });
 }
 
-test("builds the UI, course.json and deps/ into <path>/dist", () => {
+test("builds the UI and course.json into <path>/dist; no package imports, no deps/", () => {
   const course = join(tmp, "course");
   writeCourse(course);
 
@@ -74,10 +74,11 @@ test("builds the UI, course.json and deps/ into <path>/dist", () => {
   const out = join(course, "dist");
   expect(readFileSync(join(out, "index.html"), "utf8")).toBe("<!doctype html><title>codda</title>");
   expect(readFileSync(join(out, "assets/app.js"), "utf8")).toBe("app");
-  expect(existsSync(join(out, "deps/manifest.json"))).toBe(true);
+  expect(existsSync(join(out, "deps"))).toBe(false);
   expect(readJson(join(out, "course.json"))).toEqual({
     id: "demo",
     title: "Демо",
+    deps: null,
     modules: [
       {
         title: "Первый",
@@ -99,8 +100,8 @@ test("builds the UI, course.json and deps/ into <path>/dist", () => {
             id: "alpha",
             title: "Альфа",
             instructions: "<p>Кнопка.</p>\n",
-            workspace: { name: "main.tsx", starter: "export const App = () => <button />;\n" },
-            solution: "export const App = () => <button>ok</button>;\n",
+            workspace: { name: "main.tsx", starter: "export const App = () => null;\n" },
+            solution: 'export const App = () => "ok";\n',
             tests: 'import { App } from "./main";\n',
           },
         ],

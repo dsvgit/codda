@@ -1,22 +1,53 @@
-import { existsSync } from "node:fs";
-import { join, resolve } from "node:path";
-import type { Plugin } from "vite";
+import { existsSync, mkdtempSync, readFileSync, statSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join, resolve, sep } from "node:path";
+import { fileURLToPath } from "node:url";
+import type { Connect, Plugin } from "vite";
 import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
 import { playwright } from "@vitest/browser-playwright";
+import { buildDependencyArtifact } from "./cli/dependency-artifact.ts";
 import { readCourse } from "./cli/read-course.ts";
+
+/** The Course whose Dependency Artifact the browser tests use (vitest.global-setup.ts). */
+export const FIXTURE_COURSE = fileURLToPath(new URL("fixtures/react-course", import.meta.url));
+/** Its build root on disk and the URL path the test server serves it at. */
+export const FIXTURE_BUILD_DIR = join(FIXTURE_COURSE, "dist");
+export const FIXTURE_BUILD_PATH = "/fixture-build/";
+
+/**
+ * Serves the files under `dir` at the URL path `prefix` byte for byte: Vite's
+ * own middleware would transform the .js files and break their `integrity`.
+ */
+function serveFiles(prefix: string, dir: string): Connect.NextHandleFunction {
+  return (req, res, next) => {
+    const path = req.url?.split("?")[0];
+    if (!path?.startsWith(prefix)) return next();
+    const file = resolve(dir, decodeURIComponent(path.slice(prefix.length)));
+    if (!file.startsWith(dir + sep) || !statSync(file, { throwIfNoEntry: false })?.isFile()) {
+      res.statusCode = 404;
+      return res.end();
+    }
+    res.setHeader("Content-Type", file.endsWith(".json") ? "application/json" : "text/javascript");
+    res.end(readFileSync(file));
+  };
+}
 
 /**
  * `npm run dev`: answers /course.json from the Course in CODDA_COURSE, read
  * anew on every request by the same module as `codda build`, so an edit to the
  * Course shows after a page reload. The path comes from the repository root's
- * script: the tool's code does not know where courses live (ADR-0006).
+ * script: the tool's code does not know where courses live (ADR-0006). The
+ * Dependency Artifact is built anew with each course.json into a temporary
+ * folder and served from /deps/.
  */
 function courseJson(): Plugin {
   return {
     name: "codda-course-json",
     configureServer(server) {
-      server.middlewares.use((req, res, next) => {
+      const out = mkdtempSync(join(tmpdir(), "codda-dev-"));
+      server.middlewares.use(serveFiles("/deps/", join(out, "deps")));
+      server.middlewares.use(async (req, res, next) => {
         if (req.url?.split("?")[0] !== "/course.json") return next();
         const send = (status: number, type: string, body: string) => {
           res.statusCode = status;
@@ -31,7 +62,10 @@ function courseJson(): Plugin {
         if (!existsSync(join(root, "course.yaml"))) return fail([`нет course.yaml в ${root}`]);
         const result = readCourse(root);
         if ("errors" in result) return fail(result.errors);
-        send(200, "application/json", JSON.stringify(result.course));
+        const lessonIds = result.course.modules.flatMap((module) => module.lessons.map((lesson) => lesson.id));
+        const artifact = await buildDependencyArtifact(root, lessonIds, out);
+        if ("errors" in artifact) return fail(artifact.errors);
+        send(200, "application/json", JSON.stringify({ ...result.course, deps: artifact.deps }));
       });
     },
   };
@@ -51,9 +85,18 @@ export default defineConfig({
     projects: [
       {
         extends: true,
+        plugins: [
+          {
+            name: "codda-fixture-build",
+            configureServer(server) {
+              server.middlewares.use(serveFiles(FIXTURE_BUILD_PATH, FIXTURE_BUILD_DIR));
+            },
+          },
+        ],
         test: {
           name: "browser",
           include: ["src/**/*.test.{ts,tsx}"],
+          globalSetup: ["./vitest.global-setup.ts"],
           // Each file starts a cold Run (esbuild.wasm + Dependency Artifacts).
           // With files in parallel browsers, on a CI runner it no longer fits
           // the Run's 5 s deadline (cf. workers in playwright.config.ts).
