@@ -164,6 +164,7 @@ Slug фичи — имя папки без номера: `lesson-manifest/02` = 
 - 2026-10-05 — ts-tooling/03 — коммит: autocomplete от TS — `completions` в ядре (без auto-import, пусто в строке и комментарии, `kind` → `type`, `alias` по сигнатуре, `detail` — первая строка сигнатуры), запрос `completions` у Worker и клиента, `autocompletion({ override })` единственным источником в редакторе Workspace, у read-only — без источников; `@codemirror/autocomplete` явной зависимостью
 - 2026-10-05 — ts-tooling/04 — коммит: проверка типов в `codda test` — `cli/type-check.ts` на ядре Type Checker (TS 6, lib из `typescript-6`, `types.json` свежего артефакта): Solution под именем Starter + Lesson Tests + объявление `@codda/test` — ошибки Lesson (`✗`), Starter один — предупреждения (`⚠`); при любом исходе Run, без Lesson с ошибкой манифеста; `setFiles` в ядре; `src/runtime/codda-test.d.ts` сверяется с Test Harness в `npm run typecheck`; React Hooks — 5 из 5 ✓
 - 2026-10-05 — ts-tooling — /code-review (Standards: 0 жёстких; Spec: 0 блокирующих). Исправлено: `RangeError` при клике по проблеме за концом укороченного текста (`goTo` ограничен длиной документа, тест `src/Editor.test.tsx`), имя Solution — одна функция `solutionName` в `read-course.ts` (вместо трёх `replace("main", "solution")`), убрано неиспользуемое `message` у ответа `failed` Type Checker. Остальное — в «Отложенные проблемы»
+- 2026-10-05 — ts-tooling — push, `check` зелёный на `9f3803b` (прогон 37243664373); фича закрыта
 
 ## Журнал допущений
 
