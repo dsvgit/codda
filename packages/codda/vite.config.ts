@@ -7,6 +7,8 @@ export default defineConfig({
   // Relative URLs: the build works from any subpath, e.g. the pilot on GitHub
   // Pages at /codda/ (.scratch/misc/issues/02-pages-deploy.md).
   base: "./",
+  // The tool's built UI; `codda build` copies it into a Course Build (ADR-0008).
+  build: { outDir: "dist-tool" },
   optimizeDeps: {
     include: ["esbuild-wasm", "react", "react-dom/client", "codemirror", "@codemirror/lang-javascript"],
   },

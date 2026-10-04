@@ -1,5 +1,6 @@
 node_modules/
 dist/
+dist-tool/
 .DS_Store
 *.tsbuildinfo
 .vitest/

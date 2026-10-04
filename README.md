@@ -34,7 +34,7 @@ npm run dev
 
 Репозиторий — npm workspaces с одним пакетом. Код инструмента (UI, Runtime, CLI) лежит в `packages/codda/`, курсы — в `courses/` и в workspaces не входят: у Course свои зависимости (ADR-0007). В корне — общие npm-скрипты, e2e (`e2e/`, `playwright.config.ts`) и один `package-lock.json`.
 
-CLI `codda` запускается без сборки (TypeScript в Node 24): `npx codda --help` из корня или из папки курса. Пока это каркас — `--help`, `--version`; команды для авторов курсов появятся позже. Курс вне этого репозитория подключит его через `"codda": "file:…/packages/codda"` в `devDependencies`.
+CLI `codda` запускается без сборки (TypeScript в Node 24): `npx codda --help` из корня или из папки курса. Пока есть `--help`, `--version` и минимальный `codda build <путь к курсу> [--out <папка>]`: проверяет Course, копирует собранный UI из `packages/codda/dist-tool/` (сначала `npm run build`), кладёт рядом `course.json` и `deps/`; по умолчанию в `<путь>/dist`. Остальные команды для авторов курсов появятся позже. Курс вне этого репозитория подключит его через `"codda": "file:…/packages/codda"` в `devDependencies`.
 
 ## Команды
 
@@ -45,12 +45,12 @@ CLI `codda` запускается без сборки (TypeScript в Node 24): 
 |---|---|
 | `npm run dev` | Dev-сервер Vite с hot reload |
 | `npm test` | Все тесты в headless Chromium (Vitest browser mode + Playwright) |
-| `npm run test:e2e` | Собирает `packages/codda/dist/` и гоняет e2e на Playwright дважды: на dev-сервере (проект `dev`) и на собранном `dist/` из подпути `/codda/`, как на GitHub Pages (проект `pages`). Проходит Golden Path и проверяет изоляцию Sandbox; внешняя сеть заблокирована |
+| `npm run test:e2e` | Собирает `packages/codda/dist-tool/` и гоняет e2e на Playwright дважды: на dev-сервере (проект `dev`) и на собранном `dist-tool/` из подпути `/codda/`, как на GitHub Pages (проект `pages`). Проходит Golden Path и проверяет изоляцию Sandbox; внешняя сеть заблокирована |
 | `npm test -- src/runtime/runner.test.ts` | Один файл тестов (путь от `packages/codda/`) |
 | `npm test -- --project cli` | Только тесты CLI (Node), без браузера |
 | `npm run typecheck` | Проверка типов TypeScript |
-| `npm run build` | Typecheck + production-сборка в `packages/codda/dist/` |
-| `npm run preview` | Отдать собранный `dist/` локально, чтобы проверить сборку |
+| `npm run build` | Typecheck + production-сборка UI в `packages/codda/dist-tool/` |
+| `npm run preview` | Отдать собранный `dist-tool/` локально, чтобы проверить сборку |
 | `npm run build:deps` | Пересобрать Dependency Artifacts (`react`, `react/jsx-runtime`, `react-dom/client`) в `packages/codda/public/deps/` из `node_modules`; результат коммитится |
 
 ## Тесты
@@ -60,7 +60,8 @@ CLI `codda` запускается без сборки (TypeScript в Node 24): 
 - `packages/codda/src/runtime/runner.test.ts` — главный шов, `run({ source, tests }) → TestReport`: исходник студента и Lesson Tests на входе, Test Report на выходе.
 - `packages/codda/src/App.test.tsx` — основной сценарий через UI: Run → FAIL → исправление в редакторе → Run → PASS.
 - `packages/codda/cli/codda.test.ts` — CLI как его вызывает автор: `npx codda …` из корня и из `courses/`, коды выхода.
-- `e2e/` — Playwright против настоящего dev-сервера и собранного `dist/` из `/codda/` (`npm run test:e2e`). Тесты открывают страницу относительно `baseURL` (`page.goto("./")`), а не `"/"`. `golden-path.e2e.ts` проходит тот же сценарий на странице приложения. `sandbox-isolation.e2e.ts` подсовывает через редактор враждебный код студента: чтение parent/cookies/storage, поддельные сообщения, `fetch` в Internet. Фикстура `e2e/offline.ts` обрывает любой запрос не на localhost, печатает список всех запросов страницы и валит тест, если был хоть один внешний.
+- `packages/codda/cli/build.test.ts` — `codda build` процессом на временном Course, который пишет сам тест: содержимое сборки, ошибки Course, коды выхода.
+- `e2e/` — Playwright против настоящего dev-сервера и собранного `dist-tool/` из `/codda/` (`npm run test:e2e`). Тесты открывают страницу относительно `baseURL` (`page.goto("./")`), а не `"/"`. `golden-path.e2e.ts` проходит тот же сценарий на странице приложения. `sandbox-isolation.e2e.ts` подсовывает через редактор враждебный код студента: чтение parent/cookies/storage, поддельные сообщения, `fetch` в Internet. Фикстура `e2e/offline.ts` обрывает любой запрос не на localhost, печатает список всех запросов страницы и валит тест, если был хоть один внешний.
 
 На стадии PoC действует упрощённое правило: на каждом шаге — один happy-path тест, остальные случаи потом (см. раздел «Тесты» в [CLAUDE.md](CLAUDE.md)).
 

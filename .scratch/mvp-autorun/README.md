@@ -125,6 +125,7 @@ Slug фичи — имя папки без номера: `lesson-manifest/02` = 
 - 2026-10-04 — misc-03-workspaces — /code-review (Standards: 0 жёстких; Spec: 3), правки отдельным коммитом
 - 2026-10-04 — misc-03-workspaces — push, draft PR #6, `check` зелёный; фича закрыта
 - 2026-10-04 — человек разрешил `@types/node`; `cli/` вернулся в typecheck (`packages/codda/cli/tsconfig.json`)
+- 2026-10-04 — lesson-manifest/01a — коммит: `course.yaml` и пять Lesson React Hooks в новом формате, модуль чтения Course (Zod + `yaml`), минимальный `codda build`, собранный UI в `dist-tool/`
 
 ## Журнал допущений
 
@@ -134,3 +135,8 @@ Slug фичи — имя папки без номера: `lesson-manifest/02` = 
 - misc/03 — Vitest — два проекта, `browser` (с `courses/courses.test.ts` через `dir: "../.."`) и `cli` (Node) — тест CLI запускает процесс, браузер ему не нужен
 - misc/03 — `codda` без аргументов печатает справку с кодом `0`, есть короткие `-h`/`-v` — в тикете 05 не задано
 - misc/03 — `typecheck` = два `tsc -p` (пакет, корень для `courses/`, `e2e/`, `playwright.config.ts`) вместо `tsc -b` — проектные ссылки не нужны
+- lesson-manifest/01a — собранный UI переименован `dist/` → `packages/codda/dist-tool/` уже сейчас — путь из ADR-0008, CLI ищет UI там; выкладка до 01b берёт `dist-tool/`
+- lesson-manifest/01a — переменная `CODDA_UI_DIR` подменяет собранный UI для тестов CLI — в CI `npm test` идёт до `npm run build`
+- lesson-manifest/01a — корневой typecheck исключает `courses/**/lesson.test.*` — `@codda/test` есть только в Sandbox; типы Course проверяет `ts-tooling/04`
+- lesson-manifest/01a — `CourseData` лежит в `packages/codda/src/course-data.ts` (только типы), CLI импортирует его оттуда — UI в 01b возьмёт тот же тип без Zod
+- lesson-manifest/01a — Instructions React Hooks: код и имена элементов в обратных кавычках — Further Notes спеки

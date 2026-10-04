@@ -2,5 +2,8 @@
   // The tool itself is checked by packages/codda/tsconfig.json; this one covers
   // what lives outside it: courses/, e2e/ and the Playwright config.
   "extends": "./packages/codda/tsconfig.json",
-  "include": ["courses", "e2e", "playwright.config.ts"]
+  "include": ["courses", "e2e", "playwright.config.ts"],
+  // Lesson Tests import "@codda/test", which exists only inside the Sandbox.
+  // Type checking Course files is ts-tooling's (`codda test`).
+  "exclude": ["courses/**/lesson.test.*"]
 }

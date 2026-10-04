@@ -3,10 +3,10 @@ import { defineConfig, devices } from "@playwright/test";
 const devPort = 5179;
 const pagesPort = 5180;
 // The pilot is served from a subpath (https://dsvgit.github.io/codda/), so the
-// built dist/ is tested from one too. Tests navigate relative to baseURL
+// built dist-tool/ is tested from one too. Tests navigate relative to baseURL
 // (`page.goto("./")`), never to "/".
 const pagesBase = "/codda/";
-// The tool's Vite project: its dev server and its built dist/.
+// The tool's Vite project: its dev server and its built dist-tool/.
 const toolDir = "packages/codda";
 
 export default defineConfig({
@@ -26,7 +26,7 @@ export default defineConfig({
   },
   projects: [
     { name: "dev", use: { baseURL: `http://localhost:${devPort}/` } },
-    // The build GitHub Pages deploys: `npm run test:e2e` builds packages/codda/dist/
+    // The build GitHub Pages deploys: `npm run test:e2e` builds packages/codda/dist-tool/
     // first.
     { name: "pages", use: { baseURL: `http://localhost:${pagesPort}${pagesBase}` } },
   ],
