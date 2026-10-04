@@ -4,7 +4,7 @@
 
 Подробности — [spec.md](../spec.md), «UI → Instructions». Место рендера — Q2 в [questions/00-grill.md](../questions/00-grill.md).
 
-**Blocked by:** 01, 02
+**Blocked by:** 01b, 02
 
 **Status:** ready-for-agent
 
@@ -17,3 +17,7 @@
 - [ ] e2e: в Lesson `use-state` Instructions показаны с форматированием (есть элемент `code`), без текста frontmatter
 - [ ] Instructions пяти Lesson React Hooks переписаны на Markdown, курс собирается без ошибок
 - [ ] `npm run typecheck`, `npm test`, `npm run test:e2e` зелёные
+
+## Comments
+
+- **Риск, найден на ревью фазы A.** У токенов `marked` нет номеров строк: строку картинки считать по смещению `raw` токена в теле `lesson.md` плюс высота frontmatter. Флага «raw HTML как текст» в `marked` нет: переопределить renderer для токенов `html` (блочных и строчных) на экранирование; `target`/`rel` у внешних ссылок — тоже через renderer.

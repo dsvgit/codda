@@ -45,11 +45,11 @@ _Avoid_: config, lesson.json (как название понятия)
 ### Работа студента
 
 **Workspace**:
-Текущие файлы студента для конкретного Lesson (изначально — копия Starter).
+Текущие файлы студента для конкретного Lesson (изначально — копия Starter). Сохраняется в браузере при каждой правке; Workspace, совпадающий со Starter, не хранится.
 _Avoid_: проект, sandbox
 
 **Run**:
-Одно нажатие «Run tests»: компиляция Workspace + Lesson Tests и их выполнение.
+Одно нажатие «▶ Запустить тесты»: компиляция Workspace + Lesson Tests и их выполнение. Run можно отменить кнопкой «■ Отмена».
 _Avoid_: запуск, execution, submit
 
 **Submit**:
@@ -57,8 +57,16 @@ _Avoid_: запуск, execution, submit
 _Avoid_: Run (это разные вещи)
 
 **Test Report**:
-Результат Run: список тестов со статусами и ошибками, либо ошибка компиляции, runtime-ошибка или timeout.
+Результат Run: список тестов со статусами и ошибками, либо ошибка компиляции, runtime-ошибка, timeout, отмена Run или внутренняя ошибка Runtime. Строку указывает только ошибка компиляции в файле Workspace.
 _Avoid_: results, output
+
+**Console**:
+Вывод `console.*` из Sandbox за один Run: код студента, Lesson Tests и зависимости. Показывается во вкладке «Console», не больше 1000 строк за Run.
+_Avoid_: лог, output, stdout
+
+**Progress**:
+Множество пройденных Lesson Course у одного студента. Lesson пройден, когда хотя бы один Run дал PASS по всем Lesson Tests; Reset и последующий FAIL отметку не снимают. В MVP хранится в браузере (`localStorage`) по ключу `<course id>/<lesson id>`.
+_Avoid_: score, оценка, completion
 
 ### Исполнение
 
@@ -79,12 +87,16 @@ _Avoid_: preview, frame, песочница
 _Avoid_: test runner, jest
 
 **Type Checker**:
-Web Worker с TypeScript language service: diagnostics и autocomplete в редакторе. В Runtime не входит, Run не блокирует и на оценку не влияет. См. ADR-0009.
+Web Worker с TypeScript language service: diagnostics и autocomplete в редакторе. В браузере видит только файл Workspace, без Lesson Tests. Тот же код проверки типов работает в `codda test` (в Node). В Runtime не входит, Run не блокирует и на оценку не влияет. См. ADR-0009.
 _Avoid_: linter, LSP, language server
 
 **Dependency Artifact**:
-Неизменяемая browser-ready сборка `dependencies` Course по его `package-lock.json`, подготовленная в CI: ESM-модули, `importmap.json` и типы. Один на Course, адрес — по hash сборки. См. ADR-0007.
+Неизменяемая browser-ready сборка `dependencies` Course по его `package-lock.json`, которую собирает `codda build`: ESM-модули, `importmap.json` и `types.json`. Один на Course, лежит в `deps/<hash>/`, `course.json` ссылается на него полем `deps`. См. ADR-0007.
 _Avoid_: vendor, CDN-пакет, node_modules
+
+**Точка входа** (entry point):
+Specifier пакета, который импортирует хотя бы один Starter, Solution или Lesson Tests Course. Только точки входа попадают в Dependency Artifact, и только их может импортировать студент.
+_Avoid_: entry, export, subpath (как синоним)
 
 **Server Grader**:
 Будущий серверный исполнитель решений для Submit и Hidden Tests.
@@ -95,6 +107,14 @@ _Avoid_: judge, backend runner
 **Author**:
 Человек, создающий Lesson как файлы в Git.
 _Avoid_: преподаватель, контент-менеджер
+
+**Course Build** (сборка Course):
+Папка статических файлов, которую выдаёт `codda build`: готовый UI, `course.json` и Dependency Artifact в `deps/<hash>/`, с маркером `.codda-build`. Её выкладывают на хостинг, её же проверяют `codda test` и e2e и раздаёт `codda dev`. Одна сборка — один Course (ADR-0008).
+_Avoid_: dist, бандл, билд
+
+**Pilot** (пилот):
+Прохождение Course внутренними пользователями на постоянном адресе (GitHub Pages) в Chrome перед итогом MVP. Progress привязан к origin, поэтому адрес не меняется до конца пилота.
+_Avoid_: бета, демо
 
 **Golden Path**:
 Единственный сквозной сценарий «открыть Lesson → изменить код → Run → PASS», доказывающий техническую гипотезу.

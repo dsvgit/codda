@@ -63,6 +63,8 @@ Source map сопоставляет stack бандла с файлом Workspace
 
 **Ответ:**
 
+> **Пересмотрено** в Q11/Q13 [раундов 2–3](../../questions/00-mvp-autorun.md): source maps сняты из MVP. Остаётся часть про ошибки компиляции (строка только в Workspace, подчёркивание) и удаление stack бандла из Test Report; строки у runtime-ошибки и проваленного теста нет.
+
 ---
 
 ### Q5 — Падение Worker Compiler'а

@@ -13,6 +13,6 @@
 - [ ] README проверен прогоном по шагам в пустой временной папке: `codda init` → `codda lesson` → `codda test` (код `0`) → `codda build` (код `0`); расхождения README и поведения исправлены в README, баги CLI — в `## Comments` (не чинятся здесь)
 - [ ] Корневой README: что такое `codda`, адрес пилота, разработка инструмента (команды репозитория), ссылка на README для Author; PoC-инструкции (`?lesson=…`, «Run tests», `npm run build:deps`) убраны
 - [ ] `CLAUDE.md`, «Текущая стадия»: MVP собран, идёт пилот; ссылки на эту спеку и тикет 03
-- [ ] `docs/HOW-TO-PROCEED.md`: Шаг 3 отмечен ✅ со ссылками на спеки фич; строка `pilot-course` — «5 Lesson React Hooks»; новые шаги «Пилот на людях» (тикет 03) и «MVP Report» (`docs/mvp-report.md` после пилота)
+- [ ] `docs/HOW-TO-PROCEED.md`: Шаг 3 отмечен ✅ со ссылками на спеки фич; новые шаги «Пилот на людях» (тикет 03) и «MVP Report» (`docs/mvp-report.md` после пилота)
 - [ ] `docs/roadmap.md`: статус Phase 1–3 и строки MVP по таблице из `## Итог`
 - [ ] `npm run typecheck`, `npm test`, `npm run test:e2e` зелёные (документы их не ломают)

@@ -2,7 +2,7 @@
 
 Агент проходит все задачи MVP подряд в ветке `mvp-autorun`, один коммит на тикет; человек мержит всё одним PR. Правила приняты в [questions/00-mvp-autorun.md](questions/00-mvp-autorun.md) (раунд 1). Этот файл — порядок работ, договорённости между фичами и журнал прогона. Это исключение из правила `CLAUDE.md` «ветка и PR на фичу», только для этого эксперимента. Раскладка тоже исключение из [docs/agents/issue-tracker.md](../../docs/agents/issue-tracker.md): все документы прогона лежат здесь, а фичи — в папках `NN-<feature>/`, пронумерованных в порядке выполнения.
 
-Slug фичи — имя папки без номера: `lesson-manifest/02` = [`01-lesson-manifest/issues/02-…`](01-lesson-manifest/issues/). Тикет `misc/03` лежит в [`00-workspaces/`](00-workspaces/issues/01-workspaces.md). План решений MVP, на котором построены спеки, остаётся в [`../mvp/`](../mvp/map.md).
+Slug фичи — имя папки без номера: `lesson-manifest/02` = [`01-lesson-manifest/issues/02-…`](01-lesson-manifest/issues/). Тикет `misc/03` лежит в [`00-workspaces/`](00-workspaces/issues/01-workspaces.md). План решений MVP, на котором построены спеки, остаётся в [`../mvp/`](../mvp/map.md). Что получится в итоге, архитектура и как это проверяется — в [RESULT.md](RESULT.md).
 
 ## Фазы
 
@@ -19,7 +19,7 @@ Slug фичи — имя папки без номера: `lesson-manifest/02` = 
 |---|---|---|
 | 0 | [`misc-03-workspaces`](00-workspaces/issues/01-workspaces.md) | `packages/codda/` и каркас CLI `packages/codda/cli/codda.ts` (`--help`, `--version`, код `2`) |
 | 1 | [`lesson-manifest`](01-lesson-manifest/spec.md) | Формат Course на диске, Zod-схема, `course.json`, минимальный `codda build`, экран Lesson (тулбар, вкладки «Тесты» и «Решение»), Reset; React Hooks в новом формате, PoC-формат удалён |
-| 2 | [`runtime-hardening`](02-runtime-hardening/spec.md) | Отмена Run, вкладка «Console», строки ошибок в файле студента, async-ошибки, восстановление после падения |
+| 2 | [`runtime-hardening`](02-runtime-hardening/spec.md) | Отмена Run, вкладка «Console», строка и подчёркивание ошибки компиляции в Workspace (source maps — «MVP, часть 2»), async-ошибки, восстановление после падения |
 | 3 | [`dependency-artifacts`](03-dependency-artifacts/spec.md) | Dependency Artifact Course в `deps/<hash>/` (`importmap.json`, `types.json`), Compiler читает его; PoC `scripts/build-deps.mjs` и `public/deps/` удалены |
 | 4 | [`author-cli`](04-author-cli/spec.md) | `codda build` полностью, `dev`, `test`, `init`, `lesson`, шаблоны CI; CI репозитория гоняет `codda test` + `codda build` по курсам |
 | 5 | [`ts-tooling`](05-ts-tooling/spec.md) | Type Checker: diagnostics, autocomplete, вкладка «Проблемы»; проверка типов в `codda test` |
@@ -28,45 +28,46 @@ Slug фичи — имя папки без номера: `lesson-manifest/02` = 
 
 ## Все тикеты по порядку выполнения
 
-32 тикета. Внутри фичи номера идут в порядке блокировок, так что агент берёт их сверху вниз. ✋ — тикет для человека, агент его не делает.
+33 тикета. Внутри фичи номера идут в порядке блокировок, так что агент берёт их сверху вниз. ✋ — тикет для человека, агент его не делает.
 
 | # | Тикет | Blocked by |
 |---|---|---|
 | 1 | [misc/03 — npm workspaces, `packages/codda/`, каркас CLI](00-workspaces/issues/01-workspaces.md) | — |
-| 2 | [lesson-manifest/01 — Course как данные: `course.yaml`, минимальный `codda build`, `course.json`, React Hooks в новом формате](01-lesson-manifest/issues/01-course-as-data.md) | misc/03 |
-| 3 | [lesson-manifest/02 — все ошибки Course сразу](01-lesson-manifest/issues/02-course-errors.md) | 01 |
-| 4 | [lesson-manifest/03 — экран Lesson: тулбар, «Тесты», «Решение», Test Report на русском, Reset](01-lesson-manifest/issues/03-lesson-screen.md) | 01 |
-| 5 | [lesson-manifest/04 — Instructions из Markdown](01-lesson-manifest/issues/04-instructions-markdown.md) | 01, 02 |
-| 6 | [lesson-manifest/05 — граница ADR-0006 в CI](01-lesson-manifest/issues/05-adr-0006-boundary.md) | 01 |
-| 7 | [runtime-hardening/01 — отмена Run](02-runtime-hardening/issues/01-cancel-run.md) | lesson-manifest |
-| 8 | [runtime-hardening/02 — вкладка «Console»](02-runtime-hardening/issues/02-console-tab.md) | lesson-manifest |
-| 9 | [runtime-hardening/03 — async-ошибки во время тестов (R8)](02-runtime-hardening/issues/03-async-errors-in-tests.md) | lesson-manifest |
-| 10 | [runtime-hardening/04 — ошибки указывают строку в Workspace](02-runtime-hardening/issues/04-errors-point-to-workspace-line.md) | 03 |
-| 11 | [runtime-hardening/05 — восстановление после падения Worker](02-runtime-hardening/issues/05-worker-crash-recovery.md) | 01 |
-| 12 | [dependency-artifacts/01 — `codda build` собирает Dependency Artifact, Run берёт зависимости из него](03-dependency-artifacts/issues/01-artifact-tracer-bullet.md) | lesson-manifest, runtime-hardening |
-| 13 | [dependency-artifacts/02 — кэш по hash, правила npm, проверки `package.json`](03-dependency-artifacts/issues/02-cache-and-npm.md) | 01 |
-| 14 | [dependency-artifacts/03 — ошибки сборки артефакта](03-dependency-artifacts/issues/03-build-errors.md) | 01 |
-| 15 | [dependency-artifacts/04 — ошибки Run: импорт вне точек входа, пропавший артефакт](03-dependency-artifacts/issues/04-compiler-errors.md) | 01 |
-| 16 | [dependency-artifacts/05 — `types.json`](03-dependency-artifacts/issues/05-types-json.md) | 01 |
-| 17 | [author-cli/01 — `codda build` целиком](04-author-cli/issues/01-build-complete.md) | dependency-artifacts |
-| 18 | [author-cli/02 — `codda test` по всему Course в Chromium](04-author-cli/issues/02-test-whole-course.md) | 01 |
-| 19 | [author-cli/03 — `codda test`: один Lesson, чужие origin'ы, нет Chromium](04-author-cli/issues/03-test-edges.md) | 02 |
-| 20 | [author-cli/04 — `codda dev`](04-author-cli/issues/04-dev-server.md) | 02 |
-| 21 | [author-cli/05 — `codda init` и `codda lesson`](04-author-cli/issues/05-init-and-lesson.md) | 03 |
-| 22 | [author-cli/06 — CI по курсам, выкладка сборки курса, шаблоны `--ci`](04-author-cli/issues/06-ci.md) | 05 |
-| 23 | [ts-tooling/01 — ошибки типов в редакторе](05-ts-tooling/issues/01-type-errors-in-editor.md) | lesson-manifest, dependency-artifacts |
-| 24 | [ts-tooling/02 — вкладка «Проблемы», статус, смена Lesson](05-ts-tooling/issues/02-problems-tab.md) | 01 |
-| 25 | [ts-tooling/03 — autocomplete](05-ts-tooling/issues/03-autocomplete.md) | 01 |
-| 26 | [ts-tooling/04 — проверка типов в `codda test`](05-ts-tooling/issues/04-codda-test-types.md) | 01, author-cli |
-| 27 | [course-ux/01 — переход между Lesson, `#/…`, Пред./След.](06-course-ux/issues/01-lesson-navigation.md) | lesson-manifest, runtime-hardening, ts-tooling |
-| 28 | [course-ux/02 — Workspace в `localStorage`](06-course-ux/issues/02-workspace-local-storage.md) | 01 |
-| 29 | [course-ux/03 — дерево Course](06-course-ux/issues/03-course-tree.md) | 01 |
-| 30 | [course-ux/04 — прогресс](06-course-ux/issues/04-progress.md) | 02, 03 |
-| 31 | [pilot-course/01 — курс зелёный в CI, e2e «студент проходит курс»](07-pilot-course/issues/01-course-green-and-e2e.md) | все фичи выше |
-| 32 | [pilot-course/02 — сверка с «Определением MVP», README для Author, документы стадии](07-pilot-course/issues/02-mvp-checklist-and-docs.md) | 01 |
+| 2 | [lesson-manifest/01a — Course как данные: `course.yaml`, модуль чтения, минимальный `codda build`](01-lesson-manifest/issues/01a-course-format-and-build.md) | misc/03 |
+| 3 | [lesson-manifest/01b — UI читает `course.json`, e2e и выкладка на сборке `codda build`, PoC-формат удалён](01-lesson-manifest/issues/01b-ui-on-course-json.md) | 01a |
+| 4 | [lesson-manifest/02 — все ошибки Course сразу](01-lesson-manifest/issues/02-course-errors.md) | 01a |
+| 5 | [lesson-manifest/03 — экран Lesson: тулбар, «Тесты», «Решение», Test Report на русском, Reset](01-lesson-manifest/issues/03-lesson-screen.md) | 01b |
+| 6 | [lesson-manifest/04 — Instructions из Markdown](01-lesson-manifest/issues/04-instructions-markdown.md) | 01b, 02 |
+| 7 | [lesson-manifest/05 — граница ADR-0006 в CI](01-lesson-manifest/issues/05-adr-0006-boundary.md) | 01b |
+| 8 | [runtime-hardening/01 — отмена Run](02-runtime-hardening/issues/01-cancel-run.md) | lesson-manifest |
+| 9 | [runtime-hardening/02 — вкладка «Console»](02-runtime-hardening/issues/02-console-tab.md) | lesson-manifest |
+| 10 | [runtime-hardening/03 — async-ошибки во время тестов (R8)](02-runtime-hardening/issues/03-async-errors-in-tests.md) | lesson-manifest |
+| 11 | [runtime-hardening/04 — ошибка компиляции в Workspace: строка и подчёркивание](02-runtime-hardening/issues/04-compile-error-line-in-workspace.md) | lesson-manifest |
+| 12 | [runtime-hardening/05 — восстановление после падения Worker](02-runtime-hardening/issues/05-worker-crash-recovery.md) | 01 |
+| 13 | [dependency-artifacts/01 — `codda build` собирает Dependency Artifact, Run берёт зависимости из него](03-dependency-artifacts/issues/01-artifact-tracer-bullet.md) | lesson-manifest, runtime-hardening |
+| 14 | [dependency-artifacts/02 — кэш по hash, правила npm, проверки `package.json`](03-dependency-artifacts/issues/02-cache-and-npm.md) | 01 |
+| 15 | [dependency-artifacts/03 — ошибки сборки артефакта](03-dependency-artifacts/issues/03-build-errors.md) | 01 |
+| 16 | [dependency-artifacts/04 — ошибки Run: импорт вне точек входа, пропавший артефакт](03-dependency-artifacts/issues/04-compiler-errors.md) | 01 |
+| 17 | [dependency-artifacts/05 — `types.json`](03-dependency-artifacts/issues/05-types-json.md) | 01 |
+| 18 | [author-cli/01 — `codda build` целиком](04-author-cli/issues/01-build-complete.md) | dependency-artifacts |
+| 19 | [author-cli/02 — `codda test` по всему Course в Chromium](04-author-cli/issues/02-test-whole-course.md) | 01 |
+| 20 | [author-cli/03 — `codda test`: один Lesson, чужие origin'ы, нет Chromium](04-author-cli/issues/03-test-edges.md) | 02 |
+| 21 | [author-cli/04 — `codda dev`](04-author-cli/issues/04-dev-server.md) | 02 |
+| 22 | [author-cli/05 — `codda init` и `codda lesson`](04-author-cli/issues/05-init-and-lesson.md) | 03 |
+| 23 | [author-cli/06 — CI по курсам, выкладка сборки курса, шаблоны `--ci`](04-author-cli/issues/06-ci.md) | 05 |
+| 24 | [ts-tooling/01 — ошибки типов в редакторе](05-ts-tooling/issues/01-type-errors-in-editor.md) | lesson-manifest, dependency-artifacts |
+| 25 | [ts-tooling/02 — вкладка «Проблемы», статус, смена Lesson](05-ts-tooling/issues/02-problems-tab.md) | 01 |
+| 26 | [ts-tooling/03 — autocomplete](05-ts-tooling/issues/03-autocomplete.md) | 01 |
+| 27 | [ts-tooling/04 — проверка типов в `codda test`](05-ts-tooling/issues/04-codda-test-types.md) | 01, author-cli |
+| 28 | [course-ux/01 — переход между Lesson, `#/…`, Пред./След.](06-course-ux/issues/01-lesson-navigation.md) | lesson-manifest, runtime-hardening, ts-tooling |
+| 29 | [course-ux/02 — Workspace в `localStorage`](06-course-ux/issues/02-workspace-local-storage.md) | 01 |
+| 30 | [course-ux/03 — дерево Course](06-course-ux/issues/03-course-tree.md) | 01 |
+| 31 | [course-ux/04 — прогресс](06-course-ux/issues/04-progress.md) | 02, 03 |
+| 32 | [pilot-course/01 — курс зелёный в CI, e2e «студент проходит курс»](07-pilot-course/issues/01-course-green-and-e2e.md) | все фичи выше |
+| 33 | [pilot-course/02 — сверка с «Определением MVP», README для Author, документы стадии](07-pilot-course/issues/02-mvp-checklist-and-docs.md) | 01 |
 | ✋ | [pilot-course/03 — пилот на людях](07-pilot-course/issues/03-pilot-on-people.md) | merge PR |
 
-Точки остановки: после фазы A (сейчас), затем после каждой фичи — push и ожидание зелёного `check`.
+Точки остановки: после фазы A (пройдена 2026-10-04, раунды 2–3), затем после каждой фичи — push и ожидание зелёного `check`.
 
 ## Договорённости между фичами
 
@@ -82,7 +83,7 @@ Slug фичи — имя папки без номера: `lesson-manifest/02` = 
 8. **`@codemirror/lint`** первой подключает `runtime-hardening/04` (подчёркивание ошибки компиляции). `ts-tooling/01` добавляет второй источник диагностик рядом, не заменяя первый.
 9. **Новые виды Test Report** `cancelled` и `internal-error` (`runtime-hardening`) `codda test` считает ошибкой и для Solution, и для Starter.
 10. **Ошибки загрузки артефакта** (404, integrity) — `dependency-artifacts/04`, а не `runtime-hardening`.
-11. **Выкладку на Pages** переключает на `codda build` уже `lesson-manifest/01`: без `course.json` пилот пуст. `author-cli/06` дополняет CI проверкой всех курсов.
+11. **Выкладку на Pages** переключает на `codda build` уже `lesson-manifest/01b`: без `course.json` пилот пуст. `author-cli/06` дополняет CI проверкой всех курсов.
 
 ## Ритуал тикета (фаза B)
 

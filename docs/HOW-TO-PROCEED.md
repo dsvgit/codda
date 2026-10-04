@@ -48,6 +48,8 @@ Wayfinder создаст `.scratch/mvp/map.md` и тикеты-решения (`
 
 С MVP тесты строже, чем на PoC: ошибки и граничные случаи тестируются в рамках самого тикета (`CLAUDE.md` → «Тесты»).
 
+Фичи 0a–7 проходятся экспериментом «MVP за один прогон»: одна ветка `mvp-autorun`, один PR, спеки и тикеты — в [.scratch/mvp-autorun/](../.scratch/mvp-autorun/README.md), итог и проверка — в [RESULT.md](../.scratch/mvp-autorun/RESULT.md).
+
 Рекомендуемый порядок фич (рамки каждой уточняются на её `/grill-with-docs`; отложенное — в «MVP, часть 2» [roadmap.md](roadmap.md)):
 
 | # | Фича (`.scratch/<slug>`) | Блок | Фаза |
@@ -55,12 +57,12 @@ Wayfinder создаст `.scratch/mvp/map.md` и тикеты-решения (`
 | 0 | `misc-01-ci-bootstrap` — GitHub Actions: typecheck, unit, e2e на PR и push в `main`; обязательная проверка в branch protection ([тикет](../.scratch/misc/issues/01-ci-bootstrap.md)); `misc-02-pages-deploy` — выкладка пилота на GitHub Pages из CI на push в `main`, сборка из подпути `/codda/` ([тикет](../.scratch/misc/issues/02-pages-deploy.md)) | — | 1 |
 | 0a | `misc-03-workspaces` — npm workspaces: инструмент в `packages/codda/`, курсы вне workspaces; после `misc/02` (Pages), до `lesson-manifest` ([тикет](../.scratch/mvp-autorun/00-workspaces/issues/01-workspaces.md)) | — | 1 |
 | 1 | `lesson-manifest` — `course.yaml` + папки Lesson (тикет 03), Zod-схема, UI читает Course как данные `course.json` (ADR-0008), экран Lesson по прототипу 04, Solution, Reset, проверка границы ADR-0006 в CI; перевод React Hooks, удаление старого формата | C | 1 |
-| 2 | `runtime-hardening` — отмена Run, console, source maps, async-ошибки (R8), восстановление после падения | A | 1 |
+| 2 | `runtime-hardening` — отмена Run, console, строка и подчёркивание ошибки компиляции в Workspace, async-ошибки (R8), восстановление после падения; source maps — «MVP, часть 2» | A | 1 |
 | 3 | `dependency-artifacts` — Dependency Artifact на Course из `package.json` + `package-lock.json`, `importmap.json` + `types.json` по hash, вшивание в бандл (ADR-0007) | B | 1 |
-| 4 | `author-cli` — `codda init/lesson/test/dev/build` (тикет 05, ADR-0008) в `packages/codda/cli/`, курс подключает его через `file:` и вызывает `npx codda` (misc/03), шаги `codda test/build` в CI (выкладка на GitHub Pages уже есть с misc/02, `codda build` заменяет в ней только `npm run build`), шаблоны CI для курсов (тикет 06) | D | 1 |
+| 4 | `author-cli` — `codda init/lesson/test/dev/build` (тикет 05, ADR-0008) в `packages/codda/cli/`, курс подключает его через `file:` и вызывает `npx codda` (misc/03), шаги `codda test/build` по всем курсам в CI (выкладку на Pages из выхода `codda build` переключает уже `lesson-manifest`; `author-cli` выкладывает `dist/` пилотного курса), шаблоны CI для курсов (тикет 06) | D | 1 |
 | 4a | `misc-04-cli-package-publish` — публикация пакета `codda` для `npx codda` в репозиториях курсов; пересматривает ADR-0006, сначала grilling; нужна, когда появится второй репозиторий курса ([тикет](../.scratch/misc/issues/04-cli-package-publish.md)) | D | 1 |
 | 5 | `ts-tooling` — Type Checker: diagnostics, autocomplete, `.d.ts` из `types.json` (тикет 09, ADR-0009) | E | 2 |
 | 6 | `course-ux` — дерево Course и навигация, локальный прогресс и Workspace в `localStorage` | H | 3 |
-| 7 | `pilot-course` — 5–10 реальных Lesson, прогон через CLI, пилот на людях (только Chrome) | — | 3 |
+| 7 | `pilot-course` — 5 Lesson React Hooks, проверка MVP через CLI и сквозной e2e; пилот на людях (только Chrome) — человек | — | 3 |
 
 `/improve-codebase-architecture` — раз в неделю-две, пока код не расползся.

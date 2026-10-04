@@ -1,6 +1,6 @@
 # Spec: lesson-manifest
 
-**Status:** needs-info — вопросы в [questions/00-grill.md](questions/00-grill.md); спека и тикеты написаны по рекомендациям, пустые ответы их не меняют.
+**Status:** ready-for-agent — вопросы закрыты в [questions/00-grill.md](questions/00-grill.md), все рекомендации приняты; тикет 01 разрезан на 01a/01b (Q14 [раунда 3](../questions/00-mvp-autorun.md)).
 
 Фича 1 эксперимента [«MVP за один прогон»](../README.md), блок C roadmap. Решения взяты из тикетов Плана решений: [03 — схема Lesson Manifest](../../mvp/issues/03-lesson-manifest-schema.md), [04 — экран Lesson](../../mvp/issues/04-lesson-screen-prototype.md), [05 — команды CLI](../../mvp/issues/05-codda-cli-commands.md), [06 — CI и хостинг](../../mvp/issues/06-ci-and-pilot-hosting.md); ADR-0006, ADR-0008. Перед фичей сделана `misc-03-workspaces`: код инструмента лежит в пакете `codda`, есть каркас CLI (`--help`, `--version`, код `2`).
 

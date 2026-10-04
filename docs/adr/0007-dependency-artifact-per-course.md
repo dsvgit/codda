@@ -17,3 +17,5 @@
 - Ошибки `npm ci` показываются как есть, с префиксом `npm ci:` и одной подсказкой от `codda`.
 - Транспорт как в PoC не требует CORS на хостинге и в `codda dev`.
 - Ограничение: в одном Course не может быть двух версий одного пакета. Если понадобится, Lesson-уровень добавляется в «MVP, часть 2».
+- Адреса в `importmap.json` считаются от корня Course Build (`./deps/<hash>/…`), а не от папки артефакта: в «MVP, часть 2» файл вставляется в `srcdoc` как есть (фича `dependency-artifacts`, Q1).
+- «`declare module` (`any`)» для пакета без типов — это заглушка `/node_modules/@types/<имя>/…d.ts` в `types.json`, её кладёт сборщик; Type Checker читает `types.json` как кусок `node_modules` без особых правил (фича `dependency-artifacts`, Q4).

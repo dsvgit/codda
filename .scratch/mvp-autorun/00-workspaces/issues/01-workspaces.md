@@ -10,7 +10,7 @@
 
 Что остаётся как есть: PoC-импорт `courses/` из `src/main.tsx` и `src/App.tsx` (станет `../../../courses`). Его убирает `lesson-manifest` (ADR-0008). Поэтому `rootDir`, который делает импорт из `courses/` ошибкой `tsc`, включается не здесь, а в `lesson-manifest`, вместе с проверкой границы ADR-0006. Vite такой импорт не ловит, так что проверка в CI всё равно нужна.
 
-**Blocked by:** misc/02
+**Blocked by:** misc/02 — код уже в `main`; `ready-for-human` у `misc/02` означает только включение Pages человеком и этот тикет не блокирует
 
 **Status:** ready-for-agent
 

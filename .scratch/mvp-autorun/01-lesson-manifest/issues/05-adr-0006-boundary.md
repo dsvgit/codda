@@ -4,7 +4,7 @@
 
 Подробности — [spec.md](../spec.md), «Граница ADR-0006». Способ — Q3 в [questions/00-grill.md](../questions/00-grill.md).
 
-**Blocked by:** 01
+**Blocked by:** 01b
 
 **Status:** ready-for-agent
 

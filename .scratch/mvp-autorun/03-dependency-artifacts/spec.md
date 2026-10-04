@@ -1,6 +1,6 @@
 # Spec: dependency-artifacts
 
-**Status:** needs-info
+**Status:** ready-for-agent — вопросы закрыты в [questions/00-grill.md](questions/00-grill.md), все рекомендации приняты; правило npm уточнено Q12 [раунда 2](../questions/00-mvp-autorun.md).
 
 Решения: [ADR-0007](../../../docs/adr/0007-dependency-artifact-per-course.md) (уточняет [ADR-0005](../../../docs/adr/0005-prebuilt-dependency-artifacts.md)), [ADR-0008](../../../docs/adr/0008-prebuilt-tool-course-as-data.md), тикеты Плана решений [01](../../mvp/issues/01-dependency-artifacts.md), [08](../../mvp/issues/08-dependency-artifacts-adr.md), [05](../../mvp/issues/05-codda-cli-commands.md) (npm и `.codda/`), [06](../../mvp/issues/06-ci-and-pilot-hosting.md) (пропавший артефакт). Открытые вопросы — [questions/00-grill.md](questions/00-grill.md). Спека написана по рекомендациям из него.
 
@@ -41,7 +41,7 @@ PoC-скрипт сборки зависимостей и `public/deps/` уда�
 13. As an Author, I want a repeated `codda build` with unchanged lockfile and imports to skip `npm ci` and esbuild, so that the build is fast.
 14. As an Author, I want `codda build` to print one line saying whether the artifact was built or taken from cache, so that I understand what happened.
 15. As an Author, I want a local `codda build` not to reinstall `node_modules` when they already match `package-lock.json`, so that my editor setup isn't torn down on every build.
-16. As an Author, I want CI (`CI=true`) to always run `npm ci`, so that a stale `package-lock.json` is caught by npm.
+16. As an Author, I want `codda` to follow the same npm rule in CI and locally (run `npm ci` only when `node_modules` is missing or differs from `package-lock.json`), so that the CI workflow's own `npm ci` is not repeated under the running `codda` (Q12 раунда 2).
 17. As an Author, I want a Course without any package imports to build without npm and without an artifact, so that a plain TypeScript Course has no extra steps.
 18. As an Author, I want `@types/*` from `dependencies` to go only into `types.json`, so that they don't bloat the JS artifact.
 19. As an Author, I want a warning naming the `@types` package to declare when a package ships no types, so that the Type Checker gets proper types.
@@ -87,7 +87,7 @@ PoC-скрипт сборки зависимостей и `public/deps/` уда�
 
 **npm** (правило тикета 05)
 
-- npm запускается только при промахе кэша. При `CI=true` — всегда `npm ci`. Без него — `npm ci`, только если нет `node_modules` или `node_modules/.package-lock.json` расходится с `package-lock.json` по версиям пакетов; иначе npm не запускается.
+- npm запускается только при промахе кэша, и тогда — `npm ci`, только если нет `node_modules` или `node_modules/.package-lock.json` расходится с `package-lock.json` по версиям пакетов; иначе npm не запускается. Правило одно для CI и локально (Q12 раунда 2): в CI `node_modules` уже ставит шаг `npm ci` workflow, а устаревший `package-lock.json` ловит он же.
 - Registry — из стандартной конфигурации npm (`.npmrc`), `codda` его не задаёт (ADR-0006).
 - Успешный npm молчит. Ошибка: каждая строка вывода npm с префиксом `npm ci: `, затем одна строка `codda`: «запустите `npm install` локально и закоммитьте `package-lock.json`».
 
@@ -127,8 +127,8 @@ PoC-скрипт сборки зависимостей и `public/deps/` уда�
 Швы:
 
 1. **CLI как процесс: `codda build <курс-фикстура>`** — основной шов сборщика. Проверяем код выхода, вывод (ошибки, предупреждения, строку «собраны / из кэша»), содержимое `deps/<hash>/` и поле `deps` в `course.json`. Prior art — тест каркаса CLI из `misc/03` (`npx codda --version` / `--bogus` как процесс) и тесты `codda build` из `lesson-manifest`.
-   - **Фикстуры без сети.** Тест пишет во временную папку Course (`course.yaml`, Lesson), `package.json`, `package-lock.json` и готовые `node_modules` с поддельными пакетами (CJS, ESM, импорт `fs`, падающий `require`, без типов), включая `node_modules/.package-lock.json`. Процесс запускается без `CI` в окружении (GitHub Actions выставляет `CI=true`, тест его убирает), поэтому npm не вызывается. Так проверяются все ветки сборки быстро и без registry.
-   - **Ветки npm.** Ошибка `npm ci` воспроизводится без сети: `package.json` и `package-lock.json` не согласованы, `CI=true` — npm падает до обращения к registry.
+   - **Фикстуры без сети.** Тест пишет во временную папку Course (`course.yaml`, Lesson), `package.json`, `package-lock.json` и готовые `node_modules` с поддельными пакетами (CJS, ESM, импорт `fs`, падающий `require`, без типов), включая `node_modules/.package-lock.json`. `node_modules` совпадают с `package-lock.json`, поэтому npm не вызывается, в том числе при `CI=true` в GitHub Actions (Q12 раунда 2). Так проверяются все ветки сборки быстро и без registry.
+   - **Ветки npm.** Ошибка `npm ci` воспроизводится без сети: `node_modules` нет, `package.json` и `package-lock.json` не согласованы — npm падает до обращения к registry.
 2. **Runner (Vitest browser mode)** — шов Compiler и загрузки артефакта. Prior art — `runner.test.ts` (React Counter, Runner-тесты на `add`). Global setup тестов собирает артефакт курса-фикстуры с настоящими `react`/`react-dom` тем же сборщиком (кэш по hash в `.codda/` фикстуры, повторный прогон — без npm), dev-сервер тестов раздаёт его. Негативные случаи (404, подменённый файл, specifier вне точек входа) — копией артефакта во временной папке, которую раздаёт тот же сервер.
 3. **e2e (Playwright)** — Golden Path и офлайн-проверка на выходе `codda build`, как их оставит `lesson-manifest`. Prior art — `golden-path.e2e.ts`, `offline.ts` (все запросы на наш origin; список запросов теперь включает `importmap.json` и файлы `deps/<hash>/`).
 

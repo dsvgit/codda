@@ -4,7 +4,7 @@
 
 Подробности — [spec.md](../spec.md), «Формат Course на диске» и «Модуль чтения Course».
 
-**Blocked by:** 01
+**Blocked by:** 01a
 
 **Status:** ready-for-agent
 

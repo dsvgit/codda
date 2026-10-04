@@ -7,3 +7,4 @@
 - Код в Sandbox доставляется через `srcdoc` или blob, Dependency Artifacts — либо вшиваются в бандл Compiler'ом, либо отдаются с `Access-Control-Allow-Origin`.
 - Это не полная security-модель: CSP, отдельный origin для Sandbox, лимиты ресурсов — отдельный этап (см. roadmap, блок Security).
 - Opaque origin не закрывает Sandbox от сети (найдено в PoC, см. [PoC Report, R2](../poc-report.md#что-обязательно-решить-в-mvp)): `fetch` уходит наружу с `Origin: null`, CORS отрезает только чтение ответа, а `mode: "no-cors"` проходит. Закрывает это CSP `connect-src` или отдельный origin, а не sandbox-атрибуты.
+- Типы сообщений Sandbox → parent в MVP: `codda:report` (Test Report) и `codda:console` (строка Console). Runner проверяет у каждого `event.source`, `runId` и форму полей, остальное игнорирует (фича `runtime-hardening`).

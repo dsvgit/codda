@@ -14,12 +14,12 @@
 
 ## Определение MVP
 
-Внутренний пользователь проходит **небольшой реальный Course** (один Module, 5–10 Lesson) по React + TypeScript:
+Внутренний пользователь проходит **небольшой реальный Course** (один Module; пилотный Course — 5 Lesson React Hooks, решение `.scratch/mvp-autorun/questions/00-mvp-autorun.md`, Q3) по React + TypeScript:
 
 - Lesson — обычные файлы в Git (Instructions в Markdown, Lesson Manifest, Starter, Lesson Tests, Solution); Author проверяет их одной командой CLI `codda`. Инструмент отделён от контента: курс передаётся путём ([ADR-0006](adr/0006-tool-separate-from-content.md)).
 - Workspace из одного файла TS/TSX (несколько файлов — в «MVP, часть 2»).
-- npm-зависимости, объявленные в Lesson Manifest, приходят как Dependency Artifacts из CI и внутреннего registry.
-- Run → Test Report; ошибки компиляции, runtime, timeout; console; отмена Run; source maps; восстановление после падения.
+- npm-зависимости, объявленные в `package.json` Course, приходят как Dependency Artifact Course, собранный `codda build` из внутреннего registry (ADR-0007).
+- Run → Test Report; ошибки компиляции (со строкой в Workspace), runtime, timeout; console; отмена Run; восстановление после падения. Source maps — в «MVP, часть 2».
 - Базовые подсказки TypeScript (diagnostics, autocomplete для React).
 - Навигация по Lesson, Reset, показ Solution, прогресс и Workspace сохраняются (минимум — локально).
 - UI на русском.
@@ -34,6 +34,10 @@
 
 - Multi-file Workspace: virtual FS, импорты между файлами, табы, дерево, создание/удаление файлов студентом (блок A).
 - Прогрев Worker, холодный старт вне deadline Run (R1); защита от бесконечных циклов в Safari/Firefox (R3); preview/HMR (блок A).
+- Source maps: строка runtime-ошибки и проваленного теста в файле Workspace вместо stack бандла (снято из MVP, `.scratch/mvp-autorun/questions/00-mvp-autorun.md`, Q11 и Q13). Риски, найденные при спеке: формат кадров `about:srcdoc`, смещение бандла в `srcdoc`, ленивый разбор mappings React; декодер — `@jridgewell/trace-mapping` (блок A).
+- Timeout отдельного теста (зависший промис съедает весь Run); обнаружение падения процесса Sandbox (OOM) иначе, чем timeout; переход к строке по клику на `Строка N:M`; инспектор объектов и `console.table/group` в Console (блок A, фича `runtime-hardening`).
+- Подсветка кода в блоках Instructions (блок C).
+- Выкладка нескольких курсов на один сайт пилота; сейчас на Pages идёт один пилотный курс (фича `author-cli`, Q3).
 - CSS из npm-пакетов (блок B).
 - Быстрый Run с зависимостями (R4): эксперимент `.scratch/mvp/issues/07-artifact-transport-experiment.md`, затем import map в Sandbox вместо вшивания в бандл; статический лексер для CJS-экспортов; зависимости на уровне Lesson, если понадобятся (блок B, ADR-0007).
 - Hover, go to definition, форматирование (блок E); auto-import и signature help в autocomplete, JSDoc в подсказках; строка «Есть ошибки типов: N» в Test Report и баннере PASS, если в пилоте студенты игнорируют подчёркивания (тикет 09, ADR-0009).
@@ -82,7 +86,7 @@ Course (course.yaml: id, title, modules → lessons; package.json + package-lock
 ```
 Lesson Manifest — контракт между авторингом, CI, Runtime и (будущим) Server Grader. Схема и правила — `## Answer` тикета `.scratch/mvp/issues/03-lesson-manifest-schema.md`. Пять Lesson React Hooks из `courses/react-hooks/` переводятся на этот формат, старый формат удаляется.
 
-Кандидат, если всплывёт в пилоте: плашка «Starter обновлён — Reset, чтобы взять новый» на сохранённом Workspace, если Author поменял Starter. Для неё рядом с Workspace нужно хранить hash Starter.
+Кандидат, если всплывёт в пилоте: плашка «Starter обновлён — Reset, чтобы взять новый» на сохранённом Workspace, если Author поменял Starter. Для неё рядом с Workspace нужно хранить hash Starter. Нетронутый Workspace (равный Starter) не хранится, поэтому новый Starter такие студенты получают без плашки; плашка нужна только для изменённого Workspace (фича `course-ux`).
 
 ### D. Авторский workflow — Phase 1
 `course create react/use-state` → скелет Lesson. `course test react/use-state` → ✓ starter собирается, ✓ solution собирается, ✓ solution проходит все тесты, ✓ starter их не проходит, ✓ manifest валиден, ✓ зависимости доступны. Тот же чек — в CI на каждый PR.

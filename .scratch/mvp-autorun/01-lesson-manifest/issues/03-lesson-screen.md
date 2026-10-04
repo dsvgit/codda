@@ -4,7 +4,7 @@
 
 Подробности — [spec.md](../spec.md), раздел «UI». Разметку и CSS можно взять из прототипа (ветка `prototype/lesson-screen`, `src/prototype-lesson-screen/`).
 
-**Blocked by:** 01
+**Blocked by:** 01b
 
 **Status:** ready-for-agent
 

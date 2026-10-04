@@ -9,7 +9,7 @@
 - [ ] Проверка типов идёт в Node после сборки Dependency Artifact, через то же ядро и модуль конфига, что Type Checker. lib-файлы читаются из пакета `typescript-6`, типы — из `types.json` только что собранного артефакта
 - [ ] Solution проверяется под именем Starter (`main.*`) вместе с Lesson Tests и объявлением `@codda/test`. В выводе путь — настоящий файл (`<lesson>/solution.tsx`, `<lesson>/lesson.test.tsx`)
 - [ ] Starter проверяется один, как в редакторе студента (Q1 в [questions/00-grill.md](../questions/00-grill.md))
-- [ ] Объявление `@codda/test` (`test`, `expect` с `toBe` и `toEqual`, плюс то, что добавит `runtime-hardening`). `npm run typecheck` падает, если Test Harness и объявление расходятся
+- [ ] Объявление `@codda/test` (`test`, `expect` с `toBe` и `toEqual` — публичный API Test Harness). `npm run typecheck` падает, если Test Harness и объявление расходятся
 - [ ] Тест CLI: ошибка типов в Solution → `✗`, строка `<lesson>/solution.tsx:L:C — … (TSxxxx)`, код `1`
 - [ ] Тест CLI: ошибка типов в Lesson Tests → `✗`, путь `<lesson>/lesson.test.tsx`, код `1`
 - [ ] Тест CLI: ошибка типов только в Starter → `⚠`, строка с путём `<lesson>/main.tsx`, код `0`

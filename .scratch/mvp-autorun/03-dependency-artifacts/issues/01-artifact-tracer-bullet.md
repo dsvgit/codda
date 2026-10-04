@@ -13,7 +13,7 @@
 - [ ] `importmap.json`: адреса `./deps/<hash>/<файл>` относительно корня сборки; `integrity` есть у каждого JS-файла папки и совпадает с sha384 файла
 - [ ] `course.json` содержит `"deps": "deps/<hash>/"`; страница разрешает его от своего адреса и передаёт адрес `importmap.json` в Compiler
 - [ ] Compiler скачивает `importmap.json` и файлы один раз за жизнь Worker'а; второй Run не делает запросов к `deps/`
-- [ ] Тест CLI как процесс: `codda build` на курсе-фикстуре с поддельными пакетами в `node_modules` (без `CI`, без сети): CJS-пакет с именованными экспортами — в выходе `deps/<hash>/`, `importmap.json` с `imports` на каждую точку входа и `integrity` на каждый файл, `course.json` с полем `deps`
+- [ ] Тест CLI как процесс: `codda build` на курсе-фикстуре с поддельными пакетами в `node_modules` (готовые `node_modules`, npm не вызывается, без сети): CJS-пакет с именованными экспортами — в выходе `deps/<hash>/`, `importmap.json` с `imports` на каждую точку входа и `integrity` на каждый файл, `course.json` с полем `deps`
 - [ ] Тест Runner: global setup собирает артефакт курса-фикстуры с настоящими `react`/`react-dom`; React-Lesson с `act` и `react-dom/client` даёт все PASS (один экземпляр React); `import React from "react"` (default) и `import { useState } from "react"` работают в одном файле
 - [ ] Тест Runner: CJS-пакет без `__esModule` — `import x from "pkg"` равен объекту `module.exports`
 - [ ] e2e Golden Path и офлайн-проверка зелёные на выходе `codda build`; в списке запросов `deps/<hash>/importmap.json` и файлы артефакта, все на наш origin

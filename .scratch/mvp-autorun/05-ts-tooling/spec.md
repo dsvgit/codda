@@ -1,6 +1,6 @@
 # Spec: ts-tooling
 
-**Status:** needs-info
+**Status:** ready-for-agent — вопросы закрыты в [questions/00-grill.md](questions/00-grill.md), все рекомендации приняты.
 
 Фича 5 эксперимента «MVP за один прогон» ([README.md](../README.md)). Решения взяты из [ADR-0009](../../../docs/adr/0009-type-checker-ts6-separate-worker.md), тикетов Плана решений [02](../../mvp/issues/02-ts-language-service.md) и [09](../../mvp/issues/09-type-checker-behaviour.md) (итог — в [questions/09](../../mvp/questions/09-type-checker-behaviour.md)), research [docs/research/ts-language-service.md](../../../docs/research/ts-language-service.md) и тикета Плана [05](../../mvp/issues/05-codda-cli-commands.md) (Q9: типы в `codda test`). Открытые вопросы — [questions/00-grill.md](questions/00-grill.md); спека написана по рекомендациям оттуда.
 

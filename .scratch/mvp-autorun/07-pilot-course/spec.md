@@ -1,6 +1,6 @@
 # Spec: pilot-course
 
-**Status:** needs-info
+**Status:** ready-for-agent — вопросы закрыты в [questions/00-grill.md](questions/00-grill.md), все рекомендации приняты.
 
 Последняя фича MVP (строка 7 «Порядка фич» в [README.md](../README.md)). Вопросы — в [questions/00-grill.md](questions/00-grill.md); спека и тикеты написаны по рекомендациям, пустой ответ их не меняет.
 

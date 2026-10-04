@@ -26,4 +26,4 @@
 
 ## Comments
 
-- Импорт `playwright` в CLI делается после шага npm, а не при запуске: `npm ci` переустанавливает `node_modules` (Further Notes спеки).
+- Импорт `playwright` в CLI делается после шага npm, а не при запуске: локально без `node_modules` шаг npm их ставит (Further Notes спеки).
