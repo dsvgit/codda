@@ -1,7 +1,31 @@
 import { StrictMode, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { App } from "./App";
+import { App, runLesson } from "./App";
 import type { CourseData } from "./course-data";
+import { run } from "./runtime/runner";
+
+/**
+ * The service page of `codda test` (cli/codda.ts): `#/__codda-test` is never a
+ * Lesson id (`_` is not kebab-case), and nothing in the UI links to it. Node
+ * drives the Runs through Playwright with these two functions on `window`.
+ */
+const TEST_PAGE = "__codda-test";
+
+function installTestPage(course: CourseData) {
+  const lessons = course.modules.flatMap((m) => m.lessons);
+  Object.assign(window, {
+    __codda: {
+      /** A Run of empty code, so the first Lesson does not pay for a cold Compiler. */
+      warmUp: async () => {
+        await run({ source: "", tests: "" });
+      },
+      run: (lessonId: string, which: "solution" | "starter") => {
+        const lesson = lessons.find((l) => l.id === lessonId)!;
+        return runLesson(course, lesson, which === "solution" ? lesson.solution : lesson.workspace.starter);
+      },
+    },
+  });
+}
 
 type Load = { state: "loading" } | { state: "failed" } | { state: "loaded"; course: CourseData };
 
@@ -23,7 +47,10 @@ function Root() {
         return response.json() as Promise<CourseData>;
       })
       .then(
-        (course) => setLoad({ state: "loaded", course }),
+        (course) => {
+          if (lessonIdFromHash() === TEST_PAGE) installTestPage(course);
+          setLoad({ state: "loaded", course });
+        },
         () => setLoad({ state: "failed" }),
       );
   }, []);
@@ -45,6 +72,7 @@ function Root() {
         </div>
       );
     case "loaded":
+      if (lessonId === TEST_PAGE) return <p className="status">Служебная страница codda test</p>;
       return <App course={load.course} lessonId={lessonId} />;
   }
 }

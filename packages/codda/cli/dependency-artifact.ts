@@ -278,6 +278,9 @@ async function entryPoints(root: string, lessonIds: string[]): Promise<Map<strin
       .map((name) => join(root, id, name)),
   );
   const found = new Map<string, string[]>();
+  // A syntax error in a Lesson file is not this scan's to report: the Run of
+  // that file shows it as a compile error. esbuild still resolves the imports
+  // of every file it could parse.
   await esbuild.build({
     entryPoints: sources,
     bundle: true,
@@ -303,7 +306,7 @@ async function entryPoints(root: string, lessonIds: string[]): Promise<Map<strin
         },
       },
     ],
-  });
+  }).catch(() => {});
   return found;
 }
 

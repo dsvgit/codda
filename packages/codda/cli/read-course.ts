@@ -47,7 +47,17 @@ const markdown = new Marked({
 });
 
 // `deps` is added by whoever builds the Dependency Artifact (codda build, the dev server).
-type Result = { course: Omit<CourseData, "deps"> } | { errors: string[] };
+type Course = Omit<CourseData, "deps">;
+
+/**
+ * With errors, `partial` is there when course.yaml itself is valid: the Course
+ * with only the Lessons that have no errors, the errors of every listed Lesson
+ * (course.yaml order, none for a valid one) and the errors of no Lesson. `codda test` checks the
+ * valid Lessons anyway.
+ */
+type Result =
+  | { course: Course }
+  | { errors: string[]; partial?: { course: Course; lessonErrors: Map<string, string[]>; courseErrors: string[] } };
 
 // The `yaml` package reports syntax errors in English.
 const yamlMessages: Record<string, string> = {
@@ -176,6 +186,8 @@ export function readCourse(root: string): Result {
   // course.yaml against the folders on disk.
   const listed = listedLessons(raw.value);
   const lessonPathById = new Map<string, string>();
+  const lessonErrors = new Map<string, string[]>();
+  const lessonError = (id: string, line: string) => lessonErrors.get(id)!.push(line);
   for (const { id, path } of listed) {
     if (typeof id !== "string" || !KEBAB_CASE.test(id)) continue; // reported by the schema
     const first = lessonPathById.get(id);
@@ -184,7 +196,11 @@ export function readCourse(root: string): Result {
       continue;
     }
     lessonPathById.set(id, path);
-    if (!isDirectory(join(root, id))) errors.push(`course.yaml: ${path}: нет папки урока ${id}`);
+    lessonErrors.set(id, []);
+    if (!isDirectory(join(root, id))) {
+      errors.push(`course.yaml: ${path}: нет папки урока ${id}`);
+      lessonError(id, errors.at(-1)!);
+    }
   }
   // A folder with lesson.md is a Lesson; others (node_modules/, dist/) are not.
   // With no Lesson listed at all, the schema error already says it all.
@@ -199,18 +215,23 @@ export function readCourse(root: string): Result {
 
   const lessons = new Map<string, LessonData | undefined>();
   for (const id of lessonPathById.keys()) {
-    if (isDirectory(join(root, id))) lessons.set(id, readLesson(root, id, errors));
+    if (!isDirectory(join(root, id))) continue;
+    const own: string[] = [];
+    lessons.set(id, readLesson(root, id, own));
+    errors.push(...own);
+    for (const line of own) lessonError(id, line);
   }
 
-  if (errors.length > 0 || !yaml) return { errors };
-  return {
-    course: {
-      id: yaml.id,
-      title: yaml.title,
-      modules: yaml.modules.map((module) => ({
-        title: module.title,
-        lessons: module.lessons.map((id) => lessons.get(id)!),
-      })),
-    },
+  if (!yaml) return { errors };
+  const course = {
+    id: yaml.id,
+    title: yaml.title,
+    modules: yaml.modules.map((module) => ({
+      title: module.title,
+      lessons: module.lessons.map((id) => lessons.get(id)).filter((lesson) => lesson !== undefined),
+    })),
   };
+  if (errors.length === 0) return { course };
+  const ofLessons = new Set([...lessonErrors.values()].flat());
+  return { errors, partial: { course, lessonErrors, courseErrors: errors.filter((line) => !ofLessons.has(line)) } };
 }

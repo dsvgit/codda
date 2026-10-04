@@ -8,10 +8,19 @@ import "./styles.css";
 const NO_ERRORS: CompileError[] = [];
 
 /**
+ * A Run of `source` against the Lesson Tests of `lesson`: the one path from a
+ * Lesson to the Compiler, for «Запустить тесты» and for `codda test` (main.tsx).
+ */
+export function runLesson(course: CourseData, lesson: LessonData, source: string, options?: Parameters<typeof run>[1]) {
+  // The artifact's folder in course.json is relative to the page (ADR-0008).
+  const importMap = course.deps === null ? undefined : new URL(`${course.deps}importmap.json`, document.baseURI).href;
+  return run({ source, tests: lesson.tests, importMap }, options);
+}
+
+/**
  * The Lesson screen for `lessonId` of `course`; without an id, the first
  * Lesson of the first Module. Another id opens that Lesson from a clean slate.
  */
-
 export function App({ course, lessonId }: { course: CourseData; lessonId?: string }) {
   const lessons = course.modules.flatMap((m) => m.lessons);
   const first = lessons[0];
@@ -56,9 +65,7 @@ function Lesson({ course, lesson }: { course: CourseData; lesson: LessonData }) 
     cancel.current = new AbortController();
     try {
       const onConsole = (line: ConsoleLine) => setConsoleLines((lines) => [...lines, line]);
-      // The artifact's folder in course.json is relative to the page (ADR-0008).
-      const importMap = course.deps === null ? undefined : new URL(`${course.deps}importmap.json`, document.baseURI).href;
-      const result = await run({ source, tests: lesson.tests, importMap }, { signal: cancel.current.signal, onConsole });
+      const result = await runLesson(course, lesson, source, { signal: cancel.current.signal, onConsole });
       setReport(result);
       if (result.kind === "compile-error" && !editedDuringRun.current) setUnderlined(result.errors);
       // The student may have opened «Console» while the Run went.
