@@ -73,11 +73,14 @@ test.describe(() => {
   test.use({ expectedExternal: ["https://example.com/"] });
 
   test("student code's fetch to the Internet does not get through", async ({ page }) => {
-    const failed = page.waitForEvent("requestfailed", (r) => r.url() === "https://example.com/");
+    // The request is seen, and the offline fixture aborts it. Not
+    // "requestfailed": the Run removes the Sandbox iframe right after its
+    // report, and if that beats the abort, Playwright never emits the event.
+    const request = page.waitForRequest("https://example.com/");
 
     await runStudentCode(page, `fetch("https://example.com/");\n\n${lesson.starter}`);
 
-    expect((await failed).failure()?.errorText).toContain("ERR_BLOCKED_BY_CLIENT");
+    await request;
     await expect(page.getByText("0 / 3 passed")).toBeVisible();
   });
 });
