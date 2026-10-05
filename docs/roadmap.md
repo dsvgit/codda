@@ -8,7 +8,7 @@
 | **Phase 1 — Фундамент** ✅ | 1–2 нед. | Надёжный Runtime, Lesson Manifest, прототип зависимостей, Author CLI. Multi-file — в «MVP, часть 2» |
 | **Phase 2 — Инструменты** ✅ | 1–2 нед. | TypeScript tooling (diagnostics, autocomplete), dependency pipeline в CI, редактор. Hover и auto-import — в «MVP, часть 2» |
 | **Phase 3 — Готовность к людям** — частично | 1–2 нед. | Persistence и Course UX ✅. Браузеры — только Chrome. Security и производительность (R1) — в «MVP, часть 2» |
-| **= MVP** — собран, идёт пилот | **4–6 нед. после PoC** | См. «Определение MVP». Собран 2026-10-05 (ветка `mvp-autorun`), сверка — `## Итог` в `.scratch/mvp-autorun/07-pilot-course/spec.md`: 20 пунктов сделано, 5 частично, 1 нет (пилот на людях) |
+| **= MVP** — собран, пилот после merge | **4–6 нед. после PoC** | См. «Определение MVP». Собран 2026-10-05 (ветка `mvp-autorun`), сверка — `## Итог` в `.scratch/mvp-autorun/07-pilot-course/spec.md`: 20 пунктов сделано, 5 частично, 1 нет (пилот на людях) |
 | **Production-ready v1** | 6–8 нед. | + production hardening, деплой, наблюдаемость |
 | **Phase 4 — Дальше** | — | Server Grader, Hidden Tests, analytics, authoring UI, другие framework'и |
 
