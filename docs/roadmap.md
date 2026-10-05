@@ -8,7 +8,7 @@
 | **Phase 1 — Фундамент** ✅ | 1–2 нед. | Надёжный Runtime, Lesson Manifest, прототип зависимостей, Author CLI. Multi-file — в «MVP, часть 2» |
 | **Phase 2 — Инструменты** ✅ | 1–2 нед. | TypeScript tooling (diagnostics, autocomplete), dependency pipeline в CI, редактор. Hover и auto-import — в «MVP, часть 2» |
 | **Phase 3 — Готовность к людям** — частично | 1–2 нед. | Persistence и Course UX ✅. Браузеры — только Chrome. Security и производительность (R1) — в «MVP, часть 2» |
-| **= MVP** — собран, идёт пилот | **4–6 нед. после PoC** | См. «Определение MVP». Собран 2026-10-05 (ветка `mvp-autorun`), сверка — `## Итог` в `.scratch/mvp-autorun/07-pilot-course/spec.md`: 21 пункт сделан, 4 частично, 1 нет (пилот на людях) |
+| **= MVP** — собран, идёт пилот | **4–6 нед. после PoC** | См. «Определение MVP». Собран 2026-10-05 (ветка `mvp-autorun`), сверка — `## Итог` в `.scratch/mvp-autorun/07-pilot-course/spec.md`: 20 пунктов сделано, 5 частично, 1 нет (пилот на людях) |
 | **Production-ready v1** | 6–8 нед. | + production hardening, деплой, наблюдаемость |
 | **Phase 4 — Дальше** | — | Server Grader, Hidden Tests, analytics, authoring UI, другие framework'и |
 
@@ -51,7 +51,7 @@
 - Hover, go to definition, форматирование (блок E); auto-import и signature help в autocomplete, JSDoc в подсказках; строка «Есть ошибки типов: N» в Test Report и баннере PASS, если в пилоте студенты игнорируют подчёркивания (тикет 09, ADR-0009).
 - Прогресс и Workspace на сервере, вход пользователя; подсказки и счётчик попыток (блок H).
 - Security baseline целиком (блок F) — обязателен до серверного хранения и до внешних пользователей.
-- Закрытый контур для сборки курса: прогнать `codda init --ci gitlab` в контуре компании — внутренний образ `$CODDA_IMAGE`, внутренний npm registry из `.npmrc`, Chromium из зеркала (`PLAYWRIGHT_DOWNLOAD_HOST`), выкладка в S3. В MVP проверены только браузер студента offline и разбор YAML шаблона (сверка MVP, пункт 26 — частично).
+- Закрытый контур для сборки курса: прогнать `codda init --ci gitlab` в контуре компании — внутренний образ `$CODDA_IMAGE`, внутренний npm registry из `.npmrc`, Chromium из зеркала (`PLAYWRIGHT_DOWNLOAD_HOST`), выкладка в S3. В MVP проверены только браузер студента offline и разбор YAML шаблона (сверка MVP, пункты 7 и 26 — частично).
 - Остатки английского в UI: заголовок «Instructions» и текст `expected …, got …` Test Harness (сверка MVP, пункт 22 — частично); `PASS`/`FAIL`, «Console» и сообщения esbuild/TS английские по решению спек — пересмотреть по фидбеку пилота.
 
 ## Эволюция после PoC (версии)

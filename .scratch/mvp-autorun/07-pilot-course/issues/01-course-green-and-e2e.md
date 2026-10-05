@@ -16,7 +16,7 @@
 - [x] e2e, граничный случай: после перезагрузки страницы открыт тот же Lesson, прогресс и введённый Workspace на месте
 - [x] e2e, граничный случай: у последнего Lesson после PASS нет перехода на несуществующий следующий
 - [x] Каждый e2e-сценарий сначала увиден красным (в `## Comments` — как именно)
-- [x] `npm run typecheck`, `npm test`, `npm run test:e2e` зелёные; job `check` в CI зелёная на push в `mvp-autorun`
+- [x] `npm run typecheck`, `npm test`, `npm run test:e2e` зелёные; job `check` в CI зелёная на `d44f589` — прогон PR #6 (37250303075); CI идёт на `pull_request`, не на push в ветку
 
 ## Comments
 

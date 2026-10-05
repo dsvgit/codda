@@ -4,7 +4,7 @@
 
 Раскладка: npm workspaces с одним пакетом. Инструмент (UI, Runtime, CLI `cli/codda.ts`) — в `packages/codda/`, курсы — в `courses/`, вне workspaces (ADR-0006, ADR-0007). В корне — npm-скрипты разработки, `e2e/`, `playwright.config.ts` и единственный `package-lock.json`. Команды для курса вызываются как `npx codda …`.
 
-Текущая стадия: **MVP собран, идёт пилот на людях** (только Chrome, курс React Hooks). MVP сделан экспериментом «MVP за один прогон» — `.scratch/mvp-autorun/README.md` (журнал, допущения, отложенные проблемы). Сверка с «Определением MVP» — `## Итог` в `.scratch/mvp-autorun/07-pilot-course/spec.md`, пилот — тикет `.scratch/mvp-autorun/07-pilot-course/issues/03-pilot-on-people.md`. После пилота — `docs/mvp-report.md`; шаги — `docs/HOW-TO-PROCEED.md`, отложенное — «До пилота» и «MVP, часть 2» в `docs/roadmap.md`. Как Author делает курс — `packages/codda/README.md`. Итог PoC — `docs/poc-report.md`.
+Текущая стадия: **MVP собран** экспериментом «MVP за один прогон» (`.scratch/mvp-autorun/README.md`), следующий шаг — пилот на людях; шаги — `docs/HOW-TO-PROCEED.md`.
 
 ## Процесс
 

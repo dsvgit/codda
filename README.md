@@ -42,7 +42,7 @@ CI этого репозитория после проверок инструм�
 |---|---|
 | `npm run dev` | Dev-сервер Vite с hot reload на курсе `courses/react-hooks` |
 | `npm test` | Все тесты в headless Chromium (Vitest browser mode + Playwright) |
-| `npm run test:e2e` | Собирает UI в `packages/codda/dist-tool/`, затем `codda build courses/react-hooks` (в `courses/react-hooks/dist/`) и гоняет e2e на Playwright по этой сборке из подпути `/codda/`, как на GitHub Pages (проект `pages`); на `npm run dev` — один smoke-тест (проект `dev`). Внешняя сеть заблокирована |
+| `npm run test:e2e` | Собирает UI в `packages/codda/dist-tool/`, затем `codda build courses/react-hooks` (в `courses/react-hooks/dist/`) и гоняет e2e на Playwright по этой сборке из подпути `/codda/`, как на GitHub Pages (проект `pages`); на `npm run dev` (проект `dev`) — smoke-тест `dev.e2e.ts` и `navigation`, `workspace`, `progress`, которые идут и по сборке. Внешняя сеть заблокирована |
 | `npm test -- src/runtime/runner.test.ts` | Один файл тестов (путь от `packages/codda/`) |
 | `npm test -- --project cli` | Только тесты CLI (Node), без браузера |
 | `npm run typecheck` | Проверка типов TypeScript |
