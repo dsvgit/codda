@@ -7,26 +7,38 @@ import type { LessonData } from "./course-data";
  * `codda:` prefix. Any access to `localStorage` may throw (blocked, full): the
  * screen keeps working, the text stays in memory until the page reloads, and
  * `failed()` turns true for the warning above the editor.
+ * A Lesson's mark «пройден» (`:passed`, the value `"1"`) is never taken back.
  */
 export type CourseStorage = ReturnType<typeof courseStorage>;
 
 export function courseStorage(courseId: string) {
   // Once the storage has failed, every Workspace of the page is kept here too.
   const inMemory = new Map<string, string>();
+  // The marks set on this page: they stay even if the storage could not keep them.
+  const passedHere = new Set<string>();
   let failed = false;
+  // Changes when the storage fails or a Lesson is marked: the snapshot of `subscribe`.
+  let version = 0;
   const listeners = new Set<() => void>();
+  const changed = () => {
+    version++;
+    for (const listener of listeners) listener();
+  };
   const fail = () => {
     if (failed) return;
     failed = true;
-    for (const listener of listeners) listener();
+    changed();
   };
   const workspaceKey = (lesson: LessonData) => `codda:${courseId}/${lesson.id}:workspace`;
+  const passedKey = (lessonId: string) => `codda:${courseId}/${lessonId}:passed`;
 
   return {
     /** A storage error has happened on this page: nothing is saved for sure. */
     failed: () => failed,
-    /** `listener` is called once, on the first error of a write. */
-    onFailure(listener: () => void) {
+    /** Changes with every call of the listeners of `subscribe`. */
+    version: () => version,
+    /** `listener` is called on the first error of a write and on each new mark «пройден». */
+    subscribe(listener: () => void) {
       listeners.add(listener);
       return () => {
         listeners.delete(listener);
@@ -58,6 +70,29 @@ export function courseStorage(courseId: string) {
         fail();
       }
       if (failed) inMemory.set(key, text);
+    },
+    /** Lesson `lessonId` is passed: its key holds exactly "1", or it was marked on this page. */
+    passed(lessonId: string): boolean {
+      const key = passedKey(lessonId);
+      if (passedHere.has(key)) return true;
+      try {
+        return localStorage.getItem(key) === "1";
+      } catch {
+        failed = true;
+        return false;
+      }
+    },
+    /** Marks Lesson `lessonId` passed, for good; writes its own key only. */
+    markPassed(lessonId: string) {
+      const key = passedKey(lessonId);
+      if (passedHere.has(key)) return;
+      passedHere.add(key);
+      try {
+        localStorage.setItem(key, "1");
+      } catch {
+        fail();
+      }
+      changed();
     },
   };
 }

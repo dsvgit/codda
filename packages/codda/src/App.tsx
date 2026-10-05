@@ -57,17 +57,21 @@ const go = (lessonId: string) => (location.hash = `#/${encodeURIComponent(lesson
 /**
  * The Lesson screen of `course`. The Lesson is the one in the fragment
  * `#/<lesson id>`, and follows it; no Lesson or an unknown id there opens the
- * first one and puts its id in the fragment in place of the old one.
+ * first one not passed (all passed — the first) and puts its id in the
+ * fragment in place of the old one.
  */
 export function App({ course }: { course: CourseData }) {
   const lessonId = useSyncExternalStore(onHashChange, lessonIdFromHash);
   // All Lessons of all Modules in the order of course.yaml: the Course's one order.
   const lessons = course.modules.flatMap((m) => m.lessons);
-  const found = lessons.findIndex((l) => l.id === lessonId);
-  const index = Math.max(found, 0);
-  const lesson = lessons[index] as LessonData | BrokenLesson | undefined;
-  // One for the page: the Workspaces it could not save live in it until a reload.
+  // One for the page: the Workspaces and marks it could not save live in it until a reload.
   const storage = useMemo(() => courseStorage(course.id), [course.id]);
+  // Read anew on each new mark «пройден».
+  useSyncExternalStore(storage.subscribe, storage.version);
+  const passed = new Set(lessons.filter((l) => storage.passed(l.id)).map((l) => l.id));
+  const found = lessons.findIndex((l) => l.id === lessonId);
+  const index = found >= 0 ? found : Math.max(lessons.findIndex((l) => !passed.has(l.id)), 0);
+  const lesson = lessons[index] as LessonData | BrokenLesson | undefined;
   // Collapsed until the student expands it again or the page reloads.
   const [treeOpen, setTreeOpen] = useState(true);
 
@@ -85,7 +89,7 @@ export function App({ course }: { course: CourseData }) {
       course={course}
       lesson={lesson}
       storage={storage}
-      tree={<CourseTree course={course} current={lesson.id} open={treeOpen} onToggle={() => setTreeOpen(!treeOpen)} />}
+      tree={<CourseTree course={course} current={lesson.id} passed={passed} open={treeOpen} onToggle={() => setTreeOpen(!treeOpen)} />}
       previous={lessons[index - 1]?.id}
       next={lessons[index + 1]?.id}
     />
@@ -93,18 +97,22 @@ export function App({ course }: { course: CourseData }) {
 }
 
 /**
- * The Course on the left of the Lesson: its title, its Modules and their
- * Lessons in the order of course.yaml, each a link to `#/<lesson id>`.
- * Collapsed, a narrow strip with the button to expand it.
+ * The Course on the left of the Lesson: its title, «Пройдено N из M» with a
+ * bar, its Modules and their Lessons in the order of course.yaml, each a link
+ * to `#/<lesson id>`, ✓ at the passed ones. Collapsed, a narrow strip with the
+ * button to expand it.
  */
 function CourseTree({
   course,
   current,
+  passed,
   open,
   onToggle,
 }: {
   course: CourseData;
   current: string;
+  /** The ids of the passed Lessons of this Course. */
+  passed: Set<string>;
   open: boolean;
   onToggle: () => void;
 }) {
@@ -124,6 +132,7 @@ function CourseTree({
         </button>
         <h2>{course.title}</h2>
       </div>
+      <Progress passed={passed.size} total={course.modules.reduce((n, m) => n + m.lessons.length, 0)} />
       {course.modules.map((module, i) => (
         <div key={i} className="tree-module">
           <h3>{module.title}</h3>
@@ -132,6 +141,15 @@ function CourseTree({
               <li key={l.id}>
                 <a href={`#/${encodeURIComponent(l.id)}`} aria-current={l.id === current ? "page" : undefined}>
                   {l.title}
+                  {/* Drawn left of the title; read after it: «<title> пройден». */}
+                  {passed.has(l.id) && (
+                    <>
+                      {" "}
+                      <span className="passed" role="img" aria-label="пройден">
+                        ✓
+                      </span>
+                    </>
+                  )}
                 </a>
               </li>
             ))}
@@ -139,6 +157,17 @@ function CourseTree({
         </div>
       ))}
     </nav>
+  );
+}
+
+function Progress({ passed, total }: { passed: number; total: number }) {
+  return (
+    <div className="progress">
+      <p>
+        Пройдено {passed} из {total}
+      </p>
+      <progress value={passed} max={total} aria-label="Прогресс курса" />
+    </div>
   );
 }
 
@@ -183,7 +212,7 @@ function Lesson({
   const [initialWorkspace] = useState(() => storage.workspace(lesson));
   const [source, setSource] = useState(initialWorkspace);
   // After the read above: an error of that read shows in the same render.
-  const storageFailed = useSyncExternalStore(storage.onFailure, storage.failed);
+  const storageFailed = useSyncExternalStore(storage.subscribe, storage.failed);
   const [report, setReport] = useState<TestReport>();
   const [running, setRunning] = useState(false);
   const [consoleLines, setConsoleLines] = useState<ConsoleLine[]>([]);
@@ -216,6 +245,8 @@ function Lesson({
       const onConsole = (line: ConsoleLine) => setConsoleLines((lines) => [...lines, line]);
       const result = await runLesson(course, lesson, source, { signal: cancel.current.signal, onConsole });
       setReport(result);
+      // This Lesson's own Run: leaving the Lesson cancels it, so its PASS never marks another one.
+      if (isPass(result)) storage.markPassed(lesson.id);
       if (result.kind === "compile-error" && !editedDuringRun.current) setUnderlined(result.errors);
       // The student may have opened «Console» while the Run went.
       setTab("tests");
@@ -324,13 +355,16 @@ function Lesson({
 }
 
 const passedOf = (results: TestResult[]) => results.filter((r) => r.status === "pass").length;
+/** At least one test, all passed. No tests is not a PASS. */
+const allPass = (results: TestResult[]) => results.length > 0 && passedOf(results) === results.length;
+const isPass = (report: TestReport) => report.kind === "tests" && allPass(report.results);
 
 /** The result of the last Run on the «Тесты» tab, seen from any tab. */
 function Counter({ report }: { report: TestReport }) {
   if (report.kind === "cancelled") return null;
   if (report.kind !== "tests") return <span className="badge bad">✗</span>;
   const passed = passedOf(report.results);
-  const ok = passed === report.results.length;
+  const ok = allPass(report.results);
   return (
     <span className={`badge ${ok ? "ok" : "bad"}`}>
       {passed}/{report.results.length}
@@ -436,7 +470,7 @@ function BrokenRun({ title, children }: { title: string; children: ReactNode }) 
 /** `next`: the id of the Lesson after this one; none on the Course's last. */
 function TestResults({ results, next }: { results: TestResult[]; next?: string }) {
   const passed = passedOf(results);
-  const ok = passed === results.length;
+  const ok = allPass(results);
   return (
     <section className="report" aria-label="Test Report">
       {ok && (

@@ -662,7 +662,7 @@ test(`after going to another Lesson ${undoModifier}+Z does not bring back the co
 });
 
 /** The page opened anew, as after a reload: a new screen, the same localStorage. */
-function reopen(lessonId: string, of: CourseData = course) {
+function reopen(lessonId: string | undefined, of: CourseData = course) {
   root?.unmount();
   root = undefined;
   document.body.innerHTML = "";
@@ -874,4 +874,223 @@ test("«Свернуть список уроков» hides the Lessons and gives
   await expect.element(treeLesson("Приветствие")).toBeVisible();
   await expect.element(treeLesson("Сложение")).toBeVisible();
   expect(width(instructions())).toBe(instructionsBefore);
+});
+
+const progress = () => tree().getByText(/^Пройдено \d+ из \d+$/);
+const progressBar = () => tree().getByRole("progressbar");
+/** The titles of the Lessons with ✓ «пройден» in the tree. */
+const passedInTree = () =>
+  tree()
+    .getByRole("link")
+    .elements()
+    .filter((a) => a.querySelector('[role="img"][aria-label="пройден"]'))
+    .map((a) => a.textContent!.replace("✓", "").trim());
+const passKey = (lessonId: string, courseId = "demo") => `codda:${courseId}/${lessonId}:passed`;
+
+async function passAdd() {
+  await editor().fill(addLesson.solution);
+  await runTests().click();
+  await expect.element(report().getByText("PASS · 2 / 2")).toBeVisible();
+}
+
+test("a Run with PASS marks its Lesson: ✓ in the tree, «Пройдено 1 из 2» and the bar at once; Reset, a FAIL and a reload keep it", async () => {
+  renderApp("add");
+  await expect.element(progress()).toHaveTextContent("Пройдено 0 из 2");
+  await expect.element(progressBar()).toHaveAttribute("value", "0");
+  expect(passedInTree()).toEqual([]);
+
+  await passAdd();
+
+  await expect.element(progress()).toHaveTextContent("Пройдено 1 из 2");
+  await expect.element(progressBar()).toHaveAttribute("value", "1");
+  await expect.element(progressBar()).toHaveAttribute("max", "2");
+  expect(passedInTree()).toEqual(["Сложение"]);
+  await expect.element(treeLesson("Сложение пройден").getByRole("img", { name: "пройден" })).toHaveTextContent("✓");
+
+  await page.getByRole("button", { name: "↺ Сбросить" }).click();
+  await runTests().click();
+  await expect.element(report().getByText("FAIL · 0 / 2")).toBeVisible();
+  expect(passedInTree()).toEqual(["Сложение"]);
+
+  reopen("add");
+
+  await expect.element(progress()).toHaveTextContent("Пройдено 1 из 2");
+  expect(passedInTree()).toEqual(["Сложение"]);
+  await expect.element(storageWarning()).not.toBeInTheDocument();
+});
+
+test("a compile error, a runtime error, a FAIL, a cancelled Run and a Test Report with no tests do not mark the Lesson", async () => {
+  const noTests: CourseData = {
+    ...course,
+    modules: [
+      { ...course.modules[0], lessons: [{ ...addLesson, tests: 'import "@codda/test";\nimport "./main";\n' }] },
+      course.modules[1],
+    ],
+  };
+  renderApp("add", noTests);
+
+  await runTests().click();
+  // No tests is not a PASS: no banner, a red counter.
+  await expect.element(report().getByText("FAIL · 0 / 0")).toBeVisible();
+  await expect.element(report().getByText("Все тесты пройдены")).not.toBeInTheDocument();
+  expect(background(testsTab().getByText("0/0").element())).toBe(RED);
+  expect(passedInTree()).toEqual([]);
+
+  reopen("add", waiting);
+  await editor().fill(addLesson.solution);
+  await runTests().click();
+  await cancelRun().click();
+  await expect.element(report().getByText("Запуск отменён")).toBeVisible();
+
+  reopen("add");
+  for (const [code, outcome] of [
+    ["export function add(a: number, b: number) {\n  return a +;\n}\n", "Ошибка компиляции"],
+    ['throw new Error("boom");\n', "Ошибка выполнения"],
+    ["export const add = (a: number, b: number) => a + b + 1;\n", "FAIL · 0 / 2"],
+  ]) {
+    await editor().fill(code);
+    await runTests().click();
+    await expect.element(report().getByText(outcome)).toBeVisible();
+  }
+
+  await expect.element(progress()).toHaveTextContent("Пройдено 0 из 2");
+  expect(passedInTree()).toEqual([]);
+  expect(localStorage.getItem(passKey("add"))).toBeNull();
+});
+
+test("a timeout does not mark the Lesson", { timeout: 30_000 }, async () => {
+  renderApp("add", waiting);
+  await editor().fill(addLesson.solution);
+
+  await runTests().click();
+
+  await expect.element(report().getByText("Тесты не завершились за 5 с"), { timeout: 15_000 }).toBeVisible();
+  await expect.element(progress()).toHaveTextContent("Пройдено 0 из 2");
+  expect(passedInTree()).toEqual([]);
+});
+
+test("going to another Lesson during a Run that would pass marks neither the old nor the new Lesson", async () => {
+  // Passes, but only after 1.5 s: had the Run not been cancelled, it would mark someone.
+  const slow: CourseData = {
+    ...course,
+    modules: [
+      {
+        ...course.modules[0],
+        lessons: [
+          {
+            ...addLesson,
+            tests: 'import { test } from "@codda/test";\nimport "./main";\n\ntest("slow", () => new Promise<void>((r) => setTimeout(r, 1500)));\n',
+          },
+        ],
+      },
+      course.modules[1],
+    ],
+  };
+  renderApp("add", slow);
+  await runTests().click();
+  await expect.element(cancelRun()).toBeVisible();
+
+  await next().click();
+  await expect.element(lessonHeading("Приветствие")).toBeVisible();
+  await new Promise((r) => setTimeout(r, 2500));
+
+  await expect.element(progress()).toHaveTextContent("Пройдено 0 из 2");
+  expect(passedInTree()).toEqual([]);
+  expect([localStorage.getItem(passKey("add")), localStorage.getItem(passKey("greet"))]).toEqual([null, null]);
+});
+
+test("only the value \"1\" is a mark: any other value is «not passed» and the screen works", async () => {
+  localStorage.setItem(passKey("add"), "true");
+  localStorage.setItem(passKey("greet"), "1");
+  renderApp("add");
+
+  await expect.element(progress()).toHaveTextContent("Пройдено 1 из 2");
+  expect(passedInTree()).toEqual(["Приветствие"]);
+
+  await passAdd();
+
+  expect(localStorage.getItem(passKey("add"))).toBe("1");
+  await expect.element(progress()).toHaveTextContent("Пройдено 2 из 2");
+});
+
+test("marking a Lesson writes its own key only: the marks of other Lessons and Courses are neither read nor rewritten", async () => {
+  // Written by another tab after this page opened, and a broken one.
+  renderApp("add");
+  await expect.element(progress()).toHaveTextContent("Пройдено 0 из 2");
+  localStorage.setItem(passKey("greet"), "yes");
+  localStorage.setItem(passKey("add", "other"), "1");
+  const reads = vi.spyOn(Storage.prototype, "getItem");
+  const writes = vi.spyOn(Storage.prototype, "setItem");
+
+  await passAdd();
+
+  expect(writes.mock.calls.filter(([key]) => key.endsWith(":passed"))).toEqual([[passKey("add"), "1"]]);
+  expect(reads.mock.calls.map(([key]) => key)).not.toContain(passKey("add", "other"));
+  expect(localStorage.getItem(passKey("greet"))).toBe("yes");
+  expect(localStorage.getItem(passKey("add", "other"))).toBe("1");
+});
+
+test("«Пройдено N из M» counts the Lessons of this Course only: a mark of a Lesson not in course.json is not counted", async () => {
+  localStorage.setItem(passKey("gone"), "1");
+  localStorage.setItem(passKey("greet", "other"), "1");
+  renderApp("add");
+
+  await expect.element(progress()).toHaveTextContent("Пройдено 0 из 2");
+  await expect.element(progressBar()).toHaveAttribute("value", "0");
+  expect(passedInTree()).toEqual([]);
+});
+
+test("no Lesson or an unknown id in the fragment opens the first Lesson not passed, all passed — the first; no new history entry", async () => {
+  localStorage.setItem(passKey("add"), "1");
+  localStorage.setItem(passKey("sub"), "0");
+  for (const id of [undefined, "", "nope"]) {
+    const entries = history.length;
+    reopen(id, twoModules);
+
+    await expect.element(lessonHeading("Вычитание")).toBeVisible();
+    await expect.poll(() => location.hash).toBe("#/sub");
+    expect(history.length).toBe(entries);
+  }
+
+  localStorage.setItem(passKey("sub"), "1");
+  localStorage.setItem(passKey("greet"), "1");
+  reopen(undefined, twoModules);
+
+  await expect.element(lessonHeading("Сложение")).toBeVisible();
+  await expect.poll(() => location.hash).toBe("#/add");
+});
+
+test("localStorage that throws on writing: a PASS still shows ✓ and «Пройдено 1 из 2» until the page reloads, with the one warning", async () => {
+  vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+    throw new DOMException("full", "QuotaExceededError");
+  });
+  renderApp("add");
+
+  await passAdd();
+
+  await expect.element(progress()).toHaveTextContent("Пройдено 1 из 2");
+  expect(passedInTree()).toEqual(["Сложение"]);
+  await expect.element(storageWarning()).toBeVisible();
+  await next().click();
+  await expect.element(lessonHeading("Приветствие")).toBeVisible();
+  expect(passedInTree()).toEqual(["Сложение"]);
+  expect(document.body.textContent!.split(STORAGE_WARNING)).toHaveLength(2);
+
+  reopen("add");
+
+  await expect.element(progress()).toHaveTextContent("Пройдено 0 из 2");
+});
+
+test("localStorage that throws on reading: the progress is 0, a PASS marks the Lesson in memory", async () => {
+  vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
+    throw new DOMException("denied", "SecurityError");
+  });
+  renderApp("add");
+
+  await expect.element(progress()).toHaveTextContent("Пройдено 0 из 2");
+  await expect.element(storageWarning()).toBeVisible();
+  await passAdd();
+
+  expect(passedInTree()).toEqual(["Сложение"]);
+  await expect.element(progress()).toHaveTextContent("Пройдено 1 из 2");
 });
