@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { Editor, type EditorHandle } from "./Editor";
-import type { CourseData, LessonData } from "./course-data";
+import type { BrokenLesson, CourseData, LessonData } from "./course-data";
 import { run, type ConsoleLine, type TestReport } from "./runtime/runner";
 import type { CompileError, TestResult } from "./runtime/types";
 import {
@@ -35,29 +35,54 @@ function sessionTypeChecker(course: CourseData) {
   return typeChecker(course.deps === null ? undefined : new URL(`${course.deps}types.json`, document.baseURI).href);
 }
 
+/** `#/<lesson id>` → the id; no fragment, `#/` or a broken escape → undefined. */
+function lessonIdFromHash(): string | undefined {
+  if (!location.hash.startsWith("#/") || location.hash.length === 2) return undefined;
+  try {
+    return decodeURIComponent(location.hash.slice(2));
+  } catch {
+    return undefined;
+  }
+}
+
+function onHashChange(update: () => void) {
+  window.addEventListener("hashchange", update);
+  return () => window.removeEventListener("hashchange", update);
+}
+
+/** Every move to another Lesson: a new fragment, a new history entry, no page load. */
+const go = (lessonId: string) => (location.hash = `#/${encodeURIComponent(lessonId)}`);
+
 /**
- * The Lesson screen for `lessonId` of `course`; without an id, the first
- * Lesson of the first Module. Another id opens that Lesson from a clean slate.
+ * The Lesson screen of `course`. The Lesson is the one in the fragment
+ * `#/<lesson id>`, and follows it; no Lesson or an unknown id there opens the
+ * first one and puts its id in the fragment in place of the old one.
  */
-export function App({ course, lessonId }: { course: CourseData; lessonId?: string }) {
+export function App({ course }: { course: CourseData }) {
+  const lessonId = useSyncExternalStore(onHashChange, lessonIdFromHash);
+  // All Lessons of all Modules in the order of course.yaml: the Course's one order.
+  const lessons = course.modules.flatMap((m) => m.lessons);
+  const found = lessons.findIndex((l) => l.id === lessonId);
+  const index = Math.max(found, 0);
+  const lesson = lessons[index] as LessonData | BrokenLesson | undefined;
+
+  useEffect(() => {
+    if (lesson && lesson.id !== lessonId) history.replaceState(null, "", `#/${encodeURIComponent(lesson.id)}`);
+  }, [lesson, lessonId]);
+
   // Only in the course.json of `codda dev`: course.yaml or the Course is broken.
   if (course.errors) return <Errors title="Ошибки в курсе" errors={course.errors} />;
-  const lessons = course.modules.flatMap((m) => m.lessons);
-  const first = lessons[0];
-  const lesson = lessonId === undefined ? first : lessons.find((l) => l.id === lessonId);
-
-  if (!lesson) {
-    return (
-      <main className="lesson">
-        <p>Урок „{lessonId}“ не найден</p>
-        <p>
-          Первый урок курса: <a href={`#/${first.id}`}>{first.title}</a>
-        </p>
-      </main>
-    );
-  }
+  if (!lesson) return null;
   if ("errors" in lesson) return <Errors title={`Ошибки в Lesson ${lesson.id}`} errors={lesson.errors} />;
-  return <Lesson key={lesson.id} course={course} lesson={lesson} />;
+  return (
+    <Lesson
+      key={lesson.id}
+      course={course}
+      lesson={lesson}
+      previous={lessons[index - 1]?.id}
+      next={lessons[index + 1]?.id}
+    />
+  );
 }
 
 /** `codda dev`: the manifest errors in place of a Lesson or of the whole Course. */
@@ -75,7 +100,22 @@ function Errors({ title, errors }: { title: string; errors: string[] }) {
   );
 }
 
-function Lesson({ course, lesson }: { course: CourseData; lesson: LessonData }) {
+/**
+ * One Lesson from a clean slate; another Lesson is another instance (`key`),
+ * so the Run going when it is left is cancelled with it.
+ */
+function Lesson({
+  course,
+  lesson,
+  previous,
+  next,
+}: {
+  course: CourseData;
+  lesson: LessonData;
+  /** The ids of the Lessons before and after this one in the Course; none at its ends. */
+  previous?: string;
+  next?: string;
+}) {
   const [source, setSource] = useState(lesson.workspace.starter);
   const [report, setReport] = useState<TestReport>();
   const [running, setRunning] = useState(false);
@@ -94,6 +134,9 @@ function Lesson({ course, lesson }: { course: CourseData; lesson: LessonData }) 
   useEffect(() => {
     document.title = `${lesson.title} — ${course.title}`;
   }, [lesson.title, course.title]);
+
+  // Leaving the Lesson cancels its Run, as «■ Отмена» does.
+  useEffect(() => () => cancel.current?.abort(), []);
 
   const onRun = async () => {
     setTab("tests");
@@ -140,6 +183,13 @@ function Lesson({ course, lesson }: { course: CourseData; lesson: LessonData }) 
           </button>
           <button className="btn" onClick={() => setTab("solution")}>
             Показать решение
+          </button>
+          <span className="spacer" />
+          <button className="btn" disabled={previous === undefined} onClick={() => go(previous!)}>
+            ← Предыдущий
+          </button>
+          <button className="btn" disabled={next === undefined} onClick={() => go(next!)}>
+            Следующий →
           </button>
         </div>
         <div className="workspace">
@@ -188,7 +238,7 @@ function Lesson({ course, lesson }: { course: CourseData; lesson: LessonData }) 
             ) : tab === "problems" ? (
               <Problems status={typeStatus} errors={typeErrors} onPick={(pos) => workspace.current!.goTo(pos)} />
             ) : report ? (
-              <Report report={report} />
+              <Report report={report} next={next} />
             ) : (
               <p className="muted">Нажмите „Запустить тесты“</p>
             )}
@@ -254,10 +304,10 @@ function Problems({
   );
 }
 
-function Report({ report }: { report: TestReport }) {
+function Report({ report, next }: { report: TestReport; next?: string }) {
   switch (report.kind) {
     case "tests":
-      return <TestResults results={report.results} />;
+      return <TestResults results={report.results} next={next} />;
     case "compile-error":
       return (
         <BrokenRun title="Ошибка компиляции">
@@ -309,12 +359,24 @@ function BrokenRun({ title, children }: { title: string; children: ReactNode }) 
   );
 }
 
-function TestResults({ results }: { results: TestResult[] }) {
+/** `next`: the id of the Lesson after this one; none on the Course's last. */
+function TestResults({ results, next }: { results: TestResult[]; next?: string }) {
   const passed = passedOf(results);
   const ok = passed === results.length;
   return (
     <section className="report" aria-label="Test Report">
-      {ok && <p className="banner">Все тесты пройдены</p>}
+      {ok && (
+        <div className="banner">
+          <span>Все тесты пройдены</span>
+          {next === undefined ? (
+            <span className="last">Это последний урок курса</span>
+          ) : (
+            <button className="btn" onClick={() => go(next)}>
+              Следующий урок →
+            </button>
+          )}
+        </div>
+      )}
       <ul>
         {results.map((r, i) => (
           <li key={i} className={r.status}>

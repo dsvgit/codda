@@ -74,15 +74,6 @@ test("another fragment resets the editor, the Test Report and the tab to «Те�
   await expect(page.getByText("Нажмите „Запустить тесты“")).toBeVisible();
 });
 
-test("an unknown Lesson id shows a message with a link to the first Lesson", async ({ page }) => {
-  await page.goto("./#/no-such-lesson");
-
-  await expect(page.getByText("Урок „no-such-lesson“ не найден")).toBeVisible();
-  await page.getByRole("link", { name: "useState" }).click();
-
-  await expect(page.getByRole("heading", { name: "React Hooks · useState" })).toBeVisible();
-});
-
 test("while course.json loads, the page says so", async ({ page }) => {
   let release!: () => void;
   const released = new Promise<void>((resolve) => (release = resolve));

@@ -30,16 +30,13 @@ function installTestPage(course: CourseData) {
 
 type Load = { state: "loading" } | { state: "failed" } | { state: "loaded"; course: CourseData };
 
-/** `#/<lesson id>` → the id; no fragment → undefined, the first Lesson. */
-function lessonIdFromHash(): string | undefined {
-  return location.hash.startsWith("#/") ? decodeURIComponent(location.hash.slice(2)) : undefined;
-}
+/** Opened as the service page: decided once, the Lesson screen is not drawn at all. */
+const testPage = location.hash === `#/${TEST_PAGE}`;
 
 // course.json lies next to the page in a Course Build (ADR-0008); `npm run dev`
 // serves it from the Course in CODDA_COURSE (vite.config.ts).
 function Root() {
   const [load, setLoad] = useState<Load>({ state: "loading" });
-  const [lessonId, setLessonId] = useState(lessonIdFromHash);
 
   useEffect(() => {
     fetch("course.json", { cache: "no-cache" })
@@ -49,17 +46,11 @@ function Root() {
       })
       .then(
         (course) => {
-          if (lessonIdFromHash() === TEST_PAGE) installTestPage(course);
+          if (testPage) installTestPage(course);
           setLoad({ state: "loaded", course });
         },
         () => setLoad({ state: "failed" }),
       );
-  }, []);
-
-  useEffect(() => {
-    const onHashChange = () => setLessonId(lessonIdFromHash());
-    window.addEventListener("hashchange", onHashChange);
-    return () => window.removeEventListener("hashchange", onHashChange);
   }, []);
 
   switch (load.state) {
@@ -73,8 +64,9 @@ function Root() {
         </div>
       );
     case "loaded":
-      if (lessonId === TEST_PAGE) return <p className="status">Служебная страница codda test</p>;
-      return <App course={load.course} lessonId={lessonId} />;
+      if (testPage) return <p className="status">Служебная страница codda test</p>;
+      // The Lesson screen follows the fragment `#/<lesson id>` itself.
+      return <App course={load.course} />;
   }
 }
 

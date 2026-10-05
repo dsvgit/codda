@@ -165,6 +165,7 @@ Slug фичи — имя папки без номера: `lesson-manifest/02` = 
 - 2026-10-05 — ts-tooling/04 — коммит: проверка типов в `codda test` — `cli/type-check.ts` на ядре Type Checker (TS 6, lib из `typescript-6`, `types.json` свежего артефакта): Solution под именем Starter + Lesson Tests + объявление `@codda/test` — ошибки Lesson (`✗`), Starter один — предупреждения (`⚠`); при любом исходе Run, без Lesson с ошибкой манифеста; `setFiles` в ядре; `src/runtime/codda-test.d.ts` сверяется с Test Harness в `npm run typecheck`; React Hooks — 5 из 5 ✓
 - 2026-10-05 — ts-tooling — /code-review (Standards: 0 жёстких; Spec: 0 блокирующих). Исправлено: `RangeError` при клике по проблеме за концом укороченного текста (`goTo` ограничен длиной документа, тест `src/Editor.test.tsx`), имя Solution — одна функция `solutionName` в `read-course.ts` (вместо трёх `replace("main", "solution")`), убрано неиспользуемое `message` у ответа `failed` Type Checker. Остальное — в «Отложенные проблемы»
 - 2026-10-05 — ts-tooling — push, `check` зелёный на `9f3803b` (прогон 37243664373); фича закрыта
+- 2026-10-05 — course-ux/01 — коммит: переход между Lesson — экран сам следит за `#/<lesson id>` (`hashchange`), `← Предыдущий` / `Следующий →` в тулбаре по плоскому порядку Course, «Следующий урок →» / «Это последний урок курса» в баннере PASS, пустой/неизвестный id → первый Lesson через `replaceState` (экран «не найден» удалён), уход с Lesson отменяет Run; e2e `navigation.e2e.ts` в `dev` и `pages`
 
 ## Журнал допущений
 
@@ -293,6 +294,9 @@ Slug фичи — имя папки без номера: `lesson-manifest/02` = 
 - ts-tooling/04 — порядок строк Lesson: ошибки Run, ошибки типов Solution, затем Lesson Tests, предупреждения Starter последними (`report.ts`) — в спеке не задан
 - ts-tooling/04 — два окружения ядра на весь прогон (Solution + Lesson Tests + `@codda/test`; Starter один), а не новое на каждый Lesson — lib разбираются один раз; для этого в ядро добавлен `setFiles`
 - ts-tooling/04 — сверка объявления `@codda/test` с Test Harness — `src/runtime/codda-test.check.ts` (присваивание в обе стороны), отдельного теста нет: ловит `npm run typecheck`
+- course-ux/01 — фрагмент читает экран (`App`), а не `Root`; служебная страница `codda test` определяется один раз при загрузке. Битое `%`-экранирование во фрагменте — как неизвестный id
+- course-ux/01 — кнопки `← Предыдущий` / `Следующий →` прижаты к правому краю тулбара; баннер PASS — текст слева, кнопка или «Это последний урок курса» справа
+- course-ux/01 — e2e навигации идёт и в проекте `dev` (`testMatch` из двух файлов), остальные e2e — только `pages`
 
 ## Отложенные проблемы
 
@@ -323,3 +327,4 @@ Slug фичи — имя папки без номера: `lesson-manifest/02` = 
 - ts-tooling (review) — «строка/комментарий» в autocomplete через внутренние `ts.isInString`/`ts.isInComment` — риск при обновлении `typescript-6`, ловит unit-тест
 - ts-tooling (review) — нет теста «служебная страница `codda test` не запускает Type Checker» (верно по построению); в `App.test.tsx` Type Checker отключён, «медленный старт» покрыт только e2e
 - ts-tooling (review) — косметика: литеральные типы `"lesson.test.ts" | "lesson.test.tsx"` и `"main.ts" | "main.tsx"` объявлены в нескольких местах; `setFile` — обёртка над `setFiles` в `core.ts`; `CompileInput.sourceName?`/`testsName?` (`src/runtime/types.ts`) необязательные с запасным TSX из PoC, хотя продовый вызов передаёт оба — сделать обязательными значит править ~25 вызовов `run(...)` в `runner.test.ts`, не сделано
+- course-ux/01 — `runner.test.ts` «console.log in an infinite loop…» (и раз «cancelling during the tests…») под нагрузкой полного `npm test` (load average 10–20) падал с повторами `CI=true`, пока в `App.test.tsx` был ещё один Run с бесконечным циклом (переход во время Run); тест переделан на ждущий Run — после этого 3 зелёных прогона подряд. Гипотеза: busy-loop Sandbox соседнего файла отнимает CPU у таймингов теста (`< 200 мс`, 1001 строка за 4 с) — та же семья, что первая запись. Ничего не отключено

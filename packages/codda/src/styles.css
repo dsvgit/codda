@@ -74,6 +74,9 @@ body {
   border-bottom: 1px solid #e3e3e3;
   background: #fafafa;
 }
+.toolbar .spacer {
+  flex: 1;
+}
 .btn {
   font: inherit;
   padding: 6px 12px;
@@ -183,6 +186,10 @@ body {
   color: #cf222e;
 }
 .banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   margin: 0 0 10px;
   padding: 10px 14px;
   border-radius: 8px;
@@ -190,6 +197,10 @@ body {
   font-weight: 600;
   background: #dafbe1;
   color: #116329;
+}
+.banner .last {
+  font-size: 13px;
+  font-weight: normal;
 }
 .summary {
   font-weight: 600;

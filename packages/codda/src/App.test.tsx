@@ -73,15 +73,18 @@ afterEach(() => {
   root?.unmount();
   root = undefined;
   document.body.innerHTML = "";
+  history.replaceState(null, "", location.pathname + location.search);
 });
 
+/** The screen as the page opens it: the Lesson comes from the fragment `#/<lesson id>`. */
 function renderApp(lessonId?: string, of: CourseData = course) {
+  history.replaceState(null, "", lessonId === undefined ? location.pathname + location.search : `#/${lessonId}`);
   if (!root) {
     const container = document.createElement("div");
     document.body.append(container);
     root = createRoot(container);
   }
-  root.render(<App course={of} lessonId={lessonId} />);
+  root.render(<App course={of} />);
 }
 
 const editor = () => page.getByRole("textbox", { name: /^main\.tsx?$/ });
@@ -118,7 +121,7 @@ test("PASS: PASS · M / M, a green banner «Все тесты пройдены»
   await expect.element(report().getByText("PASS · 2 / 2")).toBeVisible();
   const banner = report().getByText("Все тесты пройдены");
   await expect.element(banner).toBeVisible();
-  expect(background(banner.element())).toBe(BANNER_GREEN);
+  expect(background(banner.element().closest(".banner")!)).toBe(BANNER_GREEN);
   const counter = testsTab().getByText("2/2");
   await expect.element(counter).toBeVisible();
   expect(background(counter.element())).toBe(GREEN);
@@ -389,20 +392,25 @@ test("Instructions are the HTML from course.json, shown with its formatting", as
   await expect.element(instructions.getByRole("listitem")).toHaveTextContent("Она складывает два числа.");
 });
 
-test("without a Lesson id the first Lesson of the first Module opens", async () => {
+test("without a Lesson id the first Lesson opens; the fragment becomes its id, no new history entry", async () => {
+  const entries = history.length;
   renderApp(undefined);
 
   await expect.element(page.getByRole("heading", { name: "Демо · Сложение" })).toBeVisible();
+  await expect.poll(() => location.hash).toBe("#/add");
+  expect(history.length).toBe(entries);
 });
 
-test("an unknown Lesson id shows a message and a link to the first Lesson", async () => {
-  renderApp("nope");
+test("`#/`, an unknown Lesson id and a broken escape open the first Lesson; the fragment becomes its id, no new history entry", async () => {
+  for (const id of ["", "nope", "%E0%A4%A"]) {
+    const entries = history.length;
+    renderApp(id);
 
-  await expect.element(page.getByText("Урок „nope“ не найден")).toBeVisible();
-  await expect
-    .element(page.getByRole("link", { name: "Сложение" }))
-    .toHaveAttribute("href", "#/add");
-  await expect.element(runTests()).not.toBeInTheDocument();
+    await expect.element(page.getByRole("heading", { name: "Демо · Сложение" })).toBeVisible();
+    await expect.poll(() => location.hash).toBe("#/add");
+    expect(history.length).toBe(entries);
+    await expect.element(page.getByText("не найден")).not.toBeInTheDocument();
+  }
 });
 
 test("`codda dev`: a Lesson with `errors` shows «Ошибки в Lesson» with its lines, the other Lessons open as usual", async () => {
@@ -507,4 +515,146 @@ test("lines show while the Run goes and stay after «■ Отмена»; «Те�
   await expect.element(consoleTab()).toHaveTextContent("Console1");
   await consoleTab().click();
   await expect.element(consoleLine("started")).toBeVisible();
+});
+
+const previous = () => page.getByRole("button", { name: "← Предыдущий" });
+const next = () => page.getByRole("button", { name: "Следующий →" });
+const lessonHeading = (title: string) => page.getByRole("heading", { name: `Демо · ${title}` });
+
+test("«Следующий →» goes from the last Lesson of a Module to the first of the next one, «← Предыдущий» back; each changes the fragment", async () => {
+  renderApp("add");
+  await expect.element(lessonHeading("Сложение")).toBeVisible();
+
+  await next().click();
+
+  await expect.element(lessonHeading("Приветствие")).toBeVisible();
+  expect(location.hash).toBe("#/greet");
+  await expect.element(editor()).toHaveTextContent('export const greet = () => "?";');
+
+  await previous().click();
+
+  await expect.element(lessonHeading("Сложение")).toBeVisible();
+  expect(location.hash).toBe("#/add");
+});
+
+test("«← Предыдущий» is disabled on the first Lesson, «Следующий →» on the last", async () => {
+  renderApp("add");
+  await expect.element(previous()).toBeDisabled();
+  await expect.element(next()).toBeEnabled();
+
+  renderApp("greet");
+  await expect.element(lessonHeading("Приветствие")).toBeVisible();
+  await expect.element(previous()).toBeEnabled();
+  await expect.element(next()).toBeDisabled();
+});
+
+test("«← Предыдущий» and «Следующий →» stand in the toolbar right of «Показать решение»", async () => {
+  await page.viewport(1280, 800);
+  renderApp("add");
+  await expect.element(next()).toBeVisible();
+
+  const right = (el: Element) => el.getBoundingClientRect().right;
+  const left = (el: Element) => el.getBoundingClientRect().left;
+  const solution = page.getByRole("button", { name: "Показать решение" }).element();
+  expect(left(previous().element())).toBeGreaterThan(right(solution));
+  expect(left(next().element())).toBeGreaterThan(right(previous().element()));
+  expect(right(next().element())).toBeLessThanOrEqual(1280);
+});
+
+test("the PASS banner has «Следующий урок →», which opens the next Lesson from a clean slate", async () => {
+  renderApp("add");
+  await editor().fill(course.modules[0].lessons[0].solution);
+  await runTests().click();
+  await expect.element(report().getByText("PASS · 2 / 2")).toBeVisible();
+
+  await report().getByRole("button", { name: "Следующий урок →" }).click();
+
+  await expect.element(lessonHeading("Приветствие")).toBeVisible();
+  expect(location.hash).toBe("#/greet");
+  await expect.element(report()).not.toBeInTheDocument();
+});
+
+test("on the last Lesson the PASS banner says «Это последний урок курса» and has no button", async () => {
+  renderApp("greet");
+  await editor().fill(course.modules[1].lessons[0].solution);
+  await runTests().click();
+  await expect.element(report().getByText("PASS · 1 / 1")).toBeVisible();
+
+  await expect.element(report().getByText("Это последний урок курса")).toBeVisible();
+  await expect.element(report().getByRole("button")).not.toBeInTheDocument();
+});
+
+test("FAIL has no «Следующий урок →»", async () => {
+  renderApp("add");
+  await runTests().click();
+  await expect.element(report().getByText("FAIL · 0 / 2")).toBeVisible();
+
+  await expect.element(page.getByRole("button", { name: "Следующий урок →" })).not.toBeInTheDocument();
+});
+
+test("a change of the fragment from outside (history, a link) opens that Lesson", async () => {
+  renderApp("add");
+  await expect.element(lessonHeading("Сложение")).toBeVisible();
+
+  location.hash = "#/greet";
+
+  await expect.element(lessonHeading("Приветствие")).toBeVisible();
+});
+
+const sandboxes = () => document.querySelectorAll("iframe[sandbox]").length;
+
+// A Run that waits, not a busy loop: see «Отложенные проблемы», a Sandbox with
+// an infinite loop slows down the Runs of the test files next to this one.
+const [addLesson] = course.modules[0].lessons;
+const waiting: CourseData = {
+  ...course,
+  modules: [
+    {
+      ...course.modules[0],
+      lessons: [
+        {
+          ...addLesson,
+          tests: 'import { test } from "@codda/test";\nimport "./main";\n\ntest("never ends", () => new Promise<void>(() => {}));\n',
+        },
+      ],
+    },
+    course.modules[1],
+  ],
+};
+
+test("going to another Lesson during a Run cancels it: its Sandbox goes away, the bottom panel of either Lesson is empty", async () => {
+  renderApp("add", waiting);
+  await editor().fill('console.log("started");\n' + addLesson.solution);
+  await runTests().click();
+  await consoleTab().click();
+  await expect.element(consoleLine("started")).toBeVisible();
+  expect(sandboxes()).toBe(1);
+
+  await next().click();
+
+  await expect.element(lessonHeading("Приветствие")).toBeVisible();
+  // Well before the Run's 5 s deadline.
+  await expect.poll(sandboxes, { timeout: 1000 }).toBe(0);
+  await expect.element(runTests()).toBeVisible();
+  await expect.element(testsTab()).toHaveAttribute("aria-selected", "true");
+  await expect.element(page.getByRole("tabpanel").getByText("Нажмите „Запустить тесты“")).toBeVisible();
+  expect(consoleTab().element().textContent).toBe("Console");
+
+  await previous().click();
+
+  await expect.element(lessonHeading("Сложение")).toBeVisible();
+  await expect.element(page.getByRole("tabpanel").getByText("Нажмите „Запустить тесты“")).toBeVisible();
+  expect(testsTab().element().textContent).toBe("Тесты");
+});
+
+test(`after going to another Lesson ${undoModifier}+Z does not bring back the code of the previous one`, async () => {
+  renderApp("add");
+  await editor().fill("export const mine = 1;\n");
+
+  await next().click();
+  await expect.element(lessonHeading("Приветствие")).toBeVisible();
+  await userEvent.click(editor());
+  await userEvent.keyboard(`{${undoModifier}>}z{/${undoModifier}}`);
+
+  await expect.poll(workspaceText).toBe('export const greet = () => "?";');
 });
