@@ -1,12 +1,17 @@
 # Checks every PR and every push to main; a push to main is then deployed to
 # the pilot on GitHub Pages, https://dsvgit.github.io/codda/. Tickets
 # .scratch/misc/issues/01-ci-bootstrap.md and 02-pages-deploy.md, decision in
-# .scratch/mvp/issues/06-ci-and-pilot-hosting.md. The `check` job is the
+# .scratch/mvp/issues/06-ci-and-pilot-hosting.md, Course checks in
+# .scratch/mvp-autorun/04-author-cli/issues/06-ci.md. The `check` job is the
 # required status check in main's branch protection.
 #
-# `deploy` publishes the very dist/ that `check` built and tested
-# (`npm run test:e2e` builds it and runs the e2e against it from /codda/),
-# without rebuilding.
+# After the tool's own checks, `check` runs in every folder of courses/ with a
+# course.yaml what a Course repository's CI runs (packages/codda/templates/ci/):
+# `npm ci`, `npx codda test`, `npx codda build`. A new Course needs no change
+# here.
+#
+# `deploy` publishes the very Course Build of the pilot Course (PILOT_COURSE)
+# that `check` tested and built, without rebuilding, from the root of Pages.
 name: CI
 
 on:
@@ -14,13 +19,18 @@ on:
   push:
     branches: [main]
 
+env:
+  # The Course whose dist/ is the pilot.
+  PILOT_COURSE: courses/react-hooks
+
 jobs:
   check:
     runs-on: ubuntu-latest
     container:
       # Keep in sync with `playwright` and `@playwright/test` in package.json
-      # (pinned exactly, no ^): the image ships the browsers for exactly this
-      # Playwright version. Bump all three together.
+      # and `playwright` in packages/codda/package.json (pinned exactly, no ^):
+      # the image ships the browsers for exactly this Playwright version. Bump
+      # them all together.
       image: mcr.microsoft.com/playwright:v1.63.0-noble
       options: --user 1001
     steps:
@@ -29,11 +39,22 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run test:e2e
+      # Each Course as its own repository's CI checks it; no list of Courses.
+      - name: codda test and codda build in every Course
+        shell: bash
+        run: |
+          set -euo pipefail
+          for course in courses/*/; do
+            [ -f "$course/course.yaml" ] || continue
+            echo "::group::$course"
+            (cd "$course" && npm ci && npx codda test && npx codda build)
+            echo "::endgroup::"
+          done
       # Same condition as the `deploy` job below.
       - if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: actions/upload-pages-artifact@v5
         with:
-          path: dist/
+          path: ${{ env.PILOT_COURSE }}/dist/
 
   deploy:
     needs: check

@@ -1,0 +1,7 @@
+# The Course whose Dependency Artifact the Runner tests use (vitest.global-setup.ts):
+# real react and react-dom, built by the same code as `codda build`.
+id: react-fixture
+title: React
+modules:
+  - title: React
+    lessons: [toggle]

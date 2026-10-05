@@ -8,3 +8,5 @@
 - `codda test` и хостинг получают одну и ту же раскладку файлов, так что «прошло в `codda test`» значит «работает на хостинге».
 - В `codda dev` нет HMR: после правки файла курса страница перезагружается целиком.
 - В MVP CLI берёт готовый UI из `dist-tool/` этого репозитория. Если его нет или он устарел, CLI собирает его сам.
+- Instructions превращаются из Markdown в HTML в `codda build` (`marked`, raw HTML экранируется); `course.json` несёт готовый HTML, `marked` в бандл UI не попадает (фича `lesson-manifest`, Q2).
+- Служебная страница прогонов `#/__codda-test` входит в готовый UI; `codda test` управляет ею из Node через Playwright (`warmUp`, `run`). Ссылок на неё в UI нет (фича `author-cli`, Q1).

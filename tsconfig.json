@@ -1,16 +1,12 @@
 {
-  "compilerOptions": {
-    "target": "ES2022",
-    "lib": ["ES2022", "DOM", "DOM.Iterable", "WebWorker"],
-    "module": "ESNext",
-    "moduleResolution": "bundler",
-    "jsx": "react-jsx",
-    "strict": true,
-    "noEmit": true,
-    "skipLibCheck": true,
-    "isolatedModules": true,
-    "allowImportingTsExtensions": true,
-    "types": ["vite/client"]
-  },
-  "include": ["src", "courses", "e2e", "vite.config.ts", "playwright.config.ts"]
+  // The tool itself is checked by packages/codda/tsconfig.json; this one covers
+  // what lives outside it: courses/, e2e/ and the Playwright config.
+  "extends": "./packages/codda/tsconfig.json",
+  // The tool's rootDir does not apply here: e2e reads the tool's types and the
+  // Course files as data (ADR-0006 restricts only the tool).
+  "compilerOptions": { "rootDir": "." },
+  "include": ["courses", "e2e", "playwright.config.ts"],
+  // Lesson Tests import "@codda/test", which exists only inside the Sandbox.
+  // Type checking Course files is ts-tooling's (`codda test`).
+  "exclude": ["courses/**/lesson.test.*"]
 }

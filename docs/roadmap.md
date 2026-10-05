@@ -5,28 +5,36 @@
 | Стадия | Срок | Результат |
 |---|---|---|
 | **Phase 0 — Golden Path PoC** ✅ | 2–3 дня | Один файл, один Lesson, Run → PASS/FAIL без Internet. **GO** (2026-10-03), см. [poc-report.md](poc-report.md). |
-| **Phase 1 — Фундамент** | 1–2 нед. | Надёжный Runtime, Lesson Manifest, multi-file, прототип зависимостей, Author CLI |
-| **Phase 2 — Инструменты** | 1–2 нед. | TypeScript tooling, настоящий dependency pipeline в CI, редактор |
-| **Phase 3 — Готовность к людям** | 1–2 нед. | Security, браузеры, производительность, persistence, Course UX |
-| **= MVP** | **4–6 нед. после PoC** | См. «Определение MVP» |
+| **Phase 1 — Фундамент** ✅ | 1–2 нед. | Надёжный Runtime, Lesson Manifest, прототип зависимостей, Author CLI. Multi-file — в «MVP, часть 2» |
+| **Phase 2 — Инструменты** ✅ | 1–2 нед. | TypeScript tooling (diagnostics, autocomplete), dependency pipeline в CI, редактор. Hover и auto-import — в «MVP, часть 2» |
+| **Phase 3 — Готовность к людям** — частично | 1–2 нед. | Persistence и Course UX ✅. Браузеры — только Chrome. Security и производительность (R1) — в «MVP, часть 2» |
+| **= MVP** — собран, пилот после merge | **4–6 нед. после PoC** | См. «Определение MVP». Собран 2026-10-05 (ветка `mvp-autorun`), сверка — `## Итог` в `.scratch/mvp-autorun/07-pilot-course/spec.md`: 20 пунктов сделано, 5 частично, 1 нет (пилот на людях) |
 | **Production-ready v1** | 6–8 нед. | + production hardening, деплой, наблюдаемость |
 | **Phase 4 — Дальше** | — | Server Grader, Hidden Tests, analytics, authoring UI, другие framework'и |
 
 ## Определение MVP
 
-Внутренний пользователь проходит **небольшой реальный Course** (один Module, 5–10 Lesson) по React + TypeScript:
+Внутренний пользователь проходит **небольшой реальный Course** (один Module; пилотный Course — 5 Lesson React Hooks, решение `.scratch/mvp-autorun/questions/00-mvp-autorun.md`, Q3) по React + TypeScript:
 
 - Lesson — обычные файлы в Git (Instructions в Markdown, Lesson Manifest, Starter, Lesson Tests, Solution); Author проверяет их одной командой CLI `codda`. Инструмент отделён от контента: курс передаётся путём ([ADR-0006](adr/0006-tool-separate-from-content.md)).
 - Workspace из одного файла TS/TSX (несколько файлов — в «MVP, часть 2»).
-- npm-зависимости, объявленные в Lesson Manifest, приходят как Dependency Artifacts из CI и внутреннего registry.
-- Run → Test Report; ошибки компиляции, runtime, timeout; console; отмена Run; source maps; восстановление после падения.
+- npm-зависимости, объявленные в `package.json` Course, приходят как Dependency Artifact Course, собранный `codda build` из внутреннего registry (ADR-0007).
+- Run → Test Report; ошибки компиляции (со строкой в Workspace), runtime, timeout; console; отмена Run; восстановление после падения. Source maps — в «MVP, часть 2».
 - Базовые подсказки TypeScript (diagnostics, autocomplete для React).
 - Навигация по Lesson, Reset, показ Solution, прогресс и Workspace сохраняются (минимум — локально).
 - UI на русском.
 - Пилот — внутренние пользователи, только Chrome. Security baseline перенесён в «MVP, часть 2», но обязателен до серверного хранения и до любых внешних пользователей.
 - Всё работает в полностью закрытом контуре (ADR-0002).
 
+Статус каждого пункта, доказательства (тест, коммит, ручная проверка) и примечания — `## Итог` в `.scratch/mvp-autorun/07-pilot-course/spec.md` (2026-10-05). Не сделанное полностью — в списке «До пилота» и в «MVP, часть 2» ниже.
+
 **Не входит в MVP:** Vim, несколько framework'ов, `npm install` студентом, Node в браузере, Linux sandbox, Server Grader / Hidden Tests (ADR-0004), сложная авторизация, интеграция с LMS, authoring UI.
+
+## До пилота
+
+Кандидаты, без которых пилот может не получиться; доделать или идти с ними — решает человек (тикет `.scratch/mvp-autorun/07-pilot-course/issues/03-pilot-on-people.md`):
+
+- Ложный timeout: первый Run после Sandbox с бесконечным циклом иногда не стартует и через 5 с кончается «Тесты не завершились за 5 с» («Отложенные проблемы» `.scratch/mvp-autorun/README.md`, runtime-hardening/02; пункт «восстановление после падения» — частично). В CI тесты идут с повторами, один тест `App.test.tsx` — `test.skip`. Возможный обход — пересоздать iframe, если нет `codda:port` за ~1 с.
 
 ## MVP, часть 2
 
@@ -34,11 +42,17 @@
 
 - Multi-file Workspace: virtual FS, импорты между файлами, табы, дерево, создание/удаление файлов студентом (блок A).
 - Прогрев Worker, холодный старт вне deadline Run (R1); защита от бесконечных циклов в Safari/Firefox (R3); preview/HMR (блок A).
+- Source maps: строка runtime-ошибки и проваленного теста в файле Workspace вместо stack бандла (снято из MVP, `.scratch/mvp-autorun/questions/00-mvp-autorun.md`, Q11 и Q13). Риски, найденные при спеке: формат кадров `about:srcdoc`, смещение бандла в `srcdoc`, ленивый разбор mappings React; декодер — `@jridgewell/trace-mapping` (блок A).
+- Timeout отдельного теста (зависший промис съедает весь Run); обнаружение падения процесса Sandbox (OOM) иначе, чем timeout; переход к строке по клику на `Строка N:M`; инспектор объектов и `console.table/group` в Console (блок A, фича `runtime-hardening`).
+- Подсветка кода в блоках Instructions (блок C).
+- Выкладка нескольких курсов на один сайт пилота; сейчас на Pages идёт один пилотный курс (фича `author-cli`, Q3).
 - CSS из npm-пакетов (блок B).
 - Быстрый Run с зависимостями (R4): эксперимент `.scratch/mvp/issues/07-artifact-transport-experiment.md`, затем import map в Sandbox вместо вшивания в бандл; статический лексер для CJS-экспортов; зависимости на уровне Lesson, если понадобятся (блок B, ADR-0007).
 - Hover, go to definition, форматирование (блок E); auto-import и signature help в autocomplete, JSDoc в подсказках; строка «Есть ошибки типов: N» в Test Report и баннере PASS, если в пилоте студенты игнорируют подчёркивания (тикет 09, ADR-0009).
 - Прогресс и Workspace на сервере, вход пользователя; подсказки и счётчик попыток (блок H).
 - Security baseline целиком (блок F) — обязателен до серверного хранения и до внешних пользователей.
+- Закрытый контур для сборки курса: прогнать `codda init --ci gitlab` в контуре компании — внутренний образ `$CODDA_IMAGE`, внутренний npm registry из `.npmrc`, Chromium из зеркала (`PLAYWRIGHT_DOWNLOAD_HOST`), выкладка в S3. В MVP проверены только браузер студента offline и разбор YAML шаблона (сверка MVP, пункты 7 и 26 — частично).
+- Остатки английского в UI: заголовок «Instructions» и текст `expected …, got …` Test Harness (сверка MVP, пункт 22 — частично); `PASS`/`FAIL`, «Console» и сообщения esbuild/TS английские по решению спек — пересмотреть по фидбеку пилота.
 
 ## Эволюция после PoC (версии)
 
@@ -82,7 +96,7 @@ Course (course.yaml: id, title, modules → lessons; package.json + package-lock
 ```
 Lesson Manifest — контракт между авторингом, CI, Runtime и (будущим) Server Grader. Схема и правила — `## Answer` тикета `.scratch/mvp/issues/03-lesson-manifest-schema.md`. Пять Lesson React Hooks из `courses/react-hooks/` переводятся на этот формат, старый формат удаляется.
 
-Кандидат, если всплывёт в пилоте: плашка «Starter обновлён — Reset, чтобы взять новый» на сохранённом Workspace, если Author поменял Starter. Для неё рядом с Workspace нужно хранить hash Starter.
+Кандидат, если всплывёт в пилоте: плашка «Starter обновлён — Reset, чтобы взять новый» на сохранённом Workspace, если Author поменял Starter. Для неё рядом с Workspace нужно хранить hash Starter. Нетронутый Workspace (равный Starter) не хранится, поэтому новый Starter такие студенты получают без плашки; плашка нужна только для изменённого Workspace (фича `course-ux`).
 
 ### D. Авторский workflow — Phase 1
 `course create react/use-state` → скелет Lesson. `course test react/use-state` → ✓ starter собирается, ✓ solution собирается, ✓ solution проходит все тесты, ✓ starter их не проходит, ✓ manifest валиден, ✓ зависимости доступны. Тот же чек — в CI на каждый PR.

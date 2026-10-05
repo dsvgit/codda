@@ -1,0 +1,203 @@
+import { createHash } from "node:crypto";
+import { existsSync, mkdtempSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join, resolve, sep } from "node:path";
+import { fileURLToPath } from "node:url";
+import type { Connect, Plugin } from "vite";
+import { defineConfig } from "vitest/config";
+import react from "@vitejs/plugin-react";
+import { playwright } from "@vitest/browser-playwright";
+import { buildDependencyArtifact } from "./cli/dependency-artifact.ts";
+import { readCourse } from "./cli/read-course.ts";
+import { tsLibFiles } from "./cli/ts-lib.ts";
+import { UI_HASH_FILE, uiSourceHash } from "./cli/ui-build.ts";
+
+/** The Course whose Dependency Artifact the browser tests use (vitest.global-setup.ts). */
+export const FIXTURE_COURSE = fileURLToPath(new URL("fixtures/react-course", import.meta.url));
+/** Its build root on disk and the URL path the test server serves it at. */
+export const FIXTURE_BUILD_DIR = join(FIXTURE_COURSE, "dist");
+export const FIXTURE_BUILD_PATH = "/fixture-build/";
+
+/**
+ * Serves the files under `dir` at the URL path `prefix` byte for byte: Vite's
+ * own middleware would transform the .js files and break their `integrity`.
+ */
+function serveFiles(prefix: string, dir: string): Connect.NextHandleFunction {
+  return (req, res, next) => {
+    const path = req.url?.split("?")[0];
+    if (!path?.startsWith(prefix)) return next();
+    const file = resolve(dir, decodeURIComponent(path.slice(prefix.length)));
+    if (!file.startsWith(dir + sep) || !statSync(file, { throwIfNoEntry: false })?.isFile()) {
+      res.statusCode = 404;
+      return res.end();
+    }
+    res.setHeader("Content-Type", file.endsWith(".json") ? "application/json" : "text/javascript");
+    res.end(readFileSync(file));
+  };
+}
+
+/**
+ * `npm run dev`: answers /course.json from the Course in CODDA_COURSE, read
+ * anew on every request by the same module as `codda build`, so an edit to the
+ * Course shows after a page reload. The path comes from the repository root's
+ * script: the tool's code does not know where courses live (ADR-0006). The
+ * Dependency Artifact is built anew with each course.json into a temporary
+ * folder and served from /deps/.
+ */
+function courseJson(): Plugin {
+  return {
+    name: "codda-course-json",
+    configureServer(server) {
+      const out = mkdtempSync(join(tmpdir(), "codda-dev-"));
+      server.middlewares.use(serveFiles("/deps/", join(out, "deps")));
+      server.middlewares.use(async (req, res, next) => {
+        if (req.url?.split("?")[0] !== "/course.json") return next();
+        const send = (status: number, type: string, body: string) => {
+          res.statusCode = status;
+          res.setHeader("Content-Type", `${type}; charset=utf-8`);
+          res.end(body);
+        };
+        const fail = (lines: string[]) => send(500, "text/plain", lines.map((l) => `${l}\n`).join(""));
+
+        const dir = process.env.CODDA_COURSE;
+        if (!dir) return fail(["не задана переменная окружения CODDA_COURSE — путь к курсу"]);
+        const root = resolve(dir);
+        if (!existsSync(join(root, "course.yaml"))) return fail([`нет course.yaml в ${root}`]);
+        const result = readCourse(root);
+        if ("errors" in result) return fail(result.errors);
+        const lessonIds = result.course.modules.flatMap((module) => module.lessons.map((lesson) => lesson.id));
+        const artifact = await buildDependencyArtifact(root, lessonIds, out);
+        if ("errors" in artifact) return fail(artifact.errors);
+        send(200, "application/json", JSON.stringify({ ...result.course, deps: artifact.deps }));
+      });
+    },
+  };
+}
+
+/**
+ * Every UI build records the hash of the sources it was built from, so that
+ * `codda build` knows whether dist-tool/ is fresh (cli/ui-build.ts).
+ */
+function uiHash(): Plugin {
+  return {
+    name: "codda-ui-hash",
+    apply: "build",
+    writeBundle(options) {
+      writeFileSync(join(options.dir!, UI_HASH_FILE), uiSourceHash());
+    },
+  };
+}
+
+/**
+ * The lib files of TypeScript for the Type Checker (cli/ts-lib.ts) as one JSON
+ * file with a content hash in its name, from our own origin (ADR-0002): an
+ * asset of the build, served by the dev server. The page gets its path as
+ * `__CODDA_TS_LIB__`, relative to the page in a build (any subpath).
+ */
+function tsLib(): Plugin {
+  let json: string;
+  let fileName: string;
+  return {
+    name: "codda-ts-lib",
+    config(_, { command }) {
+      json = JSON.stringify(tsLibFiles());
+      fileName = `assets/ts-lib-${createHash("sha256").update(json).digest("hex").slice(0, 8)}.json`;
+      return { define: { __CODDA_TS_LIB__: JSON.stringify(command === "serve" ? `/${fileName}` : fileName) } };
+    },
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        if (req.url?.split("?")[0] !== `/${fileName}`) return next();
+        res.setHeader("Content-Type", "application/json");
+        res.end(json);
+      });
+    },
+    generateBundle() {
+      this.emitFile({ type: "asset", fileName, source: json });
+    },
+  };
+}
+
+export default defineConfig({
+  plugins: [react(), courseJson(), uiHash(), tsLib()],
+  // Relative URLs: the build works from any subpath, e.g. the pilot on GitHub
+  // Pages at /codda/ (.scratch/misc/issues/02-pages-deploy.md).
+  base: "./",
+  // The tool's built UI; `codda build` copies it into a Course Build (ADR-0008).
+  build: { outDir: "dist-tool" },
+  optimizeDeps: {
+    include: [
+      "esbuild-wasm",
+      "react",
+      "react-dom/client",
+      "codemirror",
+      "@codemirror/lang-javascript",
+      "@codemirror/lint",
+      "typescript-6",
+      "@typescript/vfs",
+    ],
+  },
+  test: {
+    projects: [
+      {
+        extends: true,
+        plugins: [
+          {
+            name: "codda-fixture-build",
+            configureServer(server) {
+              server.middlewares.use(serveFiles(FIXTURE_BUILD_PATH, FIXTURE_BUILD_DIR));
+            },
+          },
+        ],
+        test: {
+          name: "browser",
+          include: ["src/**/*.test.{ts,tsx}"],
+          // In CI only: the deferred flake of a false 5 s timeout (a new Sandbox that
+          // never starts) — .scratch/mvp-autorun/README.md, «Отложенные проблемы».
+          retry: process.env.CI ? 2 : 0,
+          globalSetup: ["./vitest.global-setup.ts"],
+          // Each file starts a cold Run (esbuild.wasm + Dependency Artifacts).
+          // With files in parallel browsers, on a CI runner it no longer fits
+          // the Run's 5 s deadline (cf. workers in playwright.config.ts).
+          fileParallelism: false,
+          browser: {
+            enabled: true,
+            headless: true,
+            // Full Chromium, not chrome-headless-shell: only the full build puts
+            // the Sandbox iframe in its own process, as Chrome does. In the
+            // shell an infinite loop in student code freezes the parent and the
+            // Run timeout.
+            provider: playwright({ launchOptions: { channel: "chromium" } }),
+            instances: [{ browser: "chromium" }],
+            // Tests of a Compiler Worker that cannot load esbuild.wasm, its
+            // own script or the Dependency Artifact (runner.test.ts): requests
+            // whose URL matches the pattern are aborted, or get `response`,
+            // until restoreRequests.
+            commands: {
+              failRequests: async ({ page }, pattern: string, response?: { status: number; body?: string }) => {
+                await page.route(new RegExp(pattern), (route) =>
+                  response ? route.fulfill({ ...response, contentType: "text/javascript" }) : route.abort(),
+                );
+              },
+              restoreRequests: async ({ page }) => {
+                await page.unrouteAll();
+              },
+            },
+          },
+        },
+      },
+      {
+        // The CLI and the dev server run in Node: their tests start them for real.
+        test: {
+          name: "cli",
+          include: ["cli/**/*.test.ts"],
+          environment: "node",
+          // They start real processes (npm, esbuild, Chromium): Vitest's 5 s
+          // default is too close under load.
+          testTimeout: 30_000,
+          // `codda test` runs Lessons in Chromium: the same flake as above.
+          retry: process.env.CI ? 2 : 0,
+        },
+      },
+    ],
+  },
+});

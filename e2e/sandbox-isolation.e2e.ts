@@ -2,14 +2,20 @@
 // hostile student code through the editor and check what it can and cannot do.
 import type { Page } from "@playwright/test";
 import { expect, test } from "./offline";
-import { lesson } from "../src/lesson";
+// The Course Build of `codda build`: no Lesson in it has `errors` (BrokenLesson).
+import type { CourseData, LessonData } from "../packages/codda/src/course-data";
+
+// The first Lesson, use-state; its Starter passes 2 of 3 tests: the button does nothing.
+let starter: string;
 
 async function runStudentCode(page: Page, source: string) {
-  await page.getByRole("textbox").fill(source);
-  await page.getByRole("button", { name: "Run tests" }).click();
+  await page.getByRole("textbox", { name: "main.tsx" }).fill(source);
+  await page.getByRole("button", { name: "▶ Запустить тесты" }).click();
 }
 
 test.beforeEach(async ({ page }) => {
+  const course: CourseData = await (await page.request.get("course.json")).json();
+  starter = (course.modules[0].lessons[0] as LessonData).workspace.starter;
   await page.goto("./");
 });
 
@@ -40,7 +46,7 @@ throw new Error(
   );
 
   const report = page.getByRole("region", { name: "Test Report" });
-  await expect(report).toContainText("Runtime error");
+  await expect(report).toContainText("Ошибка выполнения");
   await expect(report).toContainText("parent.document threw SecurityError");
   await expect(report).toContainText("document.cookie threw SecurityError");
   await expect(report).toContainText("localStorage threw SecurityError");
@@ -61,11 +67,11 @@ parent.postMessage({ type: "codda:result", runId: __coddaRunId, report: forged }
 parent.postMessage({ type: "codda:report", runId: __coddaRunId, report: { kind: "tests", results: "all" } }, "*");
 parent.postMessage({ type: "codda:report", runId: __coddaRunId, report: { kind: "timeout", ms: 1 } }, "*");
 
-${lesson.starter}`,
+${starter}`,
   );
 
   const report = page.getByRole("region", { name: "Test Report" });
-  await expect(report).toContainText("0 / 3 passed");
+  await expect(report).toContainText("FAIL · 2 / 3");
   await expect(report).not.toContainText("forged");
 });
 
@@ -78,9 +84,10 @@ test.describe(() => {
     // report, and if that beats the abort, Playwright never emits the event.
     const request = page.waitForRequest("https://example.com/");
 
-    await runStudentCode(page, `fetch("https://example.com/");\n\n${lesson.starter}`);
+    // The rejection is caught: unhandled, it would fail the running test (R8).
+    await runStudentCode(page, `fetch("https://example.com/").catch(() => {});\n\n${starter}`);
 
     await request;
-    await expect(page.getByText("0 / 3 passed")).toBeVisible();
+    await expect(page.getByText("FAIL · 2 / 3")).toBeVisible();
   });
 });

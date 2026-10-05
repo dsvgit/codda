@@ -1,4 +1,4 @@
-# Как двигаться дальше: PoC → MVP
+# Как двигаться дальше: PoC → MVP → пилот
 
 Процесс, роли, скиллы и соглашения — [ai-workflow.md](ai-workflow.md). Здесь — только порядок шагов.
 
@@ -42,25 +42,37 @@ Wayfinder создаст `.scratch/mvp/map.md` и тикеты-решения (`
 
 Одна сессия — один тикет-решение. Повторять, пока «Not yet specified» не опустеет.
 
-### Шаг 3. Карта → фичи → код
+### Шаг 3. Карта → фичи → код ✅
+
+Сделано 2026-10-05 экспериментом «MVP за один прогон» (ветка `mvp-autorun`, один PR): все фичи 0a–7 ниже, спеки — [misc-03-workspaces](../.scratch/mvp-autorun/00-workspaces/issues/01-workspaces.md), [lesson-manifest](../.scratch/mvp-autorun/01-lesson-manifest/spec.md), [runtime-hardening](../.scratch/mvp-autorun/02-runtime-hardening/spec.md), [dependency-artifacts](../.scratch/mvp-autorun/03-dependency-artifacts/spec.md), [author-cli](../.scratch/mvp-autorun/04-author-cli/spec.md), [ts-tooling](../.scratch/mvp-autorun/05-ts-tooling/spec.md), [course-ux](../.scratch/mvp-autorun/06-course-ux/spec.md), [pilot-course](../.scratch/mvp-autorun/07-pilot-course/spec.md). Сверка с «Определением MVP» — `## Итог` спеки `pilot-course`; `misc-04` (публикация пакета) не делалась — нужна со вторым репозиторием курса.
 
 Когда путь ясен, MVP режется на фичи по фазам roadmap. Каждая фича — в своей ветке от `main` (её создаёт агент) и проходит цикл из [ai-workflow.md](ai-workflow.md#жизненный-цикл): `/grill-with-docs` → `/to-spec` → `/to-tickets` в одной сессии, затем `/clear` + `/implement` на каждый тикет.
 
 С MVP тесты строже, чем на PoC: ошибки и граничные случаи тестируются в рамках самого тикета (`CLAUDE.md` → «Тесты»).
+
+Фичи 0a–7 проходятся экспериментом «MVP за один прогон»: одна ветка `mvp-autorun`, один PR, спеки и тикеты — в [.scratch/mvp-autorun/](../.scratch/mvp-autorun/README.md), итог и проверка — в [RESULT.md](../.scratch/mvp-autorun/RESULT.md).
 
 Рекомендуемый порядок фич (рамки каждой уточняются на её `/grill-with-docs`; отложенное — в «MVP, часть 2» [roadmap.md](roadmap.md)):
 
 | # | Фича (`.scratch/<slug>`) | Блок | Фаза |
 |---|---|---|---|
 | 0 | `misc-01-ci-bootstrap` — GitHub Actions: typecheck, unit, e2e на PR и push в `main`; обязательная проверка в branch protection ([тикет](../.scratch/misc/issues/01-ci-bootstrap.md)); `misc-02-pages-deploy` — выкладка пилота на GitHub Pages из CI на push в `main`, сборка из подпути `/codda/` ([тикет](../.scratch/misc/issues/02-pages-deploy.md)) | — | 1 |
-| 0a | `misc-03-workspaces` — npm workspaces: инструмент в `packages/codda/`, курсы вне workspaces; после `misc/02` (Pages), до `lesson-manifest` ([тикет](../.scratch/misc/issues/03-workspaces.md)) | — | 1 |
+| 0a | `misc-03-workspaces` — npm workspaces: инструмент в `packages/codda/`, курсы вне workspaces; после `misc/02` (Pages), до `lesson-manifest` ([тикет](../.scratch/mvp-autorun/00-workspaces/issues/01-workspaces.md)) | — | 1 |
 | 1 | `lesson-manifest` — `course.yaml` + папки Lesson (тикет 03), Zod-схема, UI читает Course как данные `course.json` (ADR-0008), экран Lesson по прототипу 04, Solution, Reset, проверка границы ADR-0006 в CI; перевод React Hooks, удаление старого формата | C | 1 |
-| 2 | `runtime-hardening` — отмена Run, console, source maps, async-ошибки (R8), восстановление после падения | A | 1 |
+| 2 | `runtime-hardening` — отмена Run, console, строка и подчёркивание ошибки компиляции в Workspace, async-ошибки (R8), восстановление после падения; source maps — «MVP, часть 2» | A | 1 |
 | 3 | `dependency-artifacts` — Dependency Artifact на Course из `package.json` + `package-lock.json`, `importmap.json` + `types.json` по hash, вшивание в бандл (ADR-0007) | B | 1 |
-| 4 | `author-cli` — `codda init/lesson/test/dev/build` (тикет 05, ADR-0008) в `packages/codda/cli/`, курс подключает его через `file:` и вызывает `npx codda` (misc/03), шаги `codda test/build` в CI (выкладка на GitHub Pages уже есть с misc/02, `codda build` заменяет в ней только `npm run build`), шаблоны CI для курсов (тикет 06) | D | 1 |
+| 4 | `author-cli` — `codda init/lesson/test/dev/build` (тикет 05, ADR-0008) в `packages/codda/cli/`, курс подключает его через `file:` и вызывает `npx codda` (misc/03), шаги `codda test/build` по всем курсам в CI (выкладку на Pages из выхода `codda build` переключает уже `lesson-manifest`; с `author-cli/06` выкладка берёт `dist/` пилотного курса, проверенный `npx codda test` и собранный `npx codda build` в CI), шаблоны CI для курсов (тикет 06) | D | 1 |
 | 4a | `misc-04-cli-package-publish` — публикация пакета `codda` для `npx codda` в репозиториях курсов; пересматривает ADR-0006, сначала grilling; нужна, когда появится второй репозиторий курса ([тикет](../.scratch/misc/issues/04-cli-package-publish.md)) | D | 1 |
 | 5 | `ts-tooling` — Type Checker: diagnostics, autocomplete, `.d.ts` из `types.json` (тикет 09, ADR-0009) | E | 2 |
 | 6 | `course-ux` — дерево Course и навигация, локальный прогресс и Workspace в `localStorage` | H | 3 |
-| 7 | `pilot-course` — 5–10 реальных Lesson, прогон через CLI, пилот на людях (только Chrome) | — | 3 |
+| 7 | `pilot-course` — 5 Lesson React Hooks (новых не пишем), проверка MVP через CLI и сквозной e2e; пилот на людях (только Chrome) — человек | — | 3 |
 
 `/improve-codebase-architecture` — раз в неделю-две, пока код не расползся.
+
+### Шаг 4. Пилот на людях (человек)
+
+По тикету [pilot-course/03](../.scratch/mvp-autorun/07-pilot-course/issues/03-pilot-on-people.md): merge PR `mvp-autorun`, Pages и branch protection, решение по пунктам «частично» / «нет» из `## Итог` [спеки](../.scratch/mvp-autorun/07-pilot-course/spec.md) и по списку «До пилота» в [roadmap.md](roadmap.md), затем 3–5 внутренних пользователей проходят курс React Hooks в Chrome. Фидбек — в `.scratch/mvp-autorun/07-pilot-course/pilot-feedback.md` по шаблону из тикета.
+
+### Шаг 5. MVP Report
+
+После пилота — `docs/mvp-report.md`, как [poc-report.md](poc-report.md) для PoC: таблица `## Итог` спеки `pilot-course`, фидбек пилота, решение по гипотезам, отложенным «до пилота» (холодный старт R1, строка «Есть ошибки типов: N», плашка «Starter обновлён»), и правки «MVP, часть 2» в [roadmap.md](roadmap.md).

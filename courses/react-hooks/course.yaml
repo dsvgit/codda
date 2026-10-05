@@ -1,0 +1,10 @@
+id: react-hooks
+title: React Hooks
+modules:
+  - title: Хуки
+    lessons:
+      - use-state
+      - use-effect
+      - use-ref
+      - use-reducer
+      - use-context
