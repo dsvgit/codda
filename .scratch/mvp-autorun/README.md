@@ -170,6 +170,7 @@ Slug фичи — имя папки без номера: `lesson-manifest/02` = 
 - 2026-10-05 — course-ux/03 — коммит: дерево Course слева — `<nav aria-label="Уроки курса">` с названием Course, Module (`h3` + `ol`) и Lesson-ссылками `#/<id>`, `aria-current="page"` у Lesson из фрагмента; `«`/`»` сворачивают в полосу 36px (состояние в `App`, до перезагрузки); e2e в `navigation.e2e.ts`
 - 2026-10-05 — course-ux/04 — коммит: прогресс — `passed`/`markPassed` в `storage.ts` (`codda:<course id>/<lesson id>:passed` = `"1"`, только свой ключ, отметка навсегда, в памяти при ошибке хранилища), PASS = тестов ≥ 1 и все прошли (0 тестов — FAIL без баннера), ✓ «пройден» и «Пройдено N из M» с `<progress>` в дереве, пустой/неизвестный фрагмент → первый непройденный Lesson; e2e `progress.e2e.ts` в `dev` и `pages`
 - 2026-10-05 — course-ux — /code-review (Standards: 0 жёстких; Spec: 0 блокирующих). Исправлено: хранилище в `App` через `useState` вместо `useMemo`, фрагмент `#/<id>` — одна функция `lessonHash` рядом с `lessonIdFromHash` (`go` → `goToLesson`), `CourseTree` получает `total` из `App`, шаг «Вперёд» (`goForward`) в e2e навигации (`dev` и `pages`), комментарий проекта `dev` в `playwright.config.ts` разбит по строкам. Остальное — в «Отложенные проблемы»
+- 2026-10-05 — course-ux — push, `check` зелёный на `38653a5` (прогон 37249062268, e2e 62 passed без повторов); фича закрыта
 
 ## Журнал допущений
 
