@@ -68,6 +68,8 @@ export function App({ course }: { course: CourseData }) {
   const lesson = lessons[index] as LessonData | BrokenLesson | undefined;
   // One for the page: the Workspaces it could not save live in it until a reload.
   const storage = useMemo(() => courseStorage(course.id), [course.id]);
+  // Collapsed until the student expands it again or the page reloads.
+  const [treeOpen, setTreeOpen] = useState(true);
 
   useEffect(() => {
     if (lesson && lesson.id !== lessonId) history.replaceState(null, "", `#/${encodeURIComponent(lesson.id)}`);
@@ -83,9 +85,60 @@ export function App({ course }: { course: CourseData }) {
       course={course}
       lesson={lesson}
       storage={storage}
+      tree={<CourseTree course={course} current={lesson.id} open={treeOpen} onToggle={() => setTreeOpen(!treeOpen)} />}
       previous={lessons[index - 1]?.id}
       next={lessons[index + 1]?.id}
     />
+  );
+}
+
+/**
+ * The Course on the left of the Lesson: its title, its Modules and their
+ * Lessons in the order of course.yaml, each a link to `#/<lesson id>`.
+ * Collapsed, a narrow strip with the button to expand it.
+ */
+function CourseTree({
+  course,
+  current,
+  open,
+  onToggle,
+}: {
+  course: CourseData;
+  current: string;
+  open: boolean;
+  onToggle: () => void;
+}) {
+  if (!open)
+    return (
+      <nav className="course-tree collapsed" aria-label="Уроки курса">
+        <button className="tree-toggle" aria-label="Развернуть список уроков" title="Развернуть список уроков" onClick={onToggle}>
+          »
+        </button>
+      </nav>
+    );
+  return (
+    <nav className="course-tree" aria-label="Уроки курса">
+      <div className="tree-head">
+        <button className="tree-toggle" aria-label="Свернуть список уроков" title="Свернуть список уроков" onClick={onToggle}>
+          «
+        </button>
+        <h2>{course.title}</h2>
+      </div>
+      {course.modules.map((module, i) => (
+        <div key={i} className="tree-module">
+          <h3>{module.title}</h3>
+          <ol aria-label={module.title}>
+            {module.lessons.map((l) => (
+              <li key={l.id}>
+                <a href={`#/${encodeURIComponent(l.id)}`} aria-current={l.id === current ? "page" : undefined}>
+                  {l.title}
+                </a>
+              </li>
+            ))}
+          </ol>
+        </div>
+      ))}
+    </nav>
   );
 }
 
@@ -112,6 +165,7 @@ function Lesson({
   course,
   lesson,
   storage,
+  tree,
   previous,
   next,
 }: {
@@ -119,6 +173,8 @@ function Lesson({
   lesson: LessonData;
   /** Where the Workspace comes from when the Lesson opens and goes on each edit. */
   storage: CourseStorage;
+  /** The Course tree, left of the Instructions. */
+  tree: ReactNode;
   /** The ids of the Lessons before and after this one in the Course; none at its ends. */
   previous?: string;
   next?: string;
@@ -170,6 +226,7 @@ function Lesson({
 
   return (
     <main className="lesson">
+      {tree}
       <h1>
         {course.title} · {lesson.title}
       </h1>

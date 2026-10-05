@@ -69,3 +69,27 @@ for (const [name, fragment] of [
     await expect(page.getByRole("heading", { name: "React Hooks · useEffect" })).toBeVisible();
   });
 }
+
+test("the Course tree: a click on the third Lesson opens it; «Свернуть список уроков» hides the Lessons, «Развернуть список уроков» brings them back", async ({
+  page,
+}) => {
+  const tree = page.getByRole("navigation", { name: "Уроки курса" });
+  await page.goto("./");
+  await expect(page.getByRole("heading", { name: "React Hooks · useState" })).toBeVisible();
+  await expect(tree.getByRole("link")).toHaveCount(5);
+
+  await tree.getByRole("link").nth(2).click();
+
+  await expect(page.getByRole("heading", { name: "React Hooks · useRef" })).toBeVisible();
+  await expect(page).toHaveURL(/#\/use-ref$/);
+  await expect(tree.getByRole("link", { name: "useRef" })).toHaveAttribute("aria-current", "page");
+
+  await page.getByRole("button", { name: "Свернуть список уроков" }).click();
+
+  await expect(tree.getByRole("link")).toHaveCount(0);
+
+  await page.getByRole("button", { name: "Развернуть список уроков" }).click();
+
+  await expect(tree.getByRole("link")).toHaveCount(5);
+  await expect(tree.getByRole("link", { name: "useRef" })).toBeVisible();
+});

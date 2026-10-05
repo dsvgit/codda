@@ -792,3 +792,86 @@ test("no localStorage at all (the property itself throws): the screen works with
 
   await expect.poll(workspaceText).toBe("export const mine = 1;");
 });
+
+const tree = () => page.getByRole("navigation", { name: "Уроки курса" });
+const treeLesson = (title: string) => tree().getByRole("link", { name: title });
+const collapseTree = () => page.getByRole("button", { name: "Свернуть список уроков" });
+const expandTree = () => page.getByRole("button", { name: "Развернуть список уроков" });
+const texts = (elements: Element[]) => elements.map((e) => e.textContent);
+const currentInTree = () => texts([...tree().element().querySelectorAll('[aria-current="page"]')]);
+// Two Modules, the first with two Lessons: the order inside a Module and across them.
+const twoModules: CourseData = {
+  ...course,
+  modules: [
+    { title: "Первый", lessons: [addLesson, { ...addLesson, id: "sub", title: "Вычитание" }] },
+    course.modules[1],
+  ],
+};
+
+test("the Course tree: the Course's title, both Modules with their Lessons in the order of the Course, links to #/<id>; the current Lesson is aria-current", async () => {
+  renderApp("sub", twoModules);
+
+  await expect.element(tree().getByRole("heading", { name: "Демо", exact: true })).toBeVisible();
+  expect(texts(tree().getByRole("heading", { level: 3 }).elements())).toEqual(["Первый", "Второй"]);
+  expect(texts(tree().getByRole("list", { name: "Первый" }).getByRole("link").elements())).toEqual([
+    "Сложение",
+    "Вычитание",
+  ]);
+  expect(texts(tree().getByRole("list", { name: "Второй" }).getByRole("link").elements())).toEqual(["Приветствие"]);
+  expect(tree().getByRole("link").elements().map((a) => a.getAttribute("href"))).toEqual(["#/add", "#/sub", "#/greet"]);
+  expect(currentInTree()).toEqual(["Вычитание"]);
+});
+
+test("a click on a Lesson in the tree opens it with a new history entry; the mark follows «← Предыдущий», «Следующий →» and «Назад»", async () => {
+  renderApp("add", twoModules);
+  await expect.element(lessonHeading("Сложение")).toBeVisible();
+  expect(currentInTree()).toEqual(["Сложение"]);
+  const entries = history.length;
+
+  await treeLesson("Приветствие").click();
+
+  await expect.element(lessonHeading("Приветствие")).toBeVisible();
+  expect(location.hash).toBe("#/greet");
+  expect(history.length).toBe(entries + 1);
+  expect(currentInTree()).toEqual(["Приветствие"]);
+
+  await previous().click();
+  await expect.element(lessonHeading("Вычитание")).toBeVisible();
+  expect(currentInTree()).toEqual(["Вычитание"]);
+
+  await next().click();
+  await expect.element(lessonHeading("Приветствие")).toBeVisible();
+  expect(currentInTree()).toEqual(["Приветствие"]);
+
+  history.back();
+  await expect.element(lessonHeading("Вычитание")).toBeVisible();
+  expect(currentInTree()).toEqual(["Вычитание"]);
+});
+
+test("«Свернуть список уроков» hides the Lessons and gives the width to Instructions and the editor; it stays across Lessons; «Развернуть список уроков» brings them back", async () => {
+  await page.viewport(1280, 800);
+  renderApp("add");
+  await expect.element(treeLesson("Сложение")).toBeVisible();
+  await expect.element(editor()).toBeVisible();
+  const width = (el: Element) => el.getBoundingClientRect().width;
+  const instructions = () => page.getByRole("region", { name: "Instructions" }).element();
+  const [instructionsBefore, editorBefore] = [width(instructions()), width(editor().element())];
+  await expect.element(expandTree()).not.toBeInTheDocument();
+
+  await collapseTree().click();
+
+  await expect.element(tree().getByRole("link")).not.toBeInTheDocument();
+  await expect.element(collapseTree()).not.toBeInTheDocument();
+  expect(width(instructions())).toBeGreaterThan(instructionsBefore);
+  expect(width(editor().element())).toBeGreaterThan(editorBefore);
+
+  await next().click();
+  await expect.element(lessonHeading("Приветствие")).toBeVisible();
+  await expect.element(tree().getByRole("link")).not.toBeInTheDocument();
+
+  await expandTree().click();
+
+  await expect.element(treeLesson("Приветствие")).toBeVisible();
+  await expect.element(treeLesson("Сложение")).toBeVisible();
+  expect(width(instructions())).toBe(instructionsBefore);
+});
