@@ -171,6 +171,7 @@ Slug фичи — имя папки без номера: `lesson-manifest/02` = 
 - 2026-10-05 — course-ux/04 — коммит: прогресс — `passed`/`markPassed` в `storage.ts` (`codda:<course id>/<lesson id>:passed` = `"1"`, только свой ключ, отметка навсегда, в памяти при ошибке хранилища), PASS = тестов ≥ 1 и все прошли (0 тестов — FAIL без баннера), ✓ «пройден» и «Пройдено N из M» с `<progress>` в дереве, пустой/неизвестный фрагмент → первый непройденный Lesson; e2e `progress.e2e.ts` в `dev` и `pages`
 - 2026-10-05 — course-ux — /code-review (Standards: 0 жёстких; Spec: 0 блокирующих). Исправлено: хранилище в `App` через `useState` вместо `useMemo`, фрагмент `#/<id>` — одна функция `lessonHash` рядом с `lessonIdFromHash` (`go` → `goToLesson`), `CourseTree` получает `total` из `App`, шаг «Вперёд» (`goForward`) в e2e навигации (`dev` и `pages`), комментарий проекта `dev` в `playwright.config.ts` разбит по строкам. Остальное — в «Отложенные проблемы»
 - 2026-10-05 — course-ux — push, `check` зелёный на `38653a5` (прогон 37249062268, e2e 62 passed без повторов); фича закрыта
+- 2026-10-05 — pilot-course/01 — коммит: React Hooks уже зелёный (`codda test` 5 ✓, 0 ⚠; `codda build` код 0), правок Lesson и багов инструмента нет; e2e `pilot.e2e.ts` в проекте `pages` по выходу `codda build` из подпути, offline: 5 Lesson подряд до «Пройдено 5 из 5» и конца курса, Starter каждого Lesson — FAIL без ✓, перезагрузка сохраняет Lesson, Workspace и прогресс
 
 ## Журнал допущений
 
@@ -306,6 +307,7 @@ Slug фичи — имя папки без номера: `lesson-manifest/02` = 
 - course-ux/02 — ошибка чтения не зовёт подписчиков (чтение в рендере `Lesson`), `Lesson` видит её в том же рендере через `useSyncExternalStore`; строка предупреждения — первой строкой над именем файла, сетка через `:has`
 - course-ux/03 — дерево Course 200px и только на экране Lesson (не на экранах ошибок `codda dev`) — шире тулбар не влезает в 1280px; экраны ошибок не в критериях
 - course-ux/04 — подписка хранилища `onFailure` обобщена в `subscribe` + `version()` (ошибка и новая отметка); отметки страницы всегда и в памяти (снять их нельзя, вторая вкладка не страдает); ✓ после названия в DOM (имя ссылки «<title> пройден»), слева — визуально; M в «N из M» включает Lesson с `errors` (`codda dev`); Test Report с 0 тестов — «FAIL · 0 / 0» без баннера
+- pilot-course/01 — ввод решения в e2e `pilot.e2e.ts` — событие `paste` с `DataTransfer` после Ctrl/Cmd+A и сверка текста редактора, а не `fill`: обход флейка задвоения `fill` под нагрузкой (запись course-ux review в «Отложенные проблемы»). Конец курса проверяется в сценарии «5 Lesson подряд», а не отдельным тестом
 
 ## Отложенные проблемы
 
@@ -342,3 +344,4 @@ Slug фичи — имя папки без номера: `lesson-manifest/02` = 
 - course-ux (review) — на экранах ошибок `codda dev` нет дерева и тулбара — с битого Lesson Author уходит только через адресную строку; `testPage` в `main.tsx` вычисляется один раз при загрузке; `replaceState` в `App` выполняется и на экране «Ошибки в курсе» (безвредно)
 - course-ux (review) — косметика: `next` протаскивается `Lesson → Report → TestResults`; `storage.ts` принимает `LessonData` у Workspace и `lessonId` у отметок, правило «Starter не сохраняем» внутри хранилища; мёртвая ветка `if (!lesson) return null` в `App`; у `storage.ts` нет своего теста (проверяется через `App`)
 - course-ux (review) — e2e `course.e2e.ts` «Solution of every Lesson…» (`pages`, шаг `use-ref`) дважды подряд упал в полном `npm run test:e2e` под load average 15–19: после `fill` в редакторе текст Solution задвоен («Multiple exports with the same name "Greeting"»). Отдельно и в следующем полном прогоне зелёный. Гипотеза: `fill` в CodeMirror под нагрузкой (гонка с autocomplete/восстановлением Workspace). Ничего не отключено
+- pilot-course/01 — `npm test` без повторов под load average ~19 падает в 2–5 тестах `App.test.tsx` / `runner.test.ts` (бесконечный цикл, тайминги Console) — та же семья, что первая запись; с `CI=true` 253 passed. Ничего не отключено. Остальные e2e на `fill` (`course.e2e.ts`, `progress.e2e.ts`, `navigation.e2e.ts`, `golden-path.e2e.ts`) можно перевести на вставку, как в `pilot.e2e.ts`, если флейк задвоения повторится
