@@ -5,10 +5,10 @@
 | Стадия | Срок | Результат |
 |---|---|---|
 | **Phase 0 — Golden Path PoC** ✅ | 2–3 дня | Один файл, один Lesson, Run → PASS/FAIL без Internet. **GO** (2026-10-03), см. [poc-report.md](poc-report.md). |
-| **Phase 1 — Фундамент** | 1–2 нед. | Надёжный Runtime, Lesson Manifest, multi-file, прототип зависимостей, Author CLI |
-| **Phase 2 — Инструменты** | 1–2 нед. | TypeScript tooling, настоящий dependency pipeline в CI, редактор |
-| **Phase 3 — Готовность к людям** | 1–2 нед. | Security, браузеры, производительность, persistence, Course UX |
-| **= MVP** | **4–6 нед. после PoC** | См. «Определение MVP» |
+| **Phase 1 — Фундамент** ✅ | 1–2 нед. | Надёжный Runtime, Lesson Manifest, прототип зависимостей, Author CLI. Multi-file — в «MVP, часть 2» |
+| **Phase 2 — Инструменты** ✅ | 1–2 нед. | TypeScript tooling (diagnostics, autocomplete), dependency pipeline в CI, редактор. Hover и auto-import — в «MVP, часть 2» |
+| **Phase 3 — Готовность к людям** — частично | 1–2 нед. | Persistence и Course UX ✅. Браузеры — только Chrome. Security и производительность (R1) — в «MVP, часть 2» |
+| **= MVP** — собран, идёт пилот | **4–6 нед. после PoC** | См. «Определение MVP». Собран 2026-10-05 (ветка `mvp-autorun`), сверка — `## Итог` в `.scratch/mvp-autorun/07-pilot-course/spec.md`: 21 пункт сделан, 4 частично, 1 нет (пилот на людях) |
 | **Production-ready v1** | 6–8 нед. | + production hardening, деплой, наблюдаемость |
 | **Phase 4 — Дальше** | — | Server Grader, Hidden Tests, analytics, authoring UI, другие framework'и |
 
@@ -26,7 +26,15 @@
 - Пилот — внутренние пользователи, только Chrome. Security baseline перенесён в «MVP, часть 2», но обязателен до серверного хранения и до любых внешних пользователей.
 - Всё работает в полностью закрытом контуре (ADR-0002).
 
+Статус каждого пункта, доказательства (тест, коммит, ручная проверка) и примечания — `## Итог` в `.scratch/mvp-autorun/07-pilot-course/spec.md` (2026-10-05). Не сделанное полностью — в списке «До пилота» и в «MVP, часть 2» ниже.
+
 **Не входит в MVP:** Vim, несколько framework'ов, `npm install` студентом, Node в браузере, Linux sandbox, Server Grader / Hidden Tests (ADR-0004), сложная авторизация, интеграция с LMS, authoring UI.
+
+## До пилота
+
+Кандидаты, без которых пилот может не получиться; доделать или идти с ними — решает человек (тикет `.scratch/mvp-autorun/07-pilot-course/issues/03-pilot-on-people.md`):
+
+- Ложный timeout: первый Run после Sandbox с бесконечным циклом иногда не стартует и через 5 с кончается «Тесты не завершились за 5 с» («Отложенные проблемы» `.scratch/mvp-autorun/README.md`, runtime-hardening/02; пункт «восстановление после падения» — частично). В CI тесты идут с повторами, один тест `App.test.tsx` — `test.skip`. Возможный обход — пересоздать iframe, если нет `codda:port` за ~1 с.
 
 ## MVP, часть 2
 
@@ -43,6 +51,8 @@
 - Hover, go to definition, форматирование (блок E); auto-import и signature help в autocomplete, JSDoc в подсказках; строка «Есть ошибки типов: N» в Test Report и баннере PASS, если в пилоте студенты игнорируют подчёркивания (тикет 09, ADR-0009).
 - Прогресс и Workspace на сервере, вход пользователя; подсказки и счётчик попыток (блок H).
 - Security baseline целиком (блок F) — обязателен до серверного хранения и до внешних пользователей.
+- Закрытый контур для сборки курса: прогнать `codda init --ci gitlab` в контуре компании — внутренний образ `$CODDA_IMAGE`, внутренний npm registry из `.npmrc`, Chromium из зеркала (`PLAYWRIGHT_DOWNLOAD_HOST`), выкладка в S3. В MVP проверены только браузер студента offline и разбор YAML шаблона (сверка MVP, пункт 26 — частично).
+- Остатки английского в UI: заголовок «Instructions» и текст `expected …, got …` Test Harness (сверка MVP, пункт 22 — частично); `PASS`/`FAIL`, «Console» и сообщения esbuild/TS английские по решению спек — пересмотреть по фидбеку пилота.
 
 ## Эволюция после PoC (версии)
 

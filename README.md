@@ -2,41 +2,36 @@
 
 Платформа интерактивных курсов по программированию. Студент читает задание, правит код в браузере, жмёт **▶ Запустить тесты** и получает PASS/FAIL. Код студента компилируется и исполняется **прямо в браузере**, на собственном Runtime, без обращения к внешним сервисам.
 
-Сейчас это **Golden Path PoC** (завершён, решение GO — [PoC Report](docs/poc-report.md)): одна страница, один захардкоженный Lesson, один редактируемый файл. Цель — проверить техническую гипотезу, а не сделать продукт. Подробности — в [спеке PoC](.scratch/golden-path-poc/spec.md).
+**MVP собран, идёт пилот на людях.** Пилот — Course React Hooks (5 Lesson) по адресу [dsvgit.github.io/codda](https://dsvgit.github.io/codda/), только Chrome. Итог MVP и сверка с «Определением MVP» — в `## Итог` [спеки `pilot-course`](.scratch/mvp-autorun/07-pilot-course/spec.md), сценарий пилота — в [тикете 03](.scratch/mvp-autorun/07-pilot-course/issues/03-pilot-on-people.md).
 
-## Требования
+**Как сделать свой курс** — [README пакета `codda`](packages/codda/README.md): от `codda init` до CI.
 
-- **Node.js 22.12+ или 24** (проверено на 24.20) и npm.
-- **Chrome / Chromium.** Другие браузеры в PoC не поддерживаются.
-- Для тестов нужен Chromium для Playwright: он ставится один раз командой ниже, и для этого нужен доступ к сети или к внутреннему зеркалу. Само приложение в работе сеть не использует.
+Каждый push в `main` после зелёной проверки CI выкладывается на пилот (`.github/workflows/ci.yml`): `dist/` пилотного курса (переменная `PILOT_COURSE`, сейчас `courses/react-hooks`), который тот же прогон проверил `npx codda test` и собрал `npx codda build`. Прогресс студента хранится в `localStorage` и привязан к адресу, поэтому адрес пилота до конца пилота не меняется.
 
-## Быстрый старт
+## Разработка инструмента
+
+### Требования
+
+- **Node.js 24** (проверено на 24.20) и npm.
+- **Chromium для Playwright** — для тестов и `codda test`: `npx playwright install chromium` один раз (нужен доступ к сети или к зеркалу, `PLAYWRIGHT_DOWNLOAD_HOST`). Сам курс в работе сеть не использует.
+
+### Быстрый старт
 
 ```bash
 npm install
-npx playwright install chromium   # один раз, нужен только для тестов
+npx playwright install chromium   # один раз
 npm run dev
 ```
 
-`npm run dev` открывает курс React Hooks из `courses/react-hooks/`: `course.json` на каждый запрос собирает из файлов курса middleware Vite (`packages/codda/vite.config.ts`, курс задаёт переменная `CODDA_COURSE` в корневом скрипте). Правка UI видна сразу, правка курса — после перезагрузки страницы. Откройте адрес, который напечатает Vite (обычно http://localhost:5173), и пройдите сценарий:
-
-1. Нажмите **▶ Запустить тесты** — увидите `FAIL · 2 / 3` и `✗ opens on click — …`.
-2. В редакторе допишите `Spoiler` (готовое решение — `courses/react-hooks/use-state/solution.tsx`).
-3. Снова **▶ Запустить тесты** — `PASS · 3 / 3` и баннер «Все тесты пройдены». **↺ Сбросить** возвращает Starter (`Ctrl/Cmd+Z` отменяет), **Показать решение** открывает Solution во вкладке «Решение».
-
-Другой Lesson открывается фрагментом `#/<id Lesson>`, например `/#/use-effect`; без фрагмента — первый Lesson курса.
-
-Пилот: [dsvgit.github.io/codda](https://dsvgit.github.io/codda/). Каждый push в `main` после зелёной проверки CI выкладывается туда (`.github/workflows/ci.yml`): `dist/` пилотного курса (переменная `PILOT_COURSE`, сейчас `courses/react-hooks`), который тот же прогон проверил `npx codda test` и собрал `npx codda build`. Сборка использует относительные URL, поэтому работает из любого подпути.
-
-Первый Run занимает около секунды, потому что загружаются и инициализируются `esbuild.wasm` (~14 МБ) и Dependency Artifacts с React (~1.2 МБ). Последующие — около 0.5 с: React вшивается в бандл заново на каждый Run.
+`npm run dev` открывает курс React Hooks из `courses/react-hooks/` на dev-сервере Vite (обычно http://localhost:5173). `course.json` на каждый запрос собирает из файлов курса middleware Vite (`packages/codda/vite.config.ts`, курс задаёт переменная `CODDA_COURSE` в корневом скрипте). Правка UI видна сразу, правка курса — после перезагрузки страницы. Посмотреть курс глазами автора, с пересборкой по правке файлов курса, — `npx codda dev courses/react-hooks`.
 
 ## Раскладка репозитория
 
 Репозиторий — npm workspaces с одним пакетом. Код инструмента (UI, Runtime, CLI) лежит в `packages/codda/`, курсы — в `courses/` и в workspaces не входят: у Course свои зависимости (ADR-0007). В корне — общие npm-скрипты, e2e (`e2e/`, `playwright.config.ts`) и один `package-lock.json`.
 
-CLI `codda` запускается без сборки (TypeScript в Node 24): `npx codda --help` из корня или из папки курса. Команды автора: `codda build`, `codda test` (Solution проходит тесты, Starter — нет, в Chromium), `codda dev`, `codda init`, `codda lesson`. Курс этого репозитория подключает пакет через `"codda": "file:../../packages/codda"` в `devDependencies`.
+CLI `codda` запускается без сборки (TypeScript в Node 24): `npx codda --help` из корня или из папки курса. Команды автора (`codda init`, `lesson`, `dev`, `test`, `build`) описаны в [README пакета](packages/codda/README.md). Курс этого репозитория подключает пакет через `"codda": "file:../../packages/codda"` в `devDependencies`.
 
-CI этого репозитория после проверок инструмента в каждой папке `courses/*` с `course.yaml` выполняет то же, что CI репозитория курса: `npm ci`, `npx codda test`, `npx codda build`. Новый курс в `courses/` в workflow добавлять не нужно. Репозиторию нового курса CI даёт `codda init --ci github` (`.github/workflows/codda.yml`: контейнер Playwright с версией из пакета `codda`, выкладка на GitHub Pages) или `codda init --ci gitlab` (`.gitlab-ci.yml`: внутренний образ `$CODDA_IMAGE`, выкладка `aws s3 sync` в S3). В обоих выкладка — отдельная job, только на `main`. Шаблоны — `packages/codda/templates/ci/`.
+CI этого репозитория после проверок инструмента в каждой папке `courses/*` с `course.yaml` выполняет то же, что CI репозитория курса: `npm ci`, `npx codda test`, `npx codda build`. Новый курс в `courses/` в workflow добавлять не нужно. Шаблоны CI для репозитория курса (`codda init --ci github|gitlab`) — `packages/codda/templates/ci/`.
 
 ## Команды
 
@@ -68,7 +63,7 @@ CI этого репозитория после проверок инструм�
 - `packages/codda/cli/boundary.test.ts` — граница ADR-0006: ни один импорт исходников пакета `codda` (включая `?raw` и `?url` Vite) не ведёт за пределы пакета, кроме `node_modules`. Обычные импорты ловит ещё и `rootDir` в tsconfig пакета.
 - `e2e/` — Playwright против Course Build из `/codda/` и dev-сервера (`npm run test:e2e`). Тесты открывают страницу относительно `baseURL` (`page.goto("./")`), а не `"/"`. `golden-path.e2e.ts` проходит Lesson `use-state`. `course.e2e.ts` — загрузка `course.json` (ожидание, 404, обрыв сети), `#/<id>`, неизвестный id и Solution каждого Lesson → PASS. `dev.e2e.ts` — smoke-тест `npm run dev`. `sandbox-isolation.e2e.ts` подсовывает через редактор враждебный код студента: чтение parent/cookies/storage, поддельные сообщения, `fetch` в Internet. Фикстура `e2e/offline.ts` обрывает любой запрос не на localhost, печатает список всех запросов страницы и валит тест, если был хоть один внешний.
 
-На стадии PoC действует упрощённое правило: на каждом шаге — один happy-path тест, остальные случаи потом (см. раздел «Тесты» в [CLAUDE.md](CLAUDE.md)).
+С MVP ошибки и граничные случаи тестируются в том же тикете, что и happy path (раздел «Тесты» в [CLAUDE.md](CLAUDE.md)). Сквозной сценарий пилота — `e2e/pilot.e2e.ts`: 5 Lesson React Hooks подряд по сборке `codda build`, offline.
 
 ## Как это устроено
 
@@ -96,29 +91,21 @@ CodeMirror ──source──▶ Runner ──▶ Compiler (Web Worker, esbuild-
 
 ### Как поменять задание
 
-Lesson — папка курса (`lesson.md`, `main.tsx`, `solution.tsx`, `lesson.test.tsx`), порядок задаёт `course.yaml`. Lesson Tests импортируют `test`/`expect` из `@codda/test`, код студента — из `./main`, а React — как обычно, из `react` и `react-dom/client` (резолвится в Dependency Artifacts). Пример задания на чистом TypeScript:
-
-```ts
-import { test, expect } from "@codda/test";
-import { add } from "./main";
-
-test("adds two positive numbers", () => {
-  expect(add(2, 3)).toBe(5);
-});
-```
+Как устроен Lesson и что писать в его файлах — [README пакета `codda`](packages/codda/README.md#файлы-курса).
 
 ## Жёсткие ограничения
 
 - **Никакой внешней сети в runtime:** ни CDN, ни npmjs.org, ни CodeSandbox. Всё, включая `esbuild.wasm`, отдаётся с нашего origin ([ADR-0002](docs/adr/0002-fully-internal-infrastructure.md)).
 - **Код студента — только в `<iframe sandbox="allow-scripts">` без `allow-same-origin`.** Общение с parent — только через `postMessage` с проверкой формы ([ADR-0003](docs/adr/0003-sandbox-iframe-without-same-origin.md)).
-- **Скоуп PoC зафиксирован в спеке.** Не добавлять функций, которые не нужны для прохождения одного задания.
+- **Скоуп стадии зафиксирован в спеке.** Отложенное — в «MVP, часть 2» [roadmap.md](docs/roadmap.md).
 
 ## Известные ограничения на текущем этапе
 
-- Timeout (5 с) работает, только пока Sandbox живёт в отдельном процессе от страницы. Chrome так делает по умолчанию; Playwright-овский `chrome-headless-shell` — нет, поэтому тесты запускаются в полном Chromium (`channel: "chromium"` в `packages/codda/vite.config.ts`).
-- Если исключение вылетает из асинхронного кода уже во время выполнения тестов, весь Run показывается как runtime-ошибка, а не как упавший тест.
-- Импортировать можно только `react` (именованные экспорты, без `import React from "react"`), `react/jsx-runtime` и `react-dom/client`. Артефакты — development-сборка React: `act` в production-сборке не работает.
-- Sandbox не закрыт от сети: `fetch` из кода студента уходит наружу (с `Origin: null`, ответ отрезает CORS). В e2e такие запросы блокирует сам тест; CSP и отдельный origin для Sandbox — этап Security после PoC. Подробности — в [тикете 04](.scratch/golden-path-poc/issues/04-offline-isolation-e2e.md).
+- **Только Chrome.** Timeout (5 с) работает, только пока Sandbox живёт в отдельном процессе от страницы. Chrome так делает по умолчанию, а Safari нет: бесконечный цикл в коде студента вешает вкладку. Playwright-овский `chrome-headless-shell` тоже держит Sandbox в одном процессе со страницей, поэтому тесты запускаются в полном Chromium (`channel: "chromium"` в `packages/codda/vite.config.ts`).
+- **Ложный timeout.** Первый Run после Sandbox с бесконечным циклом иногда не стартует и через 5 с кончается ложным timeout, следующие Run работают. В CI тесты идут с повторами. Запись — в «Отложенные проблемы» [журнала прогона](.scratch/mvp-autorun/README.md#отложенные-проблемы).
+- Строка runtime-ошибки и проваленного теста в файле студента не показывается: source maps — в «MVP, часть 2».
+- Артефакты — development-сборка пакетов (`process.env.NODE_ENV = "development"`): `act` React в production-сборке не работает.
+- Sandbox не закрыт от сети: `fetch` из кода студента уходит наружу (с `Origin: null`, ответ отрезает CORS). В e2e такие запросы блокирует сам тест. CSP и отдельный origin для Sandbox входят в security baseline, а он отложен в «MVP, часть 2» до первых внешних пользователей. Подробности — в [тикете 04 PoC](.scratch/golden-path-poc/issues/04-offline-isolation-e2e.md).
 - Код студента может прислать поддельный отчёт со своим `runId`. Результат в браузере — подсказка студенту, а не оценка ([ADR-0004](docs/adr/0004-browser-only-grading-first.md)).
 
 ## Если что-то не работает
@@ -132,8 +119,10 @@ test("adds two positive numbers", () => {
 
 - [CONTEXT.md](CONTEXT.md) — глоссарий: Lesson, Run, Sandbox, Test Report, Dependency Artifact…
 - [docs/adr/](docs/adr/) — архитектурные решения
-- [docs/roadmap.md](docs/roadmap.md) — дорожная карта до MVP
+- [packages/codda/README.md](packages/codda/README.md) — для Author: как сделать Course и Lesson
+- [docs/roadmap.md](docs/roadmap.md) — дорожная карта, «Определение MVP» и «MVP, часть 2»
 - [docs/poc-report.md](docs/poc-report.md) — итоги PoC: ответы на пять вопросов, замеры, риски, решение GO
 - [docs/ai-workflow.md](docs/ai-workflow.md) — процесс разработки с AI: скиллы, тикеты, роли человека и агента
-- [docs/HOW-TO-PROCEED.md](docs/HOW-TO-PROCEED.md) — следующие шаги: от PoC к MVP
+- [docs/HOW-TO-PROCEED.md](docs/HOW-TO-PROCEED.md) — порядок шагов: PoC → MVP → пилот
+- [.scratch/mvp-autorun/](.scratch/mvp-autorun/README.md) — спеки, тикеты и журнал MVP
 - [.scratch/golden-path-poc/](.scratch/golden-path-poc/) — спека и тикеты PoC

@@ -1,10 +1,10 @@
 # codda
 
-Платформа интерактивных курсов по программированию: студент читает задание, правит код в браузере, жмёт **Run tests** и получает PASS/FAIL. Весь код студента компилируется и исполняется **в браузере**, на собственном runtime, внутри полностью внутренней инфраструктуры.
+Платформа интерактивных курсов по программированию: студент читает задание, правит код в браузере, жмёт **▶ Запустить тесты** и получает PASS/FAIL. Весь код студента компилируется и исполняется **в браузере**, на собственном runtime, внутри полностью внутренней инфраструктуры.
 
 Раскладка: npm workspaces с одним пакетом. Инструмент (UI, Runtime, CLI `cli/codda.ts`) — в `packages/codda/`, курсы — в `courses/`, вне workspaces (ADR-0006, ADR-0007). В корне — npm-скрипты разработки, `e2e/`, `playwright.config.ts` и единственный `package-lock.json`. Команды для курса вызываются как `npx codda …`.
 
-Текущая стадия: **Golden Path PoC завершён (GO)**, итог — `docs/poc-report.md`, спека и тикеты — `.scratch/golden-path-poc/`. Следующая стадия — MVP: `docs/roadmap.md`, шаги — `docs/HOW-TO-PROCEED.md`.
+Текущая стадия: **MVP собран, идёт пилот на людях** (только Chrome, курс React Hooks). MVP сделан экспериментом «MVP за один прогон» — `.scratch/mvp-autorun/README.md` (журнал, допущения, отложенные проблемы). Сверка с «Определением MVP» — `## Итог` в `.scratch/mvp-autorun/07-pilot-course/spec.md`, пилот — тикет `.scratch/mvp-autorun/07-pilot-course/issues/03-pilot-on-people.md`. После пилота — `docs/mvp-report.md`; шаги — `docs/HOW-TO-PROCEED.md`, отложенное — «До пилота» и «MVP, часть 2» в `docs/roadmap.md`. Как Author делает курс — `packages/codda/README.md`. Итог PoC — `docs/poc-report.md`.
 
 ## Процесс
 
