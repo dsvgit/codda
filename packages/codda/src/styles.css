@@ -107,6 +107,16 @@ body {
   min-height: 0;
   min-width: 0;
 }
+.workspace:has(> .storage-warning) {
+  grid-template-rows: auto auto 1fr;
+}
+.storage-warning {
+  margin: 0;
+  padding: 4px 10px;
+  font-size: 13px;
+  background: #fff8c5;
+  color: #6a4b00;
+}
 .file {
   margin: 0;
   font-size: 12px;

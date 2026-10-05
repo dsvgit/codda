@@ -30,8 +30,8 @@ export default defineConfig({
     channel: "chromium",
   },
   projects: [
-    // `npm run dev` gets a smoke test and the moves between Lessons; everything else runs on the build.
-    { name: "dev", testMatch: ["dev.e2e.ts", "navigation.e2e.ts"], use: { baseURL: `http://localhost:${devPort}/` } },
+    // `npm run dev` gets a smoke test, the moves between Lessons and the saved Workspace; everything else runs on the build.
+    { name: "dev", testMatch: ["dev.e2e.ts", "navigation.e2e.ts", "workspace.e2e.ts"], use: { baseURL: `http://localhost:${devPort}/` } },
     {
       name: "pages",
       testIgnore: "dev.e2e.ts",

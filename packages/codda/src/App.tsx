@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { Editor, type EditorHandle } from "./Editor";
 import type { BrokenLesson, CourseData, LessonData } from "./course-data";
 import { run, type ConsoleLine, type TestReport } from "./runtime/runner";
@@ -10,6 +10,7 @@ import {
   type TypeCheckerStatus,
   type TypeError,
 } from "./type-checker/client";
+import { courseStorage, type CourseStorage } from "./storage";
 import "./styles.css";
 
 const NO_ERRORS: CompileError[] = [];
@@ -65,6 +66,8 @@ export function App({ course }: { course: CourseData }) {
   const found = lessons.findIndex((l) => l.id === lessonId);
   const index = Math.max(found, 0);
   const lesson = lessons[index] as LessonData | BrokenLesson | undefined;
+  // One for the page: the Workspaces it could not save live in it until a reload.
+  const storage = useMemo(() => courseStorage(course.id), [course.id]);
 
   useEffect(() => {
     if (lesson && lesson.id !== lessonId) history.replaceState(null, "", `#/${encodeURIComponent(lesson.id)}`);
@@ -79,6 +82,7 @@ export function App({ course }: { course: CourseData }) {
       key={lesson.id}
       course={course}
       lesson={lesson}
+      storage={storage}
       previous={lessons[index - 1]?.id}
       next={lessons[index + 1]?.id}
     />
@@ -107,16 +111,23 @@ function Errors({ title, errors }: { title: string; errors: string[] }) {
 function Lesson({
   course,
   lesson,
+  storage,
   previous,
   next,
 }: {
   course: CourseData;
   lesson: LessonData;
+  /** Where the Workspace comes from when the Lesson opens and goes on each edit. */
+  storage: CourseStorage;
   /** The ids of the Lessons before and after this one in the Course; none at its ends. */
   previous?: string;
   next?: string;
 }) {
-  const [source, setSource] = useState(lesson.workspace.starter);
+  // Read once: the editor starts from it, later edits go from the editor to the storage.
+  const [initialWorkspace] = useState(() => storage.workspace(lesson));
+  const [source, setSource] = useState(initialWorkspace);
+  // After the read above: an error of that read shows in the same render.
+  const storageFailed = useSyncExternalStore(storage.onFailure, storage.failed);
   const [report, setReport] = useState<TestReport>();
   const [running, setRunning] = useState(false);
   const [consoleLines, setConsoleLines] = useState<ConsoleLine[]>([]);
@@ -193,12 +204,18 @@ function Lesson({
           </button>
         </div>
         <div className="workspace">
+          {storageFailed && (
+            <p className="storage-warning" role="status">
+              Код и прогресс не сохраняются: хранилище браузера недоступно или переполнено
+            </p>
+          )}
           <h2 className="file">{lesson.workspace.name}</h2>
           <Editor
             ref={workspace}
             label={lesson.workspace.name}
-            initialValue={lesson.workspace.starter}
+            initialValue={initialWorkspace}
             onChange={(value) => {
+              storage.saveWorkspace(lesson, value);
               setSource(value);
               setUnderlined(NO_ERRORS);
               editedDuringRun.current = true;

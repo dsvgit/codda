@@ -1,4 +1,4 @@
-import { afterAll, afterEach, beforeAll, expect, test } from "vitest";
+import { afterAll, afterEach, beforeAll, expect, test, vi } from "vitest";
 import { commands, page, userEvent } from "vitest/browser";
 import { createRoot, type Root } from "react-dom/client";
 import { App } from "./App";
@@ -73,6 +73,8 @@ afterEach(() => {
   root?.unmount();
   root = undefined;
   document.body.innerHTML = "";
+  vi.restoreAllMocks();
+  localStorage.clear();
   history.replaceState(null, "", location.pathname + location.search);
 });
 
@@ -657,4 +659,136 @@ test(`after going to another Lesson ${undoModifier}+Z does not bring back the co
   await userEvent.keyboard(`{${undoModifier}>}z{/${undoModifier}}`);
 
   await expect.poll(workspaceText).toBe('export const greet = () => "?";');
+});
+
+/** The page opened anew, as after a reload: a new screen, the same localStorage. */
+function reopen(lessonId: string, of: CourseData = course) {
+  root?.unmount();
+  root = undefined;
+  document.body.innerHTML = "";
+  renderApp(lessonId, of);
+}
+
+const STORAGE_WARNING = "Код и прогресс не сохраняются: хранилище браузера недоступно или переполнено";
+const storageWarning = () => page.getByText(STORAGE_WARNING);
+const mine = "export const mine = 1;\n";
+
+test("an edit stays after going to another Lesson and back, and after the page is opened anew", async () => {
+  renderApp("add");
+  await editor().fill(mine);
+
+  await next().click();
+  await expect.element(lessonHeading("Приветствие")).toBeVisible();
+  await expect.poll(workspaceText).toBe('export const greet = () => "?";');
+  await previous().click();
+
+  await expect.element(lessonHeading("Сложение")).toBeVisible();
+  await expect.poll(workspaceText).toBe("export const mine = 1;");
+
+  reopen("add");
+
+  await expect.poll(workspaceText).toBe("export const mine = 1;");
+  await expect.element(storageWarning()).not.toBeInTheDocument();
+});
+
+test(`«↺ Сбросить» forgets the saved Workspace: a new Starter of the Author opens; ${undoModifier}+Z saves the code again`, async () => {
+  renderApp("add");
+  await editor().fill(mine);
+  await page.getByRole("button", { name: "↺ Сбросить" }).click();
+  const newStarter = "export const add = (a: number, b: number) => 0;\n";
+  const changed: CourseData = {
+    ...course,
+    modules: [{ ...course.modules[0], lessons: [{ ...addLesson, workspace: { name: "main.ts", starter: newStarter } }] }],
+  };
+
+  reopen("add", changed);
+
+  await expect.poll(workspaceText).toBe("export const add = (a: number, b: number) => 0;");
+
+  reopen("add");
+  await editor().fill(mine);
+  await page.getByRole("button", { name: "↺ Сбросить" }).click();
+  await userEvent.click(editor());
+  await userEvent.keyboard(`{${undoModifier}>}z{/${undoModifier}}`);
+  await expect.poll(workspaceText).toBe("export const mine = 1;");
+
+  reopen("add", changed);
+
+  await expect.poll(workspaceText).toBe("export const mine = 1;");
+});
+
+test("a Workspace of the same Lesson id in another Course is not seen", async () => {
+  const other: CourseData = { ...course, id: "other" };
+  renderApp("add");
+  await editor().fill(mine);
+
+  reopen("add", other);
+
+  await expect.poll(workspaceText).toBe("export function add(a: number, b: number) {  return a - b;}");
+  await editor().fill("export const theirs = 2;\n");
+
+  reopen("add");
+
+  await expect.poll(workspaceText).toBe("export const mine = 1;");
+});
+
+test("localStorage that throws on reading: the Starter opens, one warning, edits and Run work and survive a move to another Lesson", async () => {
+  vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
+    throw new DOMException("denied", "SecurityError");
+  });
+  renderApp("add");
+
+  await expect.poll(workspaceText).toBe("export function add(a: number, b: number) {  return a - b;}");
+  await expect.element(storageWarning()).toBeVisible();
+  await editor().fill(addLesson.solution);
+  await runTests().click();
+  await expect.element(report().getByText("PASS · 2 / 2")).toBeVisible();
+
+  await next().click();
+  await expect.element(lessonHeading("Приветствие")).toBeVisible();
+  await previous().click();
+
+  await expect.element(lessonHeading("Сложение")).toBeVisible();
+  await expect.poll(workspaceText).toBe("export function add(a: number, b: number) {  return a + b;}");
+  expect(document.body.textContent!.split(STORAGE_WARNING)).toHaveLength(2);
+});
+
+test("localStorage that is full (QuotaExceededError on writing): no warning until the first edit, then one; the code stays in memory across Lessons", async () => {
+  vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+    throw new DOMException("full", "QuotaExceededError");
+  });
+  renderApp("add");
+  await expect.poll(workspaceText).toBe("export function add(a: number, b: number) {  return a - b;}");
+  await expect.element(storageWarning()).not.toBeInTheDocument();
+
+  await editor().fill("export const one = 1;\n");
+
+  await expect.element(storageWarning()).toBeVisible();
+  await editor().fill(mine);
+  await runTests().click();
+  await expect.element(report()).toBeVisible();
+  await next().click();
+  await expect.element(lessonHeading("Приветствие")).toBeVisible();
+  await expect.element(storageWarning()).toBeVisible();
+  await editor().fill("export const two = 2;\n");
+  await previous().click();
+
+  await expect.element(lessonHeading("Сложение")).toBeVisible();
+  await expect.poll(workspaceText).toBe("export const mine = 1;");
+  expect(document.body.textContent!.split(STORAGE_WARNING)).toHaveLength(2);
+});
+
+test("no localStorage at all (the property itself throws): the screen works with the warning, the code stays in memory", async () => {
+  vi.spyOn(window, "localStorage", "get").mockImplementation(() => {
+    throw new DOMException("denied", "SecurityError");
+  });
+  renderApp("add");
+
+  await expect.element(storageWarning()).toBeVisible();
+  await editor().fill(mine);
+  await next().click();
+  await expect.element(lessonHeading("Приветствие")).toBeVisible();
+  await previous().click();
+
+  await expect.poll(workspaceText).toBe("export const mine = 1;");
 });
