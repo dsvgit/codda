@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { Editor, type EditorHandle } from "./Editor";
 import type { BrokenLesson, CourseData, LessonData } from "./course-data";
 import { run, type ConsoleLine, type TestReport } from "./runtime/runner";
@@ -46,13 +46,16 @@ function lessonIdFromHash(): string | undefined {
   }
 }
 
+/** The fragment of a Lesson: `#/<lesson id>`, read back by `lessonIdFromHash`. */
+const lessonHash = (lessonId: string) => `#/${encodeURIComponent(lessonId)}`;
+
 function onHashChange(update: () => void) {
   window.addEventListener("hashchange", update);
   return () => window.removeEventListener("hashchange", update);
 }
 
 /** Every move to another Lesson: a new fragment, a new history entry, no page load. */
-const go = (lessonId: string) => (location.hash = `#/${encodeURIComponent(lessonId)}`);
+const goToLesson = (lessonId: string) => (location.hash = lessonHash(lessonId));
 
 /**
  * The Lesson screen of `course`. The Lesson is the one in the fragment
@@ -65,7 +68,8 @@ export function App({ course }: { course: CourseData }) {
   // All Lessons of all Modules in the order of course.yaml: the Course's one order.
   const lessons = course.modules.flatMap((m) => m.lessons);
   // One for the page: the Workspaces and marks it could not save live in it until a reload.
-  const storage = useMemo(() => courseStorage(course.id), [course.id]);
+  // course.json loads once per page (main.tsx), so course.id never changes here.
+  const [storage] = useState(() => courseStorage(course.id));
   // Read anew on each new mark «пройден».
   useSyncExternalStore(storage.subscribe, storage.version);
   const passed = new Set(lessons.filter((l) => storage.passed(l.id)).map((l) => l.id));
@@ -76,7 +80,7 @@ export function App({ course }: { course: CourseData }) {
   const [treeOpen, setTreeOpen] = useState(true);
 
   useEffect(() => {
-    if (lesson && lesson.id !== lessonId) history.replaceState(null, "", `#/${encodeURIComponent(lesson.id)}`);
+    if (lesson && lesson.id !== lessonId) history.replaceState(null, "", lessonHash(lesson.id));
   }, [lesson, lessonId]);
 
   // Only in the course.json of `codda dev`: course.yaml or the Course is broken.
@@ -89,7 +93,14 @@ export function App({ course }: { course: CourseData }) {
       course={course}
       lesson={lesson}
       storage={storage}
-      tree={<CourseTree course={course} current={lesson.id} passed={passed} open={treeOpen} onToggle={() => setTreeOpen(!treeOpen)} />}
+      tree={<CourseTree
+          course={course}
+          current={lesson.id}
+          passed={passed}
+          total={lessons.length}
+          open={treeOpen}
+          onToggle={() => setTreeOpen(!treeOpen)}
+        />}
       previous={lessons[index - 1]?.id}
       next={lessons[index + 1]?.id}
     />
@@ -106,6 +117,7 @@ function CourseTree({
   course,
   current,
   passed,
+  total,
   open,
   onToggle,
 }: {
@@ -113,6 +125,8 @@ function CourseTree({
   current: string;
   /** The ids of the passed Lessons of this Course. */
   passed: Set<string>;
+  /** The number of Lessons in the Course. */
+  total: number;
   open: boolean;
   onToggle: () => void;
 }) {
@@ -132,14 +146,14 @@ function CourseTree({
         </button>
         <h2>{course.title}</h2>
       </div>
-      <Progress passed={passed.size} total={course.modules.reduce((n, m) => n + m.lessons.length, 0)} />
+      <Progress passed={passed.size} total={total} />
       {course.modules.map((module, i) => (
         <div key={i} className="tree-module">
           <h3>{module.title}</h3>
           <ol aria-label={module.title}>
             {module.lessons.map((l) => (
               <li key={l.id}>
-                <a href={`#/${encodeURIComponent(l.id)}`} aria-current={l.id === current ? "page" : undefined}>
+                <a href={lessonHash(l.id)} aria-current={l.id === current ? "page" : undefined}>
                   {l.title}
                   {/* Drawn left of the title; read after it: «<title> пройден». */}
                   {passed.has(l.id) && (
@@ -284,10 +298,10 @@ function Lesson({
             Показать решение
           </button>
           <span className="spacer" />
-          <button className="btn" disabled={previous === undefined} onClick={() => go(previous!)}>
+          <button className="btn" disabled={previous === undefined} onClick={() => goToLesson(previous!)}>
             ← Предыдущий
           </button>
-          <button className="btn" disabled={next === undefined} onClick={() => go(next!)}>
+          <button className="btn" disabled={next === undefined} onClick={() => goToLesson(next!)}>
             Следующий →
           </button>
         </div>
@@ -479,7 +493,7 @@ function TestResults({ results, next }: { results: TestResult[]; next?: string }
           {next === undefined ? (
             <span className="last">Это последний урок курса</span>
           ) : (
-            <button className="btn" onClick={() => go(next)}>
+            <button className="btn" onClick={() => goToLesson(next)}>
               Следующий урок →
             </button>
           )}

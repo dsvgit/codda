@@ -5,7 +5,7 @@ import { expect, test } from "./offline";
 // The Course Build of `codda build`: no Lesson in it has `errors` (BrokenLesson).
 import type { CourseData, LessonData } from "../packages/codda/src/course-data";
 
-test("Следующий → , the Solution, PASS, «Следующий урок →»; «Назад» and a reload keep the Lesson, course.json does not load again", async ({
+test("Следующий → , the Solution, PASS, «Следующий урок →»; «Назад», «Вперёд» and a reload keep the Lesson, course.json does not load again", async ({
   page,
 }) => {
   const course: CourseData = await (await page.request.get("course.json")).json();
@@ -42,6 +42,13 @@ test("Следующий → , the Solution, PASS, «Следующий урок
   await expect(heading(second)).toBeVisible();
   await expect(page).toHaveURL(new RegExp(`#/${second.id}$`));
 
+  await page.goForward();
+
+  await expect(heading(third)).toBeVisible();
+  await expect(page).toHaveURL(new RegExp(`#/${third.id}$`));
+
+  await page.goBack();
+  await expect(heading(second)).toBeVisible();
   await page.reload();
 
   await expect(heading(second)).toBeVisible();
